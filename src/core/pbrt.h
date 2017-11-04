@@ -120,8 +120,8 @@ template <int nSpectrumSamples>
 class CoefficientSpectrum;
 class RGBSpectrum;
 class SampledSpectrum;
-typedef RGBSpectrum Spectrum;
-// typedef SampledSpectrum Spectrum;
+//typedef RGBSpectrum Spectrum;
+typedef SampledSpectrum Spectrum;
 class Camera;
 struct CameraSample;
 class ProjectiveCamera;
