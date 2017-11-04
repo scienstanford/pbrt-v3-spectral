@@ -1,33 +1,33 @@
 
 /*
-    pbrt source code is Copyright(c) 1998-2016
-                        Matt Pharr, Greg Humphreys, and Wenzel Jakob.
-
-    This file is part of pbrt.
-
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are
-    met:
-
-    - Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-
-    - Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-    IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-    TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-    PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+ pbrt source code is Copyright(c) 1998-2016
+ Matt Pharr, Greg Humphreys, and Wenzel Jakob.
+ 
+ This file is part of pbrt.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ 
+ - Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ 
+ - Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
  */
 
 
@@ -264,7 +264,35 @@ namespace pbrt {
             
             // Print out dimensions of the image
             myfile << croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x << " " << croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y << " " << nSpectralSamples << "\n";
-
+            
+            // Print out focal length and field of view information
+            // TODO: Is it possible for us to do this here? We don't have access to focal length in the film class...
+            // myfile << focalLength << " " << fStop << " " << fieldOfView << "\n";
+            
+            // Note: To be compatible with pbrt-v2-spectral we need to write image out column by column, e.g.
+            // 1 2 3
+            // 4 5 6
+            // 7 8 9
+            // Needs to be written out as [1 4 7 2 5 8 3 6 9]
+            // TODO: How do we do this? Careful indexing I imagine...
+            
+            myfile.close();
+            
+            //Open file for binary writing
+            FILE * spectralDataBin;
+            spectralDataBin = fopen(datFilename.c_str(), "a");
+            
+            //Write binary image
+            for (int i = 0; i < nSpectralSamples; i++)
+            {
+                for (int j = 0; j < croppedPixelBounds.Area(); j++)
+                {
+                    double r = (double)spectralData[nSpectralSamples * j + i];
+                    fwrite((void*)(&r), sizeof(r), 1, spectralDataBin);
+                }
+            }
+            
+            fclose(spectralDataBin);
             
         }
             
