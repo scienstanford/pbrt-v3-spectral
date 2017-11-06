@@ -872,7 +872,9 @@ class Ray {
     Ray() : tMax(Infinity), time(0.f), medium(nullptr) {}
     Ray(const Point3f &o, const Vector3f &d, Float tMax = Infinity,
         Float time = 0.f, const Medium *medium = nullptr)
-        : o(o), d(d), tMax(tMax), time(time), medium(medium) {}
+        : o(o), d(d), tMax(tMax), time(time), medium(medium) {
+            wavelength = 0.f; // Initialize wavelength to 0 (TL)
+        }
     Point3f operator()(Float t) const { return o + d * t; }
     bool HasNaNs() const { return (o.HasNaNs() || d.HasNaNs() || isNaN(tMax)); }
     friend std::ostream &operator<<(std::ostream &os, const Ray &r) {
@@ -887,6 +889,7 @@ class Ray {
     mutable Float tMax;
     Float time;
     const Medium *medium;
+    Float wavelength; // Added by Trisha
 };
 
 class RayDifferential : public Ray {
