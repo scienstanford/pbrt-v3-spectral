@@ -336,7 +336,7 @@ void BDPTIntegrator::Render(const Scene &scene) {
                     film->fullResolution,
                     Bounds2f(Point2f(0, 0), Point2f(1, 1)),
                     std::unique_ptr<Filter>(CreateBoxFilter(ParamSet())),
-                    film->diagonal * 1000, filename, 1.f));
+                    film->diagonal * 1000, filename, false,1.f));
             }
         }
     }
