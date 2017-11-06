@@ -1,0 +1,1 @@
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++   -std=c++11 -Wno-deprecated-register -O3 -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/stacktrace_unittest.dir/src/stacktrace_unittest.cc.o  -o stacktrace_unittest libglog.a 

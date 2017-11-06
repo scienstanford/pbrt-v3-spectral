@@ -1,0 +1,1 @@
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++   -std=c++11 -Wno-deprecated-register -O3 -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/symbolize_unittest.dir/src/symbolize_unittest.cc.o  -o symbolize_unittest libglog.a 
