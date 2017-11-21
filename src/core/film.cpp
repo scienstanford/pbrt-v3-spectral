@@ -220,7 +220,7 @@ namespace pbrt {
         }
         else{
             // Otherwise, we write it out as a multispectral image with no filter weighting.
-            
+                     
             // spectralData holds all the values in the multispectral image
             std::unique_ptr<Float[]> spectralData(new Float[nSpectralSamples * croppedPixelBounds.Area()]);
             
@@ -275,6 +275,8 @@ namespace pbrt {
             // 7 8 9
             // Needs to be written out as [1 4 7 2 5 8 3 6 9]
             // TODO: How do we do this? Careful indexing I imagine...
+            // For now let's just change piReadDAT so it can read it correctly. We therefore print out a v3 flag so piReadDat knows what to do.
+            myfile << "v3 \n";
             
             myfile.close();
             
@@ -292,6 +294,8 @@ namespace pbrt {
                 }
             }
             
+            // piReadDAT expects the data to be serialized wavelength by wavelength. In other words, you would go through all the rows and columns of wavelength index = 1 first, then move on to all the pixels for wavelength index = 2 next, etc.
+
             fclose(spectralDataBin);
             
         }
