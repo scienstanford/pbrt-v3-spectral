@@ -49,8 +49,8 @@ STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
 // RealisticCamera Method Definitions
 RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
                                  Float shutterOpen, Float shutterClose,
-                                 Float apertureDiameter, Float focusDistance,
-                                 bool simpleWeighting,
+                                 Float apertureDiameter, Float filmdistance,
+                                 Float focusDistance, bool simpleWeighting,
                                  std::vector<Float> &lensData, Film *film,
                                  const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
@@ -72,14 +72,26 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
     }
 
     // Compute lens--film distance for given focus distance
-    Float fb = FocusBinarySearch(focusDistance);
-    LOG(INFO) << StringPrintf("Binary search focus: %f -> %f\n", fb,
-                              FocusDistance(fb));
-    elementInterfaces.back().thickness = FocusThickLens(focusDistance);
-    LOG(INFO) << StringPrintf("Thick lens focus: %f -> %f\n",
-                              elementInterfaces.back().thickness,
-                              FocusDistance(elementInterfaces.back().thickness));
-
+      // TL: If a film distance is given, hardset the focus distance. If not, use the focus distance given.
+      if(filmdistance == 0){
+          Float fb = FocusBinarySearch(focusDistance);
+          LOG(INFO) << StringPrintf("Binary search focus: %f -> %f\n", fb,
+                                    FocusDistance(fb));
+          elementInterfaces.back().thickness = FocusThickLens(focusDistance);
+          LOG(INFO) << StringPrintf("Thick lens focus: %f -> %f\n",
+                                    elementInterfaces.back().thickness,
+                                    FocusDistance(elementInterfaces.back().thickness));
+      }else{
+          // Use given film distance
+          LOG(INFO) << StringPrintf("Focus distance hard set: %f -> %f\n",filmdistance,
+                                    FocusDistance(filmdistance));
+          elementInterfaces.back().thickness = filmdistance;
+      }
+          
+          // Print out film distance into terminal
+          std::cout << "Distance from film to back of lens: " << elementInterfaces.back().thickness << " m" << std::endl;
+          std::cout << "Focus distance in scene: " << FocusDistance(elementInterfaces.back().thickness) << " m" << std::endl;
+          
     // Compute exit pupil bounds at sampled points on the film
     int nSamples = 64;
     exitPupilBounds.resize(nSamples);
@@ -738,9 +750,13 @@ RealisticCamera *CreateRealisticCamera(const ParamSet &params,
             lensFile.c_str(), (int)lensData.size());
         return nullptr;
     }
-
+    
+    // Added by Trisha
+    // Add functionality to hard set the film distance
+    Float filmDistance = params.FindOneFloat("filmdistance", 0);
+    
     return new RealisticCamera(cam2world, shutteropen, shutterclose,
-                               apertureDiameter, focusDistance, simpleWeighting,
+                               apertureDiameter, filmDistance, focusDistance, simpleWeighting,
                                lensData, film, medium);
 }
 

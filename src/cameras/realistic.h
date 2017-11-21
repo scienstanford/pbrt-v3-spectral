@@ -50,7 +50,7 @@ class RealisticCamera : public Camera {
   public:
     // RealisticCamera Public Methods
     RealisticCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
-                    Float shutterClose, Float apertureDiameter,
+                    Float shutterClose, Float apertureDiameter, Float filmdistance,
                     Float focusDistance, bool simpleWeighting,
                     std::vector<Float> &lensData, Film *film,
                     const Medium *medium);
