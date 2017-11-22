@@ -49,11 +49,23 @@ class EnvironmentCamera : public Camera {
   public:
     // EnvironmentCamera Public Methods
     EnvironmentCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
-                      Float shutterClose, Film *film, const Medium *medium)
-        : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium) {}
+                      Float shutterClose, Film *film, const Medium *medium,
+                      Float ip, Float pmt, Float pmf, Float cd)
+        : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium) {
+             ipd = ip;
+             poleMergeTo = pmt;
+             poleMergeFrom = pmf;
+             convergenceDistance = cd;
+        }
     Float GenerateRay(const CameraSample &sample, Ray *) const;
+    
+    Float ipd; // Interpupillary distance
+    Float poleMergeTo; // Elevation angle where IPD will be zero.
+    Float poleMergeFrom; // Elevation angle to start converging the IPD down to zero
+    Float convergenceDistance; // Distance to which the ODS panorama rays will converge.
 };
 
+    
 EnvironmentCamera *CreateEnvironmentCamera(const ParamSet &params,
                                            const AnimatedTransform &cam2world,
                                            Film *film, const Medium *medium);
