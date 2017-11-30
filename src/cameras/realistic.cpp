@@ -617,10 +617,13 @@ void RealisticCamera::RenderExitPupil(Float sx, Float sy,
 
 Point3f RealisticCamera::SampleExitPupil(const Point2f &pFilm,
                                          const Point2f &lensSample,
-                                         Float *sampleBoundsArea) const {
+                                         Float *sampleBoundsArea,
+                                         const Point2f &pFilmInitial) const {
+    
     // Find exit pupil bound for sample distance from film center
-    Float rFilm = std::sqrt(pFilm.x * pFilm.x + pFilm.y * pFilm.y);
-    int rIndex = rFilm / (film->diagonal / 2) * exitPupilBounds.size();
+    // TL: We use the initial point for this, so we don't ever bump the differential ray into a new rIndex.
+    Float rFilmInitial = std::sqrt(pFilmInitial.x * pFilmInitial.x + pFilmInitial.y * pFilmInitial.y);
+    int rIndex = rFilmInitial / (film->diagonal / 2) * exitPupilBounds.size();
     rIndex = std::min((int)exitPupilBounds.size() - 1, rIndex);
     Bounds2f pupilBounds = exitPupilBounds[rIndex];
     if (sampleBoundsArea) *sampleBoundsArea = pupilBounds.Area();
@@ -629,6 +632,8 @@ Point3f RealisticCamera::SampleExitPupil(const Point2f &pFilm,
     Point2f pLens = pupilBounds.Lerp(lensSample);
 
     // Return sample point rotated by angle of _pFilm_ with $+x$ axis
+    // Here we go back to using the new, shifted film point.
+    Float rFilm = std::sqrt(pFilm.x * pFilm.x + pFilm.y * pFilm.y);
     Float sinTheta = (rFilm != 0) ? pFilm.y / rFilm : 0;
     Float cosTheta = (rFilm != 0) ? pFilm.x / rFilm : 1;
     return Point3f(cosTheta * pLens.x - sinTheta * pLens.y,
@@ -689,11 +694,17 @@ Float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
               sample.pFilm.y / film->fullResolution.y);
     Point2f pFilm2 = film->GetPhysicalExtent().Lerp(s);
     Point3f pFilm(-pFilm2.x, pFilm2.y, 0);
+    
+    // We redo the above calculation again for the initial film point. (TL)
+    Point2f s2(sample.pFilmInitial.x / film->fullResolution.x,
+              sample.pFilmInitial.y / film->fullResolution.y);
+    Point2f pFilmInitial2 = film->GetPhysicalExtent().Lerp(s2);
+    Point3f pFilmInitial(-pFilmInitial2.x, pFilmInitial2.y, 0);
 
     // Trace ray from _pFilm_ through lens system
     Float exitPupilBoundsArea;
     Point3f pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens,
-                                    &exitPupilBoundsArea);
+                                    &exitPupilBoundsArea,Point2f(pFilmInitial.x,pFilmInitial.y));
     Ray rFilm(pFilm, pRear - pFilm, Infinity,
               Lerp(sample.time, shutterOpen, shutterClose));
     if (!TraceLensesFromFilm(rFilm, ray)) {

@@ -48,6 +48,7 @@ CameraSample Sampler::GetCameraSample(const Point2i &pRaster) {
     cs.pFilm = (Point2f)pRaster + Get2D();
     cs.time = Get1D();
     cs.pLens = Get2D();
+    cs.pFilmInitial = cs.pFilm; // Added by Trisha. Store copy of the original point, since it may be shifted by the differentials.
     return cs;
 }
 
