@@ -100,7 +100,7 @@ class RealisticCamera : public Camera {
     Bounds2f BoundExitPupil(Float pFilmX0, Float pFilmX1) const;
     void RenderExitPupil(Float sx, Float sy, const char *filename) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
-                            Float *sampleBoundsArea, const Point2f &pFilmInitial) const;
+                            Float *sampleBoundsArea) const;
     void TestExitPupilBounds() const;
 };
 

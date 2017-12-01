@@ -73,7 +73,6 @@ struct CameraSample {
     Point2f pFilm;
     Point2f pLens;
     Float time;
-    Point2f pFilmInitial; // Added by Trisha to fix realistic camera issues. We store a copy of the original point (before shifting to calculate differentials) here to be accessed later.
 };
 
 inline std::ostream &operator<<(std::ostream &os, const CameraSample &cs) {
