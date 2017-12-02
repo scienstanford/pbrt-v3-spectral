@@ -51,7 +51,7 @@ class RealisticCamera : public Camera {
     // RealisticCamera Public Methods
     RealisticCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
-                    Float focusDistance, bool simpleWeighting,
+                    Float focusDistance, bool simpleWeighting, bool noWeighting,
                     std::vector<Float> &lensData, Film *film,
                     const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
@@ -67,6 +67,7 @@ class RealisticCamera : public Camera {
 
     // RealisticCamera Private Data
     const bool simpleWeighting;
+    const bool noWeighting;
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
 

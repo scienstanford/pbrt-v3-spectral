@@ -50,11 +50,11 @@ STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
 RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
                                  Float shutterOpen, Float shutterClose,
                                  Float apertureDiameter, Float filmdistance,
-                                 Float focusDistance, bool simpleWeighting,
+                                 Float focusDistance, bool simpleWeighting, bool noWeighting,
                                  std::vector<Float> &lensData, Film *film,
                                  const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-      simpleWeighting(simpleWeighting) {
+      simpleWeighting(simpleWeighting), noWeighting(noWeighting) {
     for (int i = 0; i < (int)lensData.size(); i += 4) {
         if (lensData[i] == 0) {
             if (apertureDiameter > lensData[i + 3]) {
@@ -709,7 +709,10 @@ Float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     // Return weighting for _RealisticCamera_ ray
     Float cosTheta = Normalize(rFilm.d).z;
     Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-    if (simpleWeighting)
+    
+    if (noWeighting)
+        return 1.0f;
+    else if (simpleWeighting)
         return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
     else
         return (shutterClose - shutterOpen) *
@@ -732,6 +735,8 @@ RealisticCamera *CreateRealisticCamera(const ParamSet &params,
     Float apertureDiameter = params.FindOneFloat("aperturediameter", 1.0);
     Float focusDistance = params.FindOneFloat("focusdistance", 10.0);
     bool simpleWeighting = params.FindOneBool("simpleweighting", true);
+    bool noWeighting = params.FindOneBool("noweighting", false); // Added by TL for depth maps.
+    
     if (lensFile == "") {
         Error("No lens description file supplied!");
         return nullptr;
@@ -756,7 +761,7 @@ RealisticCamera *CreateRealisticCamera(const ParamSet &params,
     Float filmDistance = params.FindOneFloat("filmdistance", 0);
     
     return new RealisticCamera(cam2world, shutteropen, shutterclose,
-                               apertureDiameter, filmDistance, focusDistance, simpleWeighting,
+                               apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting,
                                lensData, film, medium);
 }
 
