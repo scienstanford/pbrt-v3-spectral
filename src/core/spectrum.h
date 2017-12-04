@@ -393,6 +393,7 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
     Float y() const {
         Float yy = 0.f;
         for (int i = 0; i < nSpectralSamples; ++i) yy += Y.c[i] * c[i];
+        yy = (yy<0)?0:yy; // Check added by TL, this should never happen but it does very sporadically with the beta term in the BSDF. Maybe a bad normal in the scene?
         return yy * Float(sampledLambdaEnd - sampledLambdaStart) /
                Float(CIE_Y_integral * nSpectralSamples);
     }
