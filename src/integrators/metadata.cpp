@@ -73,6 +73,12 @@ Spectrum MetadataIntegrator::Li(const RayDifferential &ray,
         // TODO: Fill this in
     }else if(strategy == MetadataStrategy::mesh){
         // TODO: Fill this in
+    }else if(strategy == MetadataStrategy::coordinates){
+        // Return world coordinates of intersection.
+        L[0] = isect.p.x;
+        L[1] = isect.p.y;
+        L[2] = isect.p.z;
+        
     }else{
         // We should never get here, but just in case:
         Error("Could not recognize metadata strategy.");
@@ -93,6 +99,8 @@ MetadataIntegrator *CreateMetadataIntegrator(
         strategy = MetadataStrategy::material;
     else if (st == "mesh")
         strategy = MetadataStrategy::mesh;
+    else if (st == "coordinates")
+        strategy = MetadataStrategy::coordinates;
     else {
         Warning(
             "Strategy \"%s\" for metadata unknown. "

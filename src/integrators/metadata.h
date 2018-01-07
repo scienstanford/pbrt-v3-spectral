@@ -46,7 +46,7 @@
 namespace pbrt {
 
 // LightStrategy Declarations
-enum class MetadataStrategy { depth, material, mesh };
+enum class MetadataStrategy { depth, material, mesh, coordinates};
 
 // MetadataIntegrator Declarations
 class MetadataIntegrator : public SamplerIntegrator {
