@@ -86,6 +86,7 @@ class Film {
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
         Float pad;
+        Spectrum L; // Added by Trisha to support spectral film. Does this cause any slowdowns?
     };
     std::unique_ptr<Pixel[]> pixels;
     static PBRT_CONSTEXPR int filterTableWidth = 16;

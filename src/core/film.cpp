@@ -117,6 +117,7 @@ namespace pbrt {
             for (int c = 0; c < 3; ++c)
                 pixel.splatXYZ[c] = pixel.xyz[c] = 0;
             pixel.filterWeightSum = 0;
+            pixel.L = 0;
         }
     }
     
@@ -132,6 +133,11 @@ namespace pbrt {
             tilePixel.contribSum.ToXYZ(xyz);
             for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
             mergePixel.filterWeightSum += tilePixel.filterWeightSum;
+            // If we are using a spectral film, save also save values directly
+            if(spectralFlag){
+                mergePixel.L += tilePixel.contribSum;
+            }
+            
         }
     }
     
@@ -226,9 +232,11 @@ namespace pbrt {
             
             int offset = 0;
             for (Point2i p : croppedPixelBounds) {
-                // Convert pixel XYZ color to spectrum
+                
+                // Get spectrum directly
                 Pixel &pixel = GetPixel(p);
-                Spectrum currSpectrum = Spectrum::FromXYZ(pixel.xyz);
+                Spectrum currSpectrum = pixel.L;
+                //Spectrum currSpectrum = Spectrum::FromXYZ(pixel.xyz);
                 
                 // Loop through the current spectrum and put each value into spectralData
                 for(int i = 0; i < nSpectralSamples; i++){
