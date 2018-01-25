@@ -44,10 +44,12 @@ namespace pbrt {
                                          Ray *ray) const {
         ProfilePhase prof(Prof::GenerateCameraRay);
         // Compute environment camera ray direction
-        Float theta = Pi * sample.pFilm.y / film->fullResolution.y;
-        Float phi = 2 * Pi * sample.pFilm.x / film->fullResolution.x;
-        Vector3f dir(std::sin(theta) * std::cos(phi), std::cos(theta),
-                     std::sin(theta) * std::sin(phi));
+        Float theta = Pi * sample.pFilm.y / film->fullResolution.y; // Elevation
+        Float phi = 2 * Pi * sample.pFilm.x / film->fullResolution.x; // Azimuth
+        Vector3f dir(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi),
+                     std::cos(theta)); // convert to xyz, assuming x/y plane is spherical reference plane.
+        // Flip Y and Z-axis in order to match PBRT conventions (camera is looking down the z-axis with y-axis being "up" and x-axis being "right".)
+        dir = Vector3f(dir.x,dir.z,dir.y);
         *ray = Ray(Point3f(0, 0, 0), dir, Infinity,
                    Lerp(sample.time, shutterOpen, shutterClose));
         
@@ -72,10 +74,16 @@ namespace pbrt {
                     Float fade = cosf(fac * PiOver2);
                     interocular_offset *= fade;
                 }
-            }
+            }   
             
-            Vector3f up = Vector3f(0.0f, 0.0f, 1.0f);
-            Vector3f side = Normalize(Cross(ray->d, up));
+            Vector3f up = Vector3f(0.0f, 1.0f, 0.0f);
+            Vector3f side;
+            if(ray->d == up){
+                side = Vector3f(0.f,0.f,0.f);
+            }
+            else{
+                side = Normalize(Cross(ray->d, up));
+            }
             Vector3f stereo_offset = side * interocular_offset;
             
             ray->o += stereo_offset;
