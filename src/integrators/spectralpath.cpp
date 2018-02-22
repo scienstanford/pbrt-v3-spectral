@@ -305,18 +305,11 @@ namespace pbrt {
                             // Isolate the returned radiance for this wavelength
                             
                             float Ls_lambda;
-//                            float rgb[3];
-//                            Ls.ToRGB(rgb);
-//                            if((rgb[0]+rgb[1]+rgb[2]) != 0){
-//                                std::cout << ray.wavelength << std::endl;
-//                                Ls.GetValueAtWavelength(ray.wavelength, &Ls_lambda);
-//                            }
                             Ls.GetValueAtWavelength(ray.wavelength, &Ls_lambda);
                             
                             // Assign the result to all wavelengths sampled around the target wavelength. For example, if nWaveBands = 3, then we would split the spectrum into three equal parts and assign the result from the first wavelength to the first third, the second wavelength to the second third, etc.
                             int bottomIndex = deltaIndex*s;
                             int topIndex = std::min(deltaIndex*(s+1),nSpectralSamples-1);
-                            //std::cout << "bottomIndex = " << bottomIndex << ", topIndex = " << topIndex << std::endl;
                             for(int waveIndex = bottomIndex; waveIndex < topIndex; waveIndex++){
                                 L.AssignValueAtIndex(waveIndex, Ls_lambda);
                             }
