@@ -260,7 +260,9 @@ inline Ray Transform::operator()(const Ray &r) const {
         o += d * dt;
         tMax -= dt;
     }
-    return Ray(o, d, tMax, r.time, r.medium);
+    Ray tempRay = Ray(o, d, tMax, r.time, r.medium);
+    tempRay.wavelength = r.wavelength; // Reassign wavelength information (Added by Trisha)
+    return tempRay;
 }
 
 inline RayDifferential Transform::operator()(const RayDifferential &r) const {

@@ -47,6 +47,7 @@
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
 #include "cameras/realistic.h"
+#include "cameras/realisticEye.h" // Added by Trisha
 #include "filters/box.h"
 #include "filters/gaussian.h"
 #include "filters/mitchell.h"
@@ -56,6 +57,7 @@
 #include "integrators/directlighting.h"
 #include "integrators/mlt.h"
 #include "integrators/ao.h"
+#include "integrators/spectralpath.h" // Added by Trisha
 #include "integrators/path.h"
 #include "integrators/sppm.h"
 #include "integrators/volpath.h"
@@ -485,6 +487,7 @@ std::shared_ptr<Material> MakeMaterial(const std::string &name,
 
     if ((name == "subsurface" || name == "kdsubsurface") &&
         (renderOptions->IntegratorName != "path" &&
+         (renderOptions->IntegratorName != "spectralpath") &&
          (renderOptions->IntegratorName != "volpath")))
         Warning(
             "Subsurface scattering material \"%s\" used, but \"%s\" "
@@ -698,6 +701,9 @@ Camera *MakeCamera(const std::string &name, const ParamSet &paramSet,
     else if (name == "environment")
         camera = CreateEnvironmentCamera(paramSet, animatedCam2World, film,
                                          mediumInterface.outside);
+    else if (name == "realisticEye")
+        camera = CreateRealisticEye(paramSet, animatedCam2World, film,
+                                    mediumInterface.outside);
     else
         Warning("Camera \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();
@@ -1538,6 +1544,8 @@ Integrator *RenderOptions::MakeIntegrator() const {
             CreateDirectLightingIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "path")
         integrator = CreatePathIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "spectralpath")
+        integrator = CreateSpectralPathIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "volpath")
         integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "bdpt") {

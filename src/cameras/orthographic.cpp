@@ -75,7 +75,9 @@ Float OrthographicCamera::GenerateRayDifferential(const CameraSample &sample,
     // Compute raster and camera sample positions
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
     Point3f pCamera = RasterToCamera(pFilm);
+    Float w = ray->wavelength; // Save wavelength information
     *ray = RayDifferential(pCamera, Vector3f(0, 0, 1));
+    ray->wavelength = w; // Reassign.
 
     // Modify ray for depth of field
     if (lensRadius > 0) {

@@ -411,6 +411,40 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
         XYZToRGB(xyz, rgb);
         return FromRGB(rgb, type);
     }
+    
+    //Trisha Added (6-2016)
+    // Get the value in the spectrum at a specific wavelength.
+    void GetValueAtWavelength(Float wavelength, Float *output) const{
+        
+        Float w0; Float w1; Float t;
+        Float step = (sampledLambdaEnd - sampledLambdaStart)/nSpectralSamples;
+        *output = 0;
+        
+        for(int i = 0; i < nSpectralSamples; i++){
+            w0 = sampledLambdaStart + i*step;
+            w1 = sampledLambdaStart + (i+1)*step;
+            if ((wavelength >= w0) && (wavelength < w1)){
+                t = (wavelength - w0)/(w1-w0);
+                *output = Lerp(t, c[i], c[i+1]);
+                return;
+            }
+        }
+        // Make sure we don't return 0. If we do, then we get NaN's!
+        // I commented this out, because what if the spectrum is zero?
+        //assert(*output != 0);
+        return;
+    }
+    
+    //
+    //Trisha Added (10-2016)
+    // Assign a value at a specific index (not wavelength!)
+    void AssignValueAtIndex(int index, Float value){
+        c[index] = value;
+    }
+    //
+    
+    
+    
     SampledSpectrum(const RGBSpectrum &r,
                     SpectrumType type = SpectrumType::Reflectance);
 

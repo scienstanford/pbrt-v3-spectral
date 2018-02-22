@@ -99,7 +99,9 @@ Float PerspectiveCamera::GenerateRayDifferential(const CameraSample &sample,
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
     Point3f pCamera = RasterToCamera(pFilm);
     Vector3f dir = Normalize(Vector3f(pCamera.x, pCamera.y, pCamera.z));
+    Float w = ray->wavelength; // Save the wavelength information
     *ray = RayDifferential(Point3f(0, 0, 0), dir);
+    ray->wavelength = w; // Reassign
     // Modify ray for depth of field
     if (lensRadius > 0) {
         // Sample point on lens

@@ -68,6 +68,7 @@ Float Camera::GenerateRayDifferential(const CameraSample &sample,
         CameraSample sshift = sample;
         sshift.pFilm.x += eps;
         Ray rx;
+        rx.wavelength = rd->wavelength;
         wtx = GenerateRay(sshift, &rx);
         rd->rxOrigin = rd->o + (rx.o - rd->o) / eps;
         rd->rxDirection = rd->d + (rx.d - rd->d) / eps;
@@ -83,6 +84,7 @@ Float Camera::GenerateRayDifferential(const CameraSample &sample,
         CameraSample sshift = sample;
         sshift.pFilm.y += eps;
         Ray ry;
+        ry.wavelength = rd->wavelength;
         wty = GenerateRay(sshift, &ry);
         rd->ryOrigin = rd->o + (ry.o - rd->o) / eps;
         rd->ryDirection = rd->d + (ry.d - rd->d) / eps;

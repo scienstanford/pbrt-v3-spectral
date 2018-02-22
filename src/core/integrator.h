@@ -82,7 +82,7 @@ class SamplerIntegrator : public Integrator {
                       const Bounds2i &pixelBounds)
         : camera(camera), sampler(sampler), pixelBounds(pixelBounds) {}
     virtual void Preprocess(const Scene &scene, Sampler &sampler) {}
-    void Render(const Scene &scene);
+    virtual void Render(const Scene &scene);
     virtual Spectrum Li(const RayDifferential &ray, const Scene &scene,
                         Sampler &sampler, MemoryArena &arena,
                         int depth = 0) const = 0;
@@ -98,11 +98,16 @@ class SamplerIntegrator : public Integrator {
   protected:
     // SamplerIntegrator Protected Data
     std::shared_ptr<const Camera> camera;
+    
+    // TLian 2/18:
+    // Moved these from private to protected,
+    // since the spectralPath integrator needs to access them.
+    std::shared_ptr<Sampler> sampler;
+    const Bounds2i pixelBounds;
 
   private:
     // SamplerIntegrator Private Data
-    std::shared_ptr<Sampler> sampler;
-    const Bounds2i pixelBounds;
+
 };
 
 }  // namespace pbrt

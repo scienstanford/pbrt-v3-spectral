@@ -312,6 +312,14 @@ ENDIF()
 INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 
 ###########################################################################
+# Try finding GSL (added by TLian 2-16-18)
+
+FIND_PACKAGE ( GSL )
+IF(NOT GSL_FOUND)
+MESSAGE ( SEND_ERROR "Cannot find GSL.")
+ENDIF()
+INCLUDE_DIRECTORIES(${GSL_INCLUDE_DIRS})
+###########################################################################
 # OpenEXR
 
 SET(ILMBASE_NAMESPACE_VERSIONING OFF CACHE BOOL " " FORCE)
@@ -506,6 +514,7 @@ SET(ALL_PBRT_LIBS
   glog
   Ptex_static
   ${ZLIB_LIBRARY}
+  ${GSL_LIBRARIES}
 )
 
 # Main renderer
