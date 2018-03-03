@@ -149,7 +149,11 @@ class SurfaceInteraction : public Interaction {
     BSSRDF *bssrdf = nullptr;
     mutable Vector3f dpdx, dpdy;
     mutable Float dudx = 0, dvdx = 0, dudy = 0, dvdy = 0;
-
+    
+    // Added by Trisha in order to do pixel-wise classification
+    uint32_t primitiveId;
+    uint32_t materialId;
+    
     // Added after book publication. Shapes can optionally provide a face
     // index with an intersection point for use in Ptex texture lookups.
     // If Ptex isn't being used, then this value is ignored.

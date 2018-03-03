@@ -41,6 +41,7 @@
 namespace pbrt {
 
 // Material Method Definitions
+uint32_t Material::nextmaterialId = 1; //Added by Trisha
 Material::~Material() {}
 
 void Material::Bump(const std::shared_ptr<Texture<Float>> &d,

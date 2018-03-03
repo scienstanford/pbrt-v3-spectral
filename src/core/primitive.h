@@ -51,6 +51,7 @@ class Primitive {
   public:
     // Primitive Interface
     virtual ~Primitive();
+    Primitive() : primitiveId(nextprimitiveId++) { }
     virtual Bounds3f WorldBound() const = 0;
     virtual bool Intersect(const Ray &r, SurfaceInteraction *) const = 0;
     virtual bool IntersectP(const Ray &r) const = 0;
@@ -60,6 +61,13 @@ class Primitive {
                                             MemoryArena &arena,
                                             TransportMode mode,
                                             bool allowMultipleLobes) const = 0;
+    
+    // The following are added by TLian in order to be able to return pixel-wise classification
+    const uint32_t primitiveId;
+    
+    protected:
+    static uint32_t nextprimitiveId;
+    
 };
 
 // GeometricPrimitive Declarations

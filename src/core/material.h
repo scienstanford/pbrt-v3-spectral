@@ -49,8 +49,9 @@ enum class TransportMode { Radiance, Importance };
 
 // Material Declarations
 class Material {
-  public:
+public:
     // Material Interface
+    Material() : materialId(nextmaterialId++) {} // Added by Trisha
     virtual void ComputeScatteringFunctions(SurfaceInteraction *si,
                                             MemoryArena &arena,
                                             TransportMode mode,
@@ -58,6 +59,13 @@ class Material {
     virtual ~Material();
     static void Bump(const std::shared_ptr<Texture<Float>> &d,
                      SurfaceInteraction *si);
+    
+    // Material Public Data
+    const uint32_t materialId; // Added by Trisha
+protected:
+    // Material Protected Data
+    static uint32_t nextmaterialId; // Added by Trisha
+    
 };
 
 }  // namespace pbrt

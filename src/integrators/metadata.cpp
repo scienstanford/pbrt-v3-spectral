@@ -65,14 +65,15 @@ Spectrum MetadataIntegrator::Li(const RayDifferential &ray,
     
     // Depending on the strategy, return a different value
     if(strategy == MetadataStrategy::depth){
-        
         Vector3f toIntersect = isect.p - ray.o;
         L = Spectrum(toIntersect.Length());
         
     }else if(strategy == MetadataStrategy::material){
-        // TODO: Fill this in
+        L = Spectrum(isect.materialId);
+        
     }else if(strategy == MetadataStrategy::mesh){
-        // TODO: Fill this in
+        L = Spectrum(isect.primitiveId);
+        
     }else if(strategy == MetadataStrategy::coordinates){
         // Return world coordinates of intersection.
         L[0] = isect.p.x;

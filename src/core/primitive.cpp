@@ -40,7 +40,9 @@
 namespace pbrt {
 
 // Primitive Method Definitions
+uint32_t Primitive::nextprimitiveId = 1;
 Primitive::~Primitive() {}
+    
 const AreaLight *Aggregate::GetAreaLight() const {
     LOG(FATAL) <<
         "Aggregate::GetAreaLight() method"
@@ -73,6 +75,7 @@ bool TransformedPrimitive::Intersect(const Ray &r,
     Ray ray = Inverse(InterpolatedPrimToWorld)(r);
     if (!primitive->Intersect(ray, isect)) return false;
     r.tMax = ray.tMax;
+    isect->primitiveId = primitiveId; // Added by Trisha
     // Transform instance's intersection data to world space
     if (!InterpolatedPrimToWorld.IsIdentity())
         *isect = InterpolatedPrimToWorld(*isect);
@@ -100,6 +103,8 @@ bool GeometricPrimitive::Intersect(const Ray &r,
     if (!shape->Intersect(r, &tHit, isect)) return false;
     r.tMax = tHit;
     isect->primitive = this;
+    isect->primitiveId = primitiveId; // Added by Trisha
+    isect->materialId = material->materialId; // Added by Trisha
     CHECK_GE(Dot(isect->n, isect->shading.n), 0.);
     // Initialize _SurfaceInteraction::mediumInterface_ after _Shape_
     // intersection

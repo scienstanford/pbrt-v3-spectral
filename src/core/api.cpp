@@ -30,6 +30,11 @@
 
  */
 
+// For writing out metdata file (Trisha)
+#include <fstream>
+#include <sstream>
+#include <iostream>
+
 // core/api.cpp*
 #include "api.h"
 #include "parallel.h"
@@ -181,6 +186,7 @@ struct RenderOptions {
     std::map<std::string, std::shared_ptr<Medium>> namedMedia;
     std::vector<std::shared_ptr<Light>> lights;
     std::vector<std::shared_ptr<Primitive>> primitives;
+    std::vector<std::string> primitiveNames; // TL
     std::map<std::string, std::vector<std::shared_ptr<Primitive>>> instances;
     std::vector<std::shared_ptr<Primitive>> *currentInstance = nullptr;
     bool haveScatteringMedia = false;
@@ -1199,6 +1205,7 @@ void pbrtAreaLightSource(const std::string &name, const ParamSet &params) {
 void pbrtShape(const std::string &name, const ParamSet &params) {
     VERIFY_WORLD("Shape");
     std::vector<std::shared_ptr<Primitive>> prims;
+    std::vector<std::string> primNames; //Added by Trisha
     std::vector<std::shared_ptr<AreaLight>> areaLights;
     if (PbrtOptions.cat || (PbrtOptions.toPly && name != "trianglemesh")) {
         printf("%*sShape \"%s\" ", catIndentCount, "", name.c_str());
@@ -1229,6 +1236,7 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
             }
             prims.push_back(
                 std::make_shared<GeometricPrimitive>(s, mtl, area, mi));
+            primNames.push_back(name); //TL
         }
     } else {
         // Initialize _prims_ and _areaLights_ for animated shape
@@ -1252,6 +1260,7 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
             prims.push_back(
                 std::make_shared<GeometricPrimitive>(s, mtl, nullptr, mi));
 
+            primNames.push_back(name); //TL
         // Create single _TransformedPrimitive_ for _prims_
 
         // Get _animatedObjectToWorld_ transform for shape
@@ -1267,6 +1276,7 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
             std::shared_ptr<Primitive> bvh = std::make_shared<BVHAccel>(prims);
             prims.clear();
             prims.push_back(bvh);
+            primNames.push_back(name); //TL
         }
         prims[0] = std::make_shared<TransformedPrimitive>(
             prims[0], animatedObjectToWorld);
@@ -1280,6 +1290,8 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
     } else {
         renderOptions->primitives.insert(renderOptions->primitives.end(),
                                          prims.begin(), prims.end());
+        renderOptions->primitiveNames.insert(renderOptions->primitiveNames.end(),
+                                         primNames.begin(), primNames.end());
         if (areaLights.size())
             renderOptions->lights.insert(renderOptions->lights.end(),
                                          areaLights.begin(), areaLights.end());
@@ -1449,6 +1461,7 @@ void pbrtObjectInstance(const std::string &name) {
     std::shared_ptr<Primitive> prim(
         std::make_shared<TransformedPrimitive>(in[0], animatedInstanceToWorld));
     renderOptions->primitives.push_back(prim);
+    renderOptions->primitiveNames.push_back(name); // TL
 }
 
 void pbrtWorldEnd() {
@@ -1463,7 +1476,67 @@ void pbrtWorldEnd() {
         Warning("Missing end to pbrtTransformBegin()");
         pushedTransforms.pop_back();
     }
-
+    
+    // ------------------------------------------------------------
+    // ----- Write out metadata information (Added by Trisha) ----
+    
+    // Get filename from metadataIntegrator
+    const ParamSet &paramSet = renderOptions->IntegratorParams;
+    
+    // Filename will be the same as the output image filename
+    std::string filename = PbrtOptions.imageFile;
+    
+    // If no filename, we default to pbrt
+    if (filename == "")
+#ifdef PBRT_HAS_OPENEXR
+        filename = "pbrt.exr";
+#else
+    filename = "pbrt.tga";
+#endif
+    
+    // Find type of metadata
+    std::string st = paramSet.FindOneString("strategy", "");
+    
+    std::ofstream metadataFile;
+    int lastPos = filename.find_last_of(".");
+    std::string newFileName;
+    
+    if(st == "mesh"){
+        
+        newFileName = filename.substr(0, lastPos) + "_mesh.txt";
+        metadataFile.open(newFileName.c_str());
+        
+        std::vector<std::shared_ptr<Primitive>>::iterator itInner;
+        int count = 0;
+        for (itInner = renderOptions->primitives.begin(); itInner != renderOptions->primitives.end(); itInner++,count++) {
+            std::shared_ptr<Primitive> currPrimitive = *itInner;
+            metadataFile << currPrimitive->primitiveId << " ";
+            metadataFile << renderOptions->primitiveNames[count] << "\n";
+        }
+        std::cout << "Mesh metadata file written out." << std::endl;
+    }
+    else if (st == "material"){
+        newFileName = filename.substr(0, lastPos) + "_materials.txt";
+        metadataFile.open(newFileName.c_str());
+        
+        // Write out materials
+        std::map<std::string, std::shared_ptr<MaterialInstance>>::iterator it;
+        for(it = graphicsState.namedMaterials.begin(); it != graphicsState.namedMaterials.end(); it++) {
+            std::shared_ptr<MaterialInstance> currMaterial = it->second;
+            metadataFile << currMaterial->material->materialId << " ";
+            metadataFile << it->first << "\n";
+        }
+        std::cout << "Material metadata file written out." << std::endl;
+    }
+    else{
+        std::cout << "Warning: No metadata written out." << std::endl;
+    }
+    
+    metadataFile.close();
+    
+    // ------------------------------------------------------------
+    // ------------------------------------------------------------
+    
     // Create scene and render
     if (PbrtOptions.cat || PbrtOptions.toPly) {
         printf("%*sWorldEnd\n", catIndentCount, "");
