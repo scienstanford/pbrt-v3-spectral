@@ -749,11 +749,18 @@ RealisticCamera *CreateRealisticCamera(const ParamSet &params,
         return nullptr;
     }
     if (lensData.size() % 4 != 0) {
-        Error(
-            "Excess values in lens specification file \"%s\"; "
-            "must be multiple-of-four values, read %d.",
-            lensFile.c_str(), (int)lensData.size());
-        return nullptr;
+        // Trisha: If the size has an extra value, it's possible this lens type was meant for pbrt-v2-spectral and has an extra focal length value at the top. In this case, let's automatically convert it by removing this extra value.
+        if(lensData.size() % 4 == 1){
+            Warning("Extra value in lens specification file, this lens file may be for pbrt-v2-spectral. Removing extra value to make it compatible with pbrt-v3-spectral...");
+            lensData.erase(lensData.begin());
+        }
+        else{
+            Error(
+                  "Excess values in lens specification file \"%s\"; "
+                  "must be multiple-of-four values, read %d.",
+                  lensFile.c_str(), (int)lensData.size());
+            return nullptr;
+        }
     }
     
     // Added by Trisha
