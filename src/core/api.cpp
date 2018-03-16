@@ -84,6 +84,7 @@
 #include "materials/metal.h"
 #include "materials/mirror.h"
 #include "materials/mixmat.h"
+#include "materials/retroreflective.h"
 #include "materials/plastic.h"
 #include "materials/substrate.h"
 #include "materials/subsurface.h"
@@ -443,6 +444,8 @@ std::shared_ptr<Material> MakeMaterial(const std::string &name,
         material = CreateMatteMaterial(mp);
     else if (name == "plastic")
         material = CreatePlasticMaterial(mp);
+    else if (name == "retroreflective")
+        material = CreateRetroreflectiveMaterial(mp);
     else if (name == "translucent")
         material = CreateTranslucentMaterial(mp);
     else if (name == "glass")
