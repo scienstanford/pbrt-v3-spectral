@@ -443,6 +443,13 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
     }
     //
     
+    // Trisha Added (3-2018)
+    // Useful for debugging
+    void PrintSpectrum(){
+        for (int i = 0; i < nSpectralSamples; ++i){
+            std::cout << c[i] << std::endl;
+        }
+    }
     
     
     SampledSpectrum(const RGBSpectrum &r,
