@@ -76,7 +76,8 @@ namespace pbrt {
                      Float retinaSemiDiam,
                      std::vector<Spectrum> iorSpectra,
                      bool flipRad,
-                     bool mmUnits);
+                     bool mmUnits,
+                     bool diffractionEnabled);
         
         Float GenerateRay(const CameraSample &sample, Ray *) const;
         
@@ -100,17 +101,19 @@ namespace pbrt {
         // Flags for conventions
         bool flipLensRadius;
         bool mmFlag; // Scene units are in millimeters instead of the standard meters.
+        bool diffractionEnabled;
         
         // Private methods for tracing through lens
-        bool IntersectLensEl(const Ray &r, Float *tHit, Float radius, Vector3f dist, Vector3f & normalVec);
         bool IntersectLensElAspheric(const Ray &r, Float *tHit, LensElementEye currElement, Float zShift, Vector3f *n) const;
         void applySnellsLaw(Float n1, Float n2, Float lensRadius, Vector3f &normalVec, Ray * ray ) const;
         Float lookUpIOR(int mediumIndex, const Ray &ray) const;
+        void diffractHURB(Point3f intersect, Float apertureRadius, const Float wavelength, const Vector3f oldDirection, Vector3f *newDirection) const;
         
         // Handy method to explicity solve for the z(x,y) at a given point (x,y), for the biconic SAG
         Float BiconicZ(Float x, Float y, LensElementEye currElement) const;
         
-        
+        // GSL seed(?) for random number generation
+        gsl_rng * r;
         
     };
     

@@ -139,9 +139,10 @@ namespace pbrt {
         iorSpectra.push_back(ior5);
         iorSpectra.push_back(ior6);
         
-        // Flags for convention
+        // Flags
         bool flipRad = params.FindOneBool("flipLensRadius", 0.0);
         bool mmUnits = params.FindOneBool("mmUnits",1.0);
+        bool diffractionEnabled = params.FindOneBool("diffractionEnabled", 0.0);
         
         // Weighting parameters for lens shading
         bool simpleWeighting = params.FindOneBool("simpleweighting", true);
@@ -161,7 +162,8 @@ namespace pbrt {
                                 retinaSemiDiam,
                                 iorSpectra,
                                 flipRad,
-                                mmUnits);
+                                mmUnits,
+                                diffractionEnabled);
 
     }
     
@@ -180,7 +182,8 @@ namespace pbrt {
                                Float rSD,
                                std::vector<Spectrum> iorS,
                                bool flipRad,
-                               bool mmUnits)
+                               bool mmUnits,
+                               bool diffEnab)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
     simpleWeighting(simpleWeighting), noWeighting(noWeighting) {
         
@@ -197,6 +200,7 @@ namespace pbrt {
         retinaRadius = rR*lensScaling;
         retinaSemiDiam = rSD*lensScaling;
         iorSpectra = iorS;
+        diffractionEnabled = diffEnab;
         
         // -------------------------
         // --- Read in lens file ---
@@ -277,6 +281,13 @@ namespace pbrt {
         
         // We are going to use our own error handling for gsl to prevent it from crashing the moment a ray doesn't intersect.
         gsl_set_error_handler_off();
+        
+        // Set up GSL random number generator for diffraction modeling
+        const gsl_rng_type * T;
+        gsl_rng_env_setup();
+        T = gsl_rng_default;
+        r = gsl_rng_alloc (T);
+        
     }
     
     void RealisticEye::applySnellsLaw(Float n1, Float n2, Float lensRadius, Vector3f &normalVec, Ray * ray ) const
@@ -628,13 +639,28 @@ namespace pbrt {
                 Point3f intersectPoint = (*ray)(tAperture);
                 normalVec = Vector3f(0,0,1);
                 
-                // Move ray to start at intersection
-                startingPoint = intersectPoint;
-                
                 // Check if ray makes it through the aperture
                 if((intersectPoint.x * intersectPoint.x + intersectPoint.y * intersectPoint.y) > (lensEls[i].semiDiameter * lensEls[i].semiDiameter)){
                     return 0.f;
                 }
+                
+                if(diffractionEnabled){
+                    
+                    // DEBUG: Check that direction did change
+//                    std::cout << "ray->d = (" << ray->d.x << "," << ray->d.y << "," << ray->d.z << ")" << std::endl;
+                    
+                    // Adjust ray direction using HURB diffraction
+                    Vector3f newDiffractedDir;
+                    diffractHURB(intersectPoint, lensEls[i].semiDiameter,  ray->wavelength, ray->d, &newDiffractedDir);
+                    ray->d = newDiffractedDir;
+                    
+                    // DEBUG: Check that direction did change
+//                    std::cout << "ray->d = (" << ray->d.x << "," << ray->d.y << "," << ray->d.z << ")" << std::endl;
+                    
+                }
+                
+                startingPoint = intersectPoint;
+                
                 
                 
             }
@@ -792,6 +818,73 @@ namespace pbrt {
             }
         
         return n;
+    }
+    
+    void RealisticEye::diffractHURB(Point3f intersect, Float apertureRadius, const Float wavelength, const Vector3f oldDirection, Vector3f *newDirection) const {
+        
+//        std::cout << "wavelength = " << wavelength << std::endl;
+        
+        double dist2Int = sqrt(intersect.x*intersect.x + intersect.y*intersect.y);
+        Vector3f dirS = Normalize(Vector3f(intersect.x, intersect.y, 0));
+        Vector3f dirL = Normalize(Vector3f(-1*intersect.y, intersect.x, 0));
+        Vector3f dirU = Vector3f(0,0,1); // Direction pointing normal to the aperture plane and toward the scene.
+        
+        double dist2EdgeS = apertureRadius - dist2Int;
+        double dist2EdgeL = sqrt(apertureRadius*apertureRadius - dist2Int*dist2Int);
+        
+        // Calculate variance according to Freniere et al. 1999
+        double sigmaS = atan(1/(2 * dist2EdgeS*10e-3 * 2*Pi/(wavelength*10e-9) ));
+        double sigmaL = atan(1/(2 * dist2EdgeL*10e-3 * 2*Pi/(wavelength*10e-9) ));
+        
+        // Sample from bivariate gaussian
+        double initS = 0;
+        double initL = 0;
+        double *noiseS = &initS;
+        double *noiseL = &initL;
+        gsl_ran_bivariate_gaussian (r, sigmaS, sigmaL, 0, noiseS, noiseL);
+        
+        // DEBUG:
+//        std::cout << "noiseS = " << *noiseS << std::endl;
+//        std::cout << "noiseL = " << *noiseL << std::endl;
+        
+        // Decompose our original ray into dirS and dirL.
+        double projS = Dot(oldDirection,dirS)/dirS.Length();
+        double projL = Dot(oldDirection,dirL)/dirL.Length();
+        double projU = Dot(oldDirection,dirU)/dirU.Length();
+        
+        /*
+         We have now decomposed the original, incoming ray into three orthogonal
+         directions: directionS, directionL, and directionU.
+         directionS is the direction along the shortest distance to the aperture
+         edge.
+         directionL is the orthogonal direction to directionS in the plane of the
+         aperture.
+         directionU is the direction normal to the plane of the aperture, pointing
+         toward the scene.
+         To orient our azimuth and elevation directions, imagine that the
+         S-U-plane forms the "ground plane." "Theta_x" in the Freniere paper is
+         therefore the deviation in the azimuth and "Theta_y" is the deviation in
+         the elevation.
+         */
+        
+        // Calculate current azimuth and elevation angles
+        double thetaA = atan(projS/projU); // Azimuth
+        double thetaE = atan(projL/sqrt(projS*projS + projU*projU)); // Elevation
+        
+        // Deviate the angles
+        thetaA = thetaA + *noiseS;
+        thetaE = thetaE + *noiseL;
+        
+        // Recalculate the ray direction
+        // Remember the ray direction is normalized, so it should have length = 1
+        double newProjL = sin(thetaE);
+        double newProjSU = cos(thetaE);
+        double newProjS = newProjSU * sin(thetaA);
+        double newProjU = newProjSU * cos(thetaA);
+        
+        // Add up the new projections to get a new direction
+        *newDirection = Normalize(newProjS*dirS + newProjL*dirL + newProjU*dirU);
+        
     }
     
 }  // namespace pbrt
