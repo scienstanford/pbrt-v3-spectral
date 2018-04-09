@@ -187,12 +187,11 @@ namespace pbrt {
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
     simpleWeighting(simpleWeighting), noWeighting(noWeighting) {
         
-        // Scale lens units depending on the units of the scene
-        float lensScaling;
+        // Scale units depending on the units of the scene
         if(mmUnits){
             lensScaling = 1;
         }else{
-            lensScaling = 10e-3;
+            lensScaling = 0.001;
         }
         
         pupilDiameter = pD*lensScaling;
@@ -230,7 +229,7 @@ namespace pbrt {
             return;
         }
         
-        effectiveFocalLength = vals[0];   // Read the effective focal length.
+        effectiveFocalLength = vals[0]*lensScaling;   // Read the effective focal length.
         
         for (int i = 1; i < vals.size(); i+=7)
         {
@@ -260,9 +259,10 @@ namespace pbrt {
             else{
                 // We have to do a semi-diameter check here. As we change accommodation, we also change the radius of curvature, and we don't want the semi-diameter to be bigger than the radius. This manifests as a square root of a negative number in equation 1 on Einighammer et al. 2009.
                 // TODO: This check is sort of hack-y, is there a better mathematical way to do this?
-                float smallerR = std::min(currentLensEl.radiusX,currentLensEl .radiusY);
+                // Note: This calculation should be done in millimeters.
+                float smallerR = std::min(currentLensEl.radiusX,currentLensEl .radiusY)*(1/lensScaling);
                 float biggerK = std::max(currentLensEl.conicConstantX,currentLensEl.conicConstantY);
-                if(currentLensEl.semiDiameter*currentLensEl.semiDiameter*(1+biggerK)/(smallerR*smallerR) > 1.0f ){
+                if(currentLensEl.semiDiameter*(1/lensScaling)*currentLensEl.semiDiameter*(1/lensScaling)*(1+biggerK)/(smallerR*smallerR) > 1.0f ){
                     currentLensEl.semiDiameter = 0.95 * sqrt((smallerR*smallerR/(1+biggerK))); // 0.95 is to add some buffer zone, since rays act very strangely when they get too close to the edge of the conical surface.
                 }
             }
@@ -833,8 +833,8 @@ namespace pbrt {
         double dist2EdgeL = sqrt(apertureRadius*apertureRadius - dist2Int*dist2Int);
         
         // Calculate variance according to Freniere et al. 1999
-        double sigmaS = atan(1/(2 * dist2EdgeS*10e-3 * 2*Pi/(wavelength*10e-9) ));
-        double sigmaL = atan(1/(2 * dist2EdgeL*10e-3 * 2*Pi/(wavelength*10e-9) ));
+        double sigmaS = atan(1/(2 * dist2EdgeS*lensScaling * 2*Pi/(wavelength*10e-9) ));
+        double sigmaL = atan(1/(2 * dist2EdgeL*lensScaling * 2*Pi/(wavelength*10e-9) ));
         
         // Sample from bivariate gaussian
         double initS = 0;

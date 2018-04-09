@@ -99,9 +99,8 @@ namespace pbrt {
         std::vector<Spectrum> iorSpectra;
         
         // Flags for conventions
-        bool flipLensRadius;
-        bool mmFlag; // Scene units are in millimeters instead of the standard meters.
         bool diffractionEnabled;
+        float lensScaling;
         
         // Private methods for tracing through lens
         bool IntersectLensElAspheric(const Ray &r, Float *tHit, LensElementEye currElement, Float zShift, Vector3f *n) const;
