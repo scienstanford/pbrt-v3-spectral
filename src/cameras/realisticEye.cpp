@@ -833,8 +833,10 @@ namespace pbrt {
         double dist2EdgeL = sqrt(apertureRadius*apertureRadius - dist2Int*dist2Int);
         
         // Calculate variance according to Freniere et al. 1999
-        double sigmaS = atan(1/(2 * dist2EdgeS*lensScaling * 2*Pi/(wavelength*10e-9) ));
-        double sigmaL = atan(1/(2 * dist2EdgeL*lensScaling * 2*Pi/(wavelength*10e-9) ));
+        // If the scene is in meters, lensScaling = 0.001 and dist2Edge will be in meters.
+        // if scene is in millimeters, lensScaling = 1 and dist2Edge will be in millimeters.
+        double sigmaS = atan(1/(2 * dist2EdgeS * 2*Pi/(wavelength*10e-6*lensScaling) ));
+        double sigmaL = atan(1/(2 * dist2EdgeL * 2*Pi/(wavelength*10e-6*lensScaling) ));
         
         // Sample from bivariate gaussian
         double initS = 0;
