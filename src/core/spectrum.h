@@ -417,12 +417,15 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
     void GetValueAtWavelength(Float wavelength, Float *output) const{
         
         Float w0; Float w1; Float t;
-        Float step = (sampledLambdaEnd - sampledLambdaStart)/nSpectralSamples;
         *output = 0;
-        
+
         for(int i = 0; i < nSpectralSamples; i++){
-            w0 = sampledLambdaStart + i*step;
-            w1 = sampledLambdaStart + (i+1)*step;
+            
+            w0 = Lerp(Float(i) / Float(nSpectralSamples),
+                                 sampledLambdaStart, sampledLambdaEnd);
+            w1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                                 sampledLambdaStart, sampledLambdaEnd);
+            
             if ((wavelength >= w0) && (wavelength < w1)){
                 t = (wavelength - w0)/(w1-w0);
                 *output = Lerp(t, c[i], c[i+1]);
