@@ -835,8 +835,8 @@ namespace pbrt {
         // Calculate variance according to Freniere et al. 1999
         // If the scene is in meters, lensScaling = 0.001 and dist2Edge will be in meters.
         // if scene is in millimeters, lensScaling = 1 and dist2Edge will be in millimeters.
-        double sigmaS = atan(1/(2 * dist2EdgeS * 2*Pi/(wavelength*10e-6*lensScaling) ));
-        double sigmaL = atan(1/(2 * dist2EdgeL * 2*Pi/(wavelength*10e-6*lensScaling) ));
+        double sigmaS = atan(1/(2 * dist2EdgeS * 2*Pi/(wavelength*1e-6*lensScaling) ));
+        double sigmaL = atan(1/(2 * dist2EdgeL * 2*Pi/(wavelength*1e-6*lensScaling) ));
         
         // Sample from bivariate gaussian
         double initS = 0;
@@ -848,6 +848,7 @@ namespace pbrt {
         // DEBUG:
 //        std::cout << "noiseS = " << *noiseS << std::endl;
 //        std::cout << "noiseL = " << *noiseL << std::endl;
+//        std::cout << *noiseS << " " << *noiseL << std::endl;
         
         // Decompose our original ray into dirS and dirL.
         double projS = Dot(oldDirection,dirS)/dirS.Length();
