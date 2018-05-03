@@ -231,8 +231,9 @@ namespace pbrt {
                 camera->film->GetFilmTile(tileBounds);
                 
                 // Calculate corresponding index positions on sampled spectrum (e.g. if nSpectralSamples = 32 and nCABands = 3, we want to divide the indices into (1 to 11), (12 to 22), and (23 to 32.) This delta index defines the spacing.)
-                int deltaIndex = round(nSpectralSamples/numCABands);
-                float deltaWave = (sampledLambdaEnd-sampledLambdaStart)/numCABands;
+                int deltaIndex = round((float)nSpectralSamples/(float)numCABands);
+                float deltaWave = (sampledLambdaEnd-sampledLambdaStart)/nSpectralSamples;
+                float deltaWaveCA = deltaWave*deltaIndex;
                 
                 // Loop over pixels in tile to render them
                 for (Point2i pixel : tileBounds) {
@@ -263,7 +264,7 @@ namespace pbrt {
                             RayDifferential ray;
                             
                             // Attach a wavelength value
-                            ray.wavelength = sampledLambdaStart + deltaWave * s + (deltaWave/2); // Use middle wavelength of the spectrum band
+                            ray.wavelength = sampledLambdaStart + deltaWaveCA * s + (deltaWaveCA/2); // Use middle wavelength of the spectrum band
                             
                             Spectrum Ls(0.f);
                             
@@ -309,11 +310,11 @@ namespace pbrt {
                             
                             // Assign the result to all wavelengths sampled around the target wavelength. For example, if nWaveBands = 3, then we would split the spectrum into three equal parts and assign the result from the first wavelength to the first third, the second wavelength to the second third, etc.
                             int bottomIndex = deltaIndex*s;
-                            int topIndex = std::min(deltaIndex*(s+1),nSpectralSamples-1);
+                            int topIndex = std::min(deltaIndex*(s+1),nSpectralSamples);
+
                             for(int waveIndex = bottomIndex; waveIndex < topIndex; waveIndex++){
                                 L.AssignValueAtIndex(waveIndex, Ls_lambda);
                             }
-                            
 
                         }
                         
