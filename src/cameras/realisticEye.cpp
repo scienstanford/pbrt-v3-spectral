@@ -835,8 +835,9 @@ namespace pbrt {
         // Calculate variance according to Freniere et al. 1999
         // If the scene is in meters, lensScaling = 0.001 and dist2Edge will be in meters.
         // if scene is in millimeters, lensScaling = 1 and dist2Edge will be in millimeters.
-        double sigmaS = atan(1/(2 * dist2EdgeS * 2*Pi/(wavelength*1e-6*lensScaling) ));
-        double sigmaL = atan(1/(2 * dist2EdgeL * 2*Pi/(wavelength*1e-6*lensScaling) ));
+        // TL: Changed 2 to sqrt(2) to better match MTF's with airy disk
+        double sigmaS = atan(1/(1.41 * dist2EdgeS * 2*Pi/(wavelength*1e-6*lensScaling) ));
+        double sigmaL = atan(1/(1.41 * dist2EdgeL * 2*Pi/(wavelength*1e-6*lensScaling) ));
         
         // Sample from bivariate gaussian
         double initS = 0;
