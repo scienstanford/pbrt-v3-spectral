@@ -51,10 +51,10 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
                                  Float shutterOpen, Float shutterClose,
                                  Float apertureDiameter, Float filmdistance,
                                  Float focusDistance, bool simpleWeighting, bool noWeighting,
-                                 std::vector<Float> &lensData, Film *film,
+                                 bool caFlag, std::vector<Float> &lensData, Film *film,
                                  const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-      simpleWeighting(simpleWeighting), noWeighting(noWeighting) {
+      simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
     for (int i = 0; i < (int)lensData.size(); i += 4) {
         if (lensData[i] == 0) {
             if (apertureDiameter > lensData[i + 3]) {
@@ -107,6 +107,14 @@ bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
     // Transform _rCamera_ from camera to lens system space
     static const Transform CameraToLens = Scale(1, 1, -1);
     Ray rLens = CameraToLens(rCamera);
+    
+    // Added by Trisha to keep wavelength information
+    if(rOut){
+        rLens.wavelength = rOut->wavelength;
+    }else{
+        rLens.wavelength = 550;
+    }
+    
     for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = elementInterfaces[i];
         // Update ray from film accounting for interaction with _element_
@@ -143,6 +151,15 @@ bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
             Float etaT = (i > 0 && elementInterfaces[i - 1].eta != 0)
                              ? elementInterfaces[i - 1].eta
                              : 1;
+            // Added by Trisha and Zhenyi (5/18)
+            if(caFlag && (rLens.wavelength >= 400) && (rLens.wavelength <= 700))
+            {                    
+                if (etaI != 1)
+                    etaI = (rLens.wavelength - 550) * -.04/(300)  +  etaI;
+                if (etaT != 1)
+                    etaT = (rLens.wavelength - 550) * -.04/(300)  +  etaT;
+            }
+            
             if (!Refract(Normalize(-rLens.d), n, etaI / etaT, &w)) return false;
             rLens.d = w;
         }
@@ -767,8 +784,12 @@ RealisticCamera *CreateRealisticCamera(const ParamSet &params,
     // Add functionality to hard set the film distance
     Float filmDistance = params.FindOneFloat("filmdistance", 0);
     
+    // Added by Trisha
+    // Chromatic aberration flag
+    bool caFlag = params.FindOneBool("chromaticAberrationEnabled", false);
+    
     return new RealisticCamera(cam2world, shutteropen, shutterclose,
-                               apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting,
+                               apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag,
                                lensData, film, medium);
 }
 
