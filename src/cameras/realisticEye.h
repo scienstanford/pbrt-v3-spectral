@@ -96,6 +96,7 @@ namespace pbrt {
         Float retinaRadius;
         Float retinaSemiDiam;
         Float retinaDiag; // This will take the place of "film->diag"
+        Float frontThickness; // The distance from the back of the lens to the front of the eye.
         std::vector<Spectrum> iorSpectra;
         
         // Flags for conventions

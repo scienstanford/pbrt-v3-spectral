@@ -231,6 +231,7 @@ namespace pbrt {
         
         effectiveFocalLength = vals[0]*lensScaling;   // Read the effective focal length.
         
+        frontThickness = 0;
         for (int i = 1; i < vals.size(); i+=7)
         {
             LensElementEye currentLensEl;
@@ -241,6 +242,8 @@ namespace pbrt {
             currentLensEl.semiDiameter = vals[i+4]*lensScaling;
             currentLensEl.conicConstantX = vals[i+5];
             currentLensEl.conicConstantY = vals[i+6];
+            
+            frontThickness += currentLensEl.thickness;
             
             // Note: Zemax and PBRT-spectral seem to have different conventions for what the positive and negative sign of the radius is. In Zemax, a positive radius means that the center of lens sphere is directed toward the positive Z-axis, and vice versa. In previous PBRT-spectral iterations, this was flipped. Here I've rewritten the lens tracing code to go with the Zemax convention, however to be backward compatible we might want to have this ability to flip the radii.
             if(flipRad){
@@ -773,6 +776,8 @@ namespace pbrt {
          */
         // ----
         
+        // Move the origin to the front of the eye. This can be important for small distances and accommodation measurements.
+        ray->o.z = ray->o.z - frontThickness;
         *ray = CameraToWorld(*ray);
         ray->d = Normalize(ray->d);
         ray->medium = medium;
