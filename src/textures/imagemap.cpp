@@ -42,19 +42,19 @@ namespace pbrt {
 template <typename Tmemory, typename Treturn>
 ImageTexture<Tmemory, Treturn>::ImageTexture(
     std::unique_ptr<TextureMapping2D> mapping, const std::string &filename,
-    bool doTrilinear, Float maxAniso, ImageWrap wrapMode, Float scale,
+    bool doTrilinear, bool noFiltering, Float maxAniso, ImageWrap wrapMode, Float scale,
     bool gamma)
     : mapping(std::move(mapping)) {
     mipmap =
-        GetTexture(filename, doTrilinear, maxAniso, wrapMode, scale, gamma);
+        GetTexture(filename, doTrilinear, noFiltering, maxAniso, wrapMode, scale, gamma);
 }
 
 template <typename Tmemory, typename Treturn>
 MIPMap<Tmemory> *ImageTexture<Tmemory, Treturn>::GetTexture(
-    const std::string &filename, bool doTrilinear, Float maxAniso,
+    const std::string &filename, bool doTrilinear, bool noFiltering, Float maxAniso,
     ImageWrap wrap, Float scale, bool gamma) {
     // Return _MIPMap_ from texture cache if present
-    TexInfo texInfo(filename, doTrilinear, maxAniso, wrap, scale, gamma);
+    TexInfo texInfo(filename, doTrilinear, noFiltering, maxAniso, wrap, scale, gamma);
     if (textures.find(texInfo) != textures.end())
         return textures[texInfo].get();
 
@@ -88,7 +88,7 @@ MIPMap<Tmemory> *ImageTexture<Tmemory, Treturn>::GetTexture(
         for (int i = 0; i < resolution.x * resolution.y; ++i)
             convertIn(texels[i], &convertedTexels[i], scale, gamma);
         mipmap = new MIPMap<Tmemory>(resolution, convertedTexels.get(),
-                                     doTrilinear, maxAniso, wrap);
+                                     doTrilinear, noFiltering, maxAniso, wrap);
     } else {
         // Create one-valued _MIPMap_
         Tmemory oneVal = scale;
@@ -129,6 +129,7 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     // Initialize _ImageTexture_ parameters
     Float maxAniso = tp.FindFloat("maxanisotropy", 8.f);
     bool trilerp = tp.FindBool("trilinear", false);
+    bool noFiltering = tp.FindBool("noFiltering", false); // Added by Trisha
     std::string wrap = tp.FindString("wrap", "repeat");
     ImageWrap wrapMode = ImageWrap::Repeat;
     if (wrap == "black")
@@ -139,7 +140,7 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
-    return new ImageTexture<Float, Float>(std::move(map), filename, trilerp,
+    return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
                                           maxAniso, wrapMode, scale, gamma);
 }
 
@@ -171,6 +172,7 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
     // Initialize _ImageTexture_ parameters
     Float maxAniso = tp.FindFloat("maxanisotropy", 8.f);
     bool trilerp = tp.FindBool("trilinear", false);
+    bool noFilt = tp.FindBool("noFiltering",false); // Added by Trisha
     std::string wrap = tp.FindString("wrap", "repeat");
     ImageWrap wrapMode = ImageWrap::Repeat;
     if (wrap == "black")
@@ -182,7 +184,7 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
     return new ImageTexture<RGBSpectrum, Spectrum>(
-        std::move(map), filename, trilerp, maxAniso, wrapMode, scale, gamma);
+        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma);
 }
 
 template class ImageTexture<Float, Float>;

@@ -49,16 +49,18 @@ namespace pbrt {
 
 // TexInfo Declarations
 struct TexInfo {
-    TexInfo(const std::string &f, bool dt, Float ma, ImageWrap wm, Float sc,
+    TexInfo(const std::string &f, bool dt, bool nf, Float ma, ImageWrap wm, Float sc,
             bool gamma)
         : filename(f),
           doTrilinear(dt),
+          noFiltering(nf),
           maxAniso(ma),
           wrapMode(wm),
           scale(sc),
           gamma(gamma) {}
     std::string filename;
     bool doTrilinear;
+    bool noFiltering;
     Float maxAniso;
     ImageWrap wrapMode;
     Float scale;
@@ -79,7 +81,7 @@ class ImageTexture : public Texture<Treturn> {
   public:
     // ImageTexture Public Methods
     ImageTexture(std::unique_ptr<TextureMapping2D> m,
-                 const std::string &filename, bool doTri, Float maxAniso,
+                 const std::string &filename, bool doTri, bool noFilt, Float maxAniso,
                  ImageWrap wm, Float scale, bool gamma);
     static void ClearCache() {
         textures.erase(textures.begin(), textures.end());
@@ -96,7 +98,7 @@ class ImageTexture : public Texture<Treturn> {
   private:
     // ImageTexture Private Methods
     static MIPMap<Tmemory> *GetTexture(const std::string &filename,
-                                       bool doTrilinear, Float maxAniso,
+                                       bool doTrilinear, bool noFiltering, Float maxAniso,
                                        ImageWrap wm, Float scale, bool gamma);
     static void convertIn(const RGBSpectrum &from, RGBSpectrum *to, Float scale,
                           bool gamma) {

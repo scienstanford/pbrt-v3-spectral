@@ -63,7 +63,7 @@ template <typename T>
 class MIPMap {
   public:
     // MIPMap Public Methods
-    MIPMap(const Point2i &resolution, const T *data, bool doTri = false,
+    MIPMap(const Point2i &resolution, const T *data, bool doTri = false, bool noFilt = false,
            Float maxAniso = 8.f, ImageWrap wrapMode = ImageWrap::Repeat);
     int Width() const { return resolution[0]; }
     int Height() const { return resolution[1]; }
@@ -104,6 +104,7 @@ class MIPMap {
 
     // MIPMap Private Data
     const bool doTrilinear;
+    bool noFiltering;
     const Float maxAnisotropy;
     const ImageWrap wrapMode;
     Point2i resolution;
@@ -114,9 +115,10 @@ class MIPMap {
 
 // MIPMap Method Definitions
 template <typename T>
-MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,
+MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,bool noFilt,
                   Float maxAnisotropy, ImageWrap wrapMode)
     : doTrilinear(doTrilinear),
+      noFiltering(noFilt),
       maxAnisotropy(maxAnisotropy),
       wrapMode(wrapMode),
       resolution(res) {
@@ -245,6 +247,17 @@ template <typename T>
 T MIPMap<T>::Lookup(const Point2f &st, Float width) const {
     ++nTrilerpLookups;
     ProfilePhase p(Prof::TexFiltTrilerp);
+    
+    // Trisha:
+    // If we ask for no filtering, just return the value at (s,t)
+    // We choose the lowest level, since that is just the original image.
+    if(noFiltering){
+        Float s = st[0] * pyramid[0]->uSize() - 0.5f;
+        Float t = st[1] * pyramid[0]->vSize() - 0.5f;
+        int s0 = (int)std::round(s), t0 = (int)std::round(t);
+        return Texel(0, s0, t0);
+    }
+    
     // Compute MIPMap level for trilinear filtering
     Float level = Levels() - 1 + Log2(std::max(width, (Float)1e-8));
 
@@ -275,7 +288,7 @@ T MIPMap<T>::triangle(int level, const Point2f &st) const {
 
 template <typename T>
 T MIPMap<T>::Lookup(const Point2f &st, Vector2f dst0, Vector2f dst1) const {
-    if (doTrilinear) {
+    if (doTrilinear || noFiltering) {
         Float width = std::max(std::max(std::abs(dst0[0]), std::abs(dst0[1])),
                                std::max(std::abs(dst1[0]), std::abs(dst1[1])));
         return Lookup(st, 2 * width);
