@@ -65,7 +65,7 @@ inline void RGBToXYZ(const Float rgb[3], Float xyz[3]) {
     xyz[2] = 0.019334f * rgb[0] + 0.119193f * rgb[1] + 0.950227f * rgb[2];
 }
 
-enum class SpectrumType { Reflectance, Illuminant };
+enum class SpectrumType { Reflectance, Illuminant, Display};
 extern Float InterpolateSpectrumSamples(const Float *lambda, const Float *vals,
                                         int n, Float l);
 extern void Blackbody(const Float *lambda, int n, Float T, Float *Le);
@@ -73,6 +73,12 @@ extern void BlackbodyNormalized(const Float *lambda, int n, Float T,
                                 Float *vals);
 
 // Spectral Data Declarations
+static const int nLCDSamples = 101; // Added by TL for LCD-Apple display
+extern const Float lcdApple_r[nLCDSamples];
+extern const Float lcdApple_g[nLCDSamples];
+extern const Float lcdApple_b[nLCDSamples];
+extern const Float lcdApple_lambda[nLCDSamples];
+    
 static const int nCIESamples = 471;
 extern const Float CIE_X[nCIESamples];
 extern const Float CIE_Y[nCIESamples];
@@ -376,6 +382,22 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
                 AverageSpectrumSamples(RGB2SpectLambda, RGBIllum2SpectBlue,
                                        nRGB2SpectSamples, wl0, wl1);
         }
+        
+        // Added by TL
+        // Compute LCD-Apple SPD for _SampledSpectrum_
+        for (int i = 0; i < nSpectralSamples; ++i) {
+            Float wl0 = Lerp(Float(i) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+            Float wl1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+            R.c[i] = AverageSpectrumSamples(lcdApple_lambda, lcdApple_r, nLCDSamples, wl0,
+                                            wl1);
+            G.c[i] = AverageSpectrumSamples(lcdApple_lambda, lcdApple_g, nLCDSamples, wl0,
+                                            wl1);
+            B.c[i] = AverageSpectrumSamples(lcdApple_lambda, lcdApple_b, nLCDSamples, wl0,
+                                            wl1);
+        }
+        
     }
     void ToXYZ(Float xyz[3]) const {
         xyz[0] = xyz[1] = xyz[2] = 0.f;
@@ -461,6 +483,7 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
   private:
     // SampledSpectrum Private Data
     static SampledSpectrum X, Y, Z;
+    static SampledSpectrum R, G, B; //Added by TL
     static SampledSpectrum rgbRefl2SpectWhite, rgbRefl2SpectCyan;
     static SampledSpectrum rgbRefl2SpectMagenta, rgbRefl2SpectYellow;
     static SampledSpectrum rgbRefl2SpectRed, rgbRefl2SpectGreen;

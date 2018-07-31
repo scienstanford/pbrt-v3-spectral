@@ -43,8 +43,8 @@ template <typename Tmemory, typename Treturn>
 ImageTexture<Tmemory, Treturn>::ImageTexture(
     std::unique_ptr<TextureMapping2D> mapping, const std::string &filename,
     bool doTrilinear, bool noFiltering, Float maxAniso, ImageWrap wrapMode, Float scale,
-    bool gamma)
-    : mapping(std::move(mapping)) {
+    bool gamma, bool useSPD)
+    : mapping(std::move(mapping)), spdFlag(useSPD) {
     mipmap =
         GetTexture(filename, doTrilinear, noFiltering, maxAniso, wrapMode, scale, gamma);
 }
@@ -140,8 +140,9 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
+    bool useSPD = tp.FindBool("useSPD",false);
     return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
-                                          maxAniso, wrapMode, scale, gamma);
+                                          maxAniso, wrapMode, scale, gamma,useSPD);
 }
 
 ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
@@ -183,8 +184,9 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
+    bool useSPD = tp.FindBool("useSPD",false);
     return new ImageTexture<RGBSpectrum, Spectrum>(
-        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma);
+        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma, useSPD);
 }
 
 template class ImageTexture<Float, Float>;

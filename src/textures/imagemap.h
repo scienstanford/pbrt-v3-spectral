@@ -82,7 +82,7 @@ class ImageTexture : public Texture<Treturn> {
     // ImageTexture Public Methods
     ImageTexture(std::unique_ptr<TextureMapping2D> m,
                  const std::string &filename, bool doTri, bool noFilt, Float maxAniso,
-                 ImageWrap wm, Float scale, bool gamma);
+                 ImageWrap wm, Float scale, bool gamma, bool useSPD);
     static void ClearCache() {
         textures.erase(textures.begin(), textures.end());
     }
@@ -91,7 +91,11 @@ class ImageTexture : public Texture<Treturn> {
         Point2f st = mapping->Map(si, &dstdx, &dstdy);
         Tmemory mem = mipmap->Lookup(st, dstdx, dstdy);
         Treturn ret;
-        convertOut(mem, &ret);
+        if(spdFlag){
+            convertOutDisp(mem, &ret);
+        }else{
+            convertOut(mem, &ret);
+        }
         return ret;
     }
 
@@ -114,12 +118,22 @@ class ImageTexture : public Texture<Treturn> {
         from.ToRGB(rgb);
         *to = Spectrum::FromRGB(rgb);
     }
+    
+    // Added by TL. In the future, let's give it the option to load custom SPD's.
+    static void convertOutDisp(const RGBSpectrum &from, Spectrum *to) {
+        Float rgb[3];
+        from.ToRGB(rgb);
+        *to = Spectrum::FromRGB(rgb,SpectrumType::Display);
+    }
+    
     static void convertOut(Float from, Float *to) { *to = from; }
-
+    static void convertOutDisp(Float from, Float *to) { *to = from; }
+    
     // ImageTexture Private Data
     std::unique_ptr<TextureMapping2D> mapping;
     MIPMap<Tmemory> *mipmap;
     static std::map<TexInfo, std::unique_ptr<MIPMap<Tmemory>>> textures;
+    bool spdFlag; // Added by TL
 };
 
 extern template class ImageTexture<Float, Float>;
