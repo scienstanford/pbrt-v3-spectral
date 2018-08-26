@@ -141,7 +141,6 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
     bool useSPD = tp.FindBool("useSPD",false);
-    std::cout << "useSPD set to: " << useSPD << std::endl; //Debug Cloud rendering
     
     return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
                                           maxAniso, wrapMode, scale, gamma,useSPD);
