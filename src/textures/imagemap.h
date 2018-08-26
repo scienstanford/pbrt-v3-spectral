@@ -92,6 +92,7 @@ class ImageTexture : public Texture<Treturn> {
         Tmemory mem = mipmap->Lookup(st, dstdx, dstdy);
         Treturn ret;
         if(spdFlag){
+            std::cout << "1" << std::endl;
             convertOutDisp(mem, &ret);
         }else{
             convertOut(mem, &ret);
