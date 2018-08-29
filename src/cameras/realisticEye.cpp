@@ -816,7 +816,7 @@ namespace pbrt {
         
             // Standard media
             // If spectral renderer is used, then ray.wavelength will be given a value. Otherwise, it will be a junk value. I'm not sure why it's not intialized to zero despite having wavelength = 0 in the constructer. Anyhow, we can error check by looking for values within the valid range.
-            if((std::abs(ray.wavelength) > 400) & (std::abs(ray.wavelength) < 800)){
+            if((std::abs(ray.wavelength) >= sampledLambdaStart) & (std::abs(ray.wavelength) <= sampledLambdaEnd)){
                 iorSpectra[mediumIndex-1].GetValueAtWavelength(ray.wavelength,&n);
             }else{
                 iorSpectra[mediumIndex-1].GetValueAtWavelength(550,&n);

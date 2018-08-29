@@ -440,7 +440,12 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
         
         Float w0; Float w1; Float t;
         *output = 0;
-
+        
+        // A rare case but let's catch it
+        if(wavelength == sampledLambdaEnd){
+            *output = c[nSpectralSamples-1];
+        }
+        
         for(int i = 0; i < nSpectralSamples; i++){
             
             w0 = Lerp(Float(i) / Float(nSpectralSamples),
