@@ -1259,11 +1259,11 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
         std::shared_ptr<Material> mtl = graphicsState.GetMaterialForShape(params);
         params.ReportUnused();
         MediumInterface mi = graphicsState.CreateMediumInterface();
-        for (auto s : shapes)
+        for (auto s : shapes) {
             prims.push_back(
                 std::make_shared<GeometricPrimitive>(s, mtl, nullptr, mi));
-
             primNames.push_back(name); //TL
+        }
         // Create single _TransformedPrimitive_ for _prims_
 
         // Get _animatedObjectToWorld_ transform for shape
