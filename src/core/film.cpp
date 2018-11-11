@@ -346,7 +346,7 @@ namespace pbrt {
         Float diagonal = params.FindOneFloat("diagonal", 35.);
         Float maxSampleLuminance = params.FindOneFloat("maxsampleluminance",
                                                        Infinity);
-        bool spectralFlag = params.FindOneBool("spectralFlag", 1);
+        bool spectralFlag = params.FindOneBool("spectralFlag", true);
         
         return new Film(Point2i(xres, yres), crop, std::move(filter), diagonal,
                         filename, scale, spectralFlag, maxSampleLuminance);
