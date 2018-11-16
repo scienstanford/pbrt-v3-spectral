@@ -10,9 +10,10 @@ Theory to Implementation*, by [Matt Pharr](http://pharr.org/matt), [Wenzel
 Jakob](http://www.mitsuba-renderer.org/~wenzel/), and Greg Humphreys.  As
 before, the code is available under the BSD license.
 
-The [pbrt website](http://pbrt.org) has general information about
-both the *Physically Based Rendering* book as well as many other resources
-for pbrt.
+The [pbrt website](http://pbrt.org) has general information about both the
+*Physically Based Rendering* book as well as many other resources for pbrt.
+As of October 2018, the full [text of the book](http://www.pbr-book.org) is
+now available online, for free.
 
 Example scenes
 --------------
@@ -57,72 +58,75 @@ command to also fetch the dependencies:
 ```bash
 $ git submodule update --init --recursive
 ```
+
 pbrt uses [cmake](http://www.cmake.org/) for its build system.  On Linux
-and OS X, cmake is available via most package management systems.  For
-Windows, or to build it from source, see the [cmake downloads
-page](http://www.cmake.org/download/).
+and OS X, cmake is available via most package management systems.  To get
+cmake for Windows, or to build it from source, see the [cmake downloads
+page](http://www.cmake.org/download/).  Once you have cmake, the next step
+depends on your operating system.
 
-* For command-line builds on Linux and OS X, once you have cmake installed,
-  create a new directory for the build, change to that directory, and run
-  `cmake [path to pbrt-v3]`. A Makefile will be created in that
-  current directory.  Run `make -j8`, to build pbrt, the obj2pbrt and imgtool
-  utilities, and an executable that runs pbrt's unit tests.
-* To make an XCode project file on OS X, run `cmake -G Xcode [path to pbrt-v3]`.
-* Finally, on Windows, the cmake GUI will create MSVC solution files that
-  you can load in MSVC.
+### Makefile builds (Linux, other Unixes, and Mac) ###
 
-If you plan to edit the lexer and parser for pbrt's input files
-(`src/core/pbrtlex.ll` and `src/core/pbrtparase.y`), you'll also want to
-have [bison](https://www.gnu.org/software/bison/) and
-[flex](http://flex.sourceforge.net/) installed. On OS X, note that the
-version of flex that ships with the developer tools is extremely old and is
-unable to process `pbrtlex.ll`; you'll need to install a more recent
-version of flex in this case.
+Create a new directory for the build, change to that directory, and run
+`cmake [path to pbrt-v3]`. A Makefile will be created in the current
+directory.  Next, run `make` to build pbrt, the obj2pbrt and imgtool
+utilities, and an executable that runs pbrt's unit tests.  Depending on the
+number of cores in your system, you will probably want to supply make with
+the `-j` parameter to specify the number of compilation jobs to run in
+parallel (e.g. `make -j8`).
 
-### Debug and Release Builds ###
-
-By default, the build files that are created that will compile an optimized
+By default, the makefiles that are created that will compile an optimized
 release build of pbrt. These builds give the highest performance when
 rendering, but many runtime checks are disabled in these builds and
 optimized builds are generally difficult to trace in a debugger.
 
 To build a debug version of pbrt, set the `CMAKE_BUILD_TYPE` flag to
-`Debug` when you run cmake to create build files to make a debug build. For
-example, when running cmake from the command line, provide it with the
-argument `-DCMAKE_BUILD_TYPE=Debug`. Then build pbrt using the resulting
-build files. (You may want to keep two build directories, one for release
-builds and one for debug builds, so that you don't need to switch back and
-forth.)
+`Debug` when you run cmake to create build files to make a debug build.  To
+do so, provide cmake with the argument `-DCMAKE_BUILD_TYPE=Debug` and build
+pbrt using the resulting makefiles. (You may want to keep two build
+directories, one for release builds and one for debug builds, so that you
+don't need to switch back and forth.)
 
 Debug versions of the system run much more slowly than release
 builds. Therefore, in order to avoid surprisingly slow renders when
 debugging support isn't desired, debug versions of pbrt print a banner
 message indicating that they were built for debugging at startup time.
 
+### Xcode ###
+
+To make an Xcode project on OS X, run `cmake -G Xcode [path to pbrt-v3]`.
+A `PBRT-V3.xcodeproj` project file that can be opened in Xcode.  Note that
+the default build settings have an optimization level of "None"; you'll
+almost certainly want to choose "Faster" or "Fastest".
+
+### MSVC on Windows ###
+
+On Windows, first point the cmake GUI at the directory with pbrt's source
+code.  Create a separate directory to hold the result of the build
+(potentially just a directory named "build" inside the pbrt-v3 directory)
+and set that for "Where to build the binaries" in the GUI.
+
+Next, click "Configure".  Note that you will want to choose the "Win64"
+generator for your MSVC installation unless you have a clear reason to need
+a 32-bit build of pbrt.  Once cmake has finished the configuration step,
+click "Generate"; when that's done, there will be a "PBRT-V3.sln" file in
+the build directory you specified. Open that up in MSVC and you're ready to
+go.
+
 ### Build Configurations ###
 
-There are two configuration settings that must be set at compile time. The
-first controls whether pbrt uses 32-bit or 64-bit values for floating-point
-computation, and the second controls whether tristimulus RGB values or
-sampled spectral values are used for rendering.  (Both of these aren't
-amenable to being chosen at runtime, but must be determined at compile time
-for efficiency).
+There are two configuration settings that must be set when configuring the
+build. The first controls whether pbrt uses 32-bit or 64-bit values for
+floating-point computation, and the second controls whether tristimulus RGB
+values or sampled spectral values are used for rendering.  (Both of these
+aren't amenable to being chosen at runtime, but must be determined at
+compile time for efficiency).  The cmake configuration variables
+`PBRT_FLOAT_AS_DOUBLE` and `PBRT_SAMPLED_SPECTRUM` configure them,
+respectively.
 
-To change them from their defaults (respectively, 32-bit
-and RGB.), edit the file `src/core/pbrt.h`.
+If you're using a GUI version of cmake, those settings should be available
+in the list of configuration variables; set them as desired before choosing
+'Generate'.
 
-To select 64-bit floating point values, remove the comment symbol before
-the line:
-```
-//#define PBRT_FLOAT_AS_DOUBLE
-```
-and recompile the system.
-
-To select full-spectral rendering, comment out the first of these two
-typedefs and remove the comment from the second one:
-```
-typedef RGBSpectrum Spectrum;
-// typedef SampledSpectrum Spectrum;
-```
-Again, don't forget to recompile after making this change.
-
+With command-line cmake, their values can be specified when you cmake via
+`-DPBRT_FLOAT_AS_DOUBLE=1`, for example.

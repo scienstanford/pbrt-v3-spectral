@@ -100,6 +100,7 @@ class ScopedAssignment {
     ScopedAssignment(const ScopedAssignment &) = delete;
     ScopedAssignment &operator=(const ScopedAssignment &) = delete;
     ScopedAssignment &operator=(ScopedAssignment &&other) {
+        if (target) *target = backup;
         target = other.target;
         backup = other.backup;
         other.target = nullptr;
@@ -278,7 +279,7 @@ struct Vertex {
             return Le;
         } else {
             const AreaLight *light = si.primitive->GetAreaLight();
-            CHECK_NOTNULL(light);
+            CHECK(light != nullptr);
             return light->L(si, w);
         }
     }
@@ -380,7 +381,7 @@ struct Vertex {
             const Light *light = type == VertexType::Light
                                      ? ei.light
                                      : si.primitive->GetAreaLight();
-            CHECK_NOTNULL(light);
+            CHECK(light != nullptr);
 
             // Compute sampling density for non-infinite light sources
             Float pdfPos, pdfDir;
@@ -410,7 +411,7 @@ struct Vertex {
             const Light *light = type == VertexType::Light
                                      ? ei.light
                                      : si.primitive->GetAreaLight();
-            CHECK_NOTNULL(light);
+            CHECK(light != nullptr);
 
             // Compute the discrete probability of sampling _light_, _pdfChoice_
             CHECK(lightToDistrIndex.find(light) != lightToDistrIndex.end());

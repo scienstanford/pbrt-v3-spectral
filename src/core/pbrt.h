@@ -83,6 +83,8 @@
 #pragma warning(disable : 4305)  // double constant assigned to float
 #pragma warning(disable : 4244)  // int -> float conversion
 #pragma warning(disable : 4843)  // double -> float conversion
+#pragma warning(disable : 4267)  // size_t -> int
+#pragma warning(disable : 4838)  // another double -> int
 #endif
 
 // Global Macros
@@ -116,12 +118,16 @@ class SurfaceInteraction;
 class Shape;
 class Primitive;
 class GeometricPrimitive;
+class TransformedPrimitive;
 template <int nSpectrumSamples>
 class CoefficientSpectrum;
 class RGBSpectrum;
 class SampledSpectrum;
-//typedef RGBSpectrum Spectrum;
-typedef SampledSpectrum Spectrum;
+#ifdef PBRT_SAMPLED_SPECTRUM
+  typedef SampledSpectrum Spectrum;
+#else
+  typedef RGBSpectrum Spectrum;
+#endif
 class Camera;
 struct CameraSample;
 class ProjectiveCamera;
@@ -148,11 +154,10 @@ class VisibilityTester;
 class AreaLight;
 struct Distribution1D;
 class Distribution2D;
-//#define PBRT_FLOAT_AS_DOUBLE
 #ifdef PBRT_FLOAT_AS_DOUBLE
-typedef double Float;
+  typedef double Float;
 #else
-typedef float Float;
+  typedef float Float;
 #endif  // PBRT_FLOAT_AS_DOUBLE
 class RNG;
 class ProgressReporter;
@@ -164,11 +169,19 @@ class ParamSet;
 template <typename T>
 struct ParamSetItem;
 struct Options {
+    Options() {
+        cropWindow[0][0] = 0;
+        cropWindow[0][1] = 1;
+        cropWindow[1][0] = 0;
+        cropWindow[1][1] = 1;
+    }
     int nThreads = 0;
     bool quickRender = false;
     bool quiet = false;
     bool cat = false, toPly = false;
     std::string imageFile;
+    // x0, x1, y0, y1
+    Float cropWindow[2][2];
 };
 
 extern Options PbrtOptions;

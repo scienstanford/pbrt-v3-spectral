@@ -64,9 +64,10 @@ TriangleMesh::TriangleMesh(
       shadowAlphaMask(shadowAlphaMask) {
     ++nMeshes;
     nTris += nTriangles;
-    triMeshBytes += sizeof(*this) + (3 * nTriangles * sizeof(int)) +
+    triMeshBytes += sizeof(*this) + this->vertexIndices.size() * sizeof(int) +
                     nVertices * (sizeof(*P) + (N ? sizeof(*N) : 0) +
-                                 (S ? sizeof(*S) : 0) + (UV ? sizeof(*UV) : 0));
+                                 (S ? sizeof(*S) : 0) + (UV ? sizeof(*UV) : 0) +
+                                 (fIndices ? sizeof(*fIndices) : 0));
 
     // Transform mesh vertices to world space
     p.reset(new Point3f[nVertices]);
@@ -110,56 +111,61 @@ std::vector<std::shared_ptr<Shape>> CreateTriangleMesh(
 
 bool WritePlyFile(const std::string &filename, int nTriangles,
                   const int *vertexIndices, int nVertices, const Point3f *P,
-                  const Vector3f *S, const Normal3f *N, const Point2f *UV) {
+                  const Vector3f *S, const Normal3f *N, const Point2f *UV,
+                  const int *faceIndices) {
     p_ply plyFile =
         ply_create(filename.c_str(), PLY_DEFAULT, PlyErrorCallback, 0, nullptr);
-    if (plyFile != nullptr) {
-        ply_add_element(plyFile, "vertex", nVertices);
-        ply_add_scalar_property(plyFile, "x", PLY_FLOAT);
-        ply_add_scalar_property(plyFile, "y", PLY_FLOAT);
-        ply_add_scalar_property(plyFile, "z", PLY_FLOAT);
-        if (N != nullptr) {
-            ply_add_scalar_property(plyFile, "nx", PLY_FLOAT);
-            ply_add_scalar_property(plyFile, "ny", PLY_FLOAT);
-            ply_add_scalar_property(plyFile, "nz", PLY_FLOAT);
-        }
-        if (UV != nullptr) {
-            ply_add_scalar_property(plyFile, "u", PLY_FLOAT);
-            ply_add_scalar_property(plyFile, "v", PLY_FLOAT);
-        }
-        if (S != nullptr)
-            Warning("PLY mesh in \"%s\" will be missing tangent vectors \"S\".",
-                    filename.c_str());
+    if (plyFile == nullptr)
+        return false;
 
-        ply_add_element(plyFile, "face", nTriangles);
-        ply_add_list_property(plyFile, "vertex_indices", PLY_UINT8, PLY_INT);
-        ply_write_header(plyFile);
-
-        for (int i = 0; i < nVertices; ++i) {
-            ply_write(plyFile, P[i].x);
-            ply_write(plyFile, P[i].y);
-            ply_write(plyFile, P[i].z);
-            if (N) {
-                ply_write(plyFile, N[i].x);
-                ply_write(plyFile, N[i].y);
-                ply_write(plyFile, N[i].z);
-            }
-            if (UV) {
-                ply_write(plyFile, UV[i].x);
-                ply_write(plyFile, UV[i].y);
-            }
-        }
-
-        for (int i = 0; i < nTriangles; ++i) {
-            ply_write(plyFile, 3);
-            ply_write(plyFile, vertexIndices[3 * i]);
-            ply_write(plyFile, vertexIndices[3 * i + 1]);
-            ply_write(plyFile, vertexIndices[3 * i + 2]);
-        }
-        ply_close(plyFile);
-        return true;
+    ply_add_element(plyFile, "vertex", nVertices);
+    ply_add_scalar_property(plyFile, "x", PLY_FLOAT);
+    ply_add_scalar_property(plyFile, "y", PLY_FLOAT);
+    ply_add_scalar_property(plyFile, "z", PLY_FLOAT);
+    if (N) {
+        ply_add_scalar_property(plyFile, "nx", PLY_FLOAT);
+        ply_add_scalar_property(plyFile, "ny", PLY_FLOAT);
+        ply_add_scalar_property(plyFile, "nz", PLY_FLOAT);
     }
-    return false;
+    if (UV) {
+        ply_add_scalar_property(plyFile, "u", PLY_FLOAT);
+        ply_add_scalar_property(plyFile, "v", PLY_FLOAT);
+    }
+    if (S)
+        Warning("%s: PLY mesh will be missing tangent vectors \"S\".",
+                filename.c_str());
+
+    ply_add_element(plyFile, "face", nTriangles);
+    ply_add_list_property(plyFile, "vertex_indices", PLY_UINT8, PLY_INT);
+    if (faceIndices)
+        ply_add_scalar_property(plyFile, "face_indices", PLY_INT);
+    ply_write_header(plyFile);
+
+    for (int i = 0; i < nVertices; ++i) {
+        ply_write(plyFile, P[i].x);
+        ply_write(plyFile, P[i].y);
+        ply_write(plyFile, P[i].z);
+        if (N) {
+            ply_write(plyFile, N[i].x);
+            ply_write(plyFile, N[i].y);
+            ply_write(plyFile, N[i].z);
+        }
+        if (UV) {
+            ply_write(plyFile, UV[i].x);
+            ply_write(plyFile, UV[i].y);
+        }
+    }
+
+    for (int i = 0; i < nTriangles; ++i) {
+        ply_write(plyFile, 3);
+        ply_write(plyFile, vertexIndices[3 * i]);
+        ply_write(plyFile, vertexIndices[3 * i + 1]);
+        ply_write(plyFile, vertexIndices[3 * i + 2]);
+        if (faceIndices)
+            ply_write(plyFile, faceIndices[i]);
+    }
+    ply_close(plyFile);
+    return true;
 }
 
 Bounds3f Triangle::ObjectBound() const {
@@ -299,9 +305,16 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
         dpdu = (duv12[1] * dp02 - duv02[1] * dp12) * invdet;
         dpdv = (-duv12[0] * dp02 + duv02[0] * dp12) * invdet;
     }
-    if (degenerateUV || Cross(dpdu, dpdv).LengthSquared() == 0)
+    if (degenerateUV || Cross(dpdu, dpdv).LengthSquared() == 0) {
         // Handle zero determinant for triangle partial derivative matrix
-        CoordinateSystem(Normalize(Cross(p2 - p0, p1 - p0)), &dpdu, &dpdv);
+        Vector3f ng = Cross(p2 - p0, p1 - p0);
+        if (ng.LengthSquared() == 0)
+            // The triangle is actually degenerate; the intersection is
+            // bogus.
+            return false;
+
+        CoordinateSystem(Normalize(ng), &dpdu, &dpdv);
+    }
 
     // Compute error bounds for triangle intersection
     Float xAbsSum =
@@ -374,9 +387,24 @@ bool Triangle::Intersect(const Ray &ray, Float *tHit, SurfaceInteraction *isect,
             Normal3f dn2 = mesh->n[v[1]] - mesh->n[v[2]];
             Float determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
             bool degenerateUV = std::abs(determinant) < 1e-8;
-            if (degenerateUV)
-                dndu = dndv = Normal3f(0, 0, 0);
-            else {
+            if (degenerateUV) {
+                // We can still compute dndu and dndv, with respect to the
+                // same arbitrary coordinate system we use to compute dpdu
+                // and dpdv when this happens. It's important to do this
+                // (rather than giving up) so that ray differentials for
+                // rays reflected from triangles with degenerate
+                // parameterizations are still reasonable.
+                Vector3f dn = Cross(Vector3f(mesh->n[v[2]] - mesh->n[v[0]]),
+                                    Vector3f(mesh->n[v[1]] - mesh->n[v[0]]));
+                if (dn.LengthSquared() == 0)
+                    dndu = dndv = Normal3f(0, 0, 0);
+                else {
+                    Vector3f dnu, dnv;
+                    CoordinateSystem(dn, &dnu, &dnv);
+                    dndu = Normal3f(dnu);
+                    dndv = Normal3f(dnv);
+                }
+            } else {
                 Float invDet = 1 / determinant;
                 dndu = (duv12[1] * dn1 - duv02[1] * dn2) * invDet;
                 dndv = (-duv12[0] * dn1 + duv02[0] * dn2) * invDet;
@@ -517,9 +545,16 @@ bool Triangle::IntersectP(const Ray &ray, bool testAlphaTexture) const {
             dpdu = (duv12[1] * dp02 - duv02[1] * dp12) * invdet;
             dpdv = (-duv12[0] * dp02 + duv02[0] * dp12) * invdet;
         }
-        if (degenerateUV || Cross(dpdu, dpdv).LengthSquared() == 0)
+        if (degenerateUV || Cross(dpdu, dpdv).LengthSquared() == 0) {
             // Handle zero determinant for triangle partial derivative matrix
+            Vector3f ng = Cross(p2 - p0, p1 - p0);
+            if (ng.LengthSquared() == 0)
+                // The triangle is actually degenerate; the intersection is
+                // bogus.
+                return false;
+
             CoordinateSystem(Normalize(Cross(p2 - p0, p1 - p0)), &dpdu, &dpdv);
+        }
 
         // Interpolate $(u,v)$ parametric coordinates and hit point
         Point3f pHit = b0 * p0 + b1 * p1 + b2 * p2;
