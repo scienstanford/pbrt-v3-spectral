@@ -123,6 +123,9 @@ template <int nSpectrumSamples>
 class CoefficientSpectrum;
 class RGBSpectrum;
 class SampledSpectrum;
+#ifndef PBRT_SAMPLED_SPECTRUM
+#define PBRT_SAMPLED_SPECTRUM
+#endif
 #ifdef PBRT_SAMPLED_SPECTRUM
   typedef SampledSpectrum Spectrum;
 #else
