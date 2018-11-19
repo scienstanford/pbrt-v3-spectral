@@ -218,11 +218,11 @@ Transform LookAt(const Point3f &pos, const Point3f &look, const Vector3f &up) {
             up.x, up.y, up.z, dir.x, dir.y, dir.z);
         return Transform();
     }
-    Vector3f left = Normalize(Cross(Normalize(up), dir));
-    Vector3f newUp = Cross(dir, left);
-    cameraToWorld.m[0][0] = left.x;
-    cameraToWorld.m[1][0] = left.y;
-    cameraToWorld.m[2][0] = left.z;
+    Vector3f right = Normalize(Cross(Normalize(up), dir));
+    Vector3f newUp = Cross(dir, right);
+    cameraToWorld.m[0][0] = right.x;
+    cameraToWorld.m[1][0] = right.y;
+    cameraToWorld.m[2][0] = right.z;
     cameraToWorld.m[3][0] = 0.;
     cameraToWorld.m[0][1] = newUp.x;
     cameraToWorld.m[1][1] = newUp.y;
@@ -402,6 +402,8 @@ AnimatedTransform::AnimatedTransform(const Transform *startTransform,
       startTime(startTime),
       endTime(endTime),
       actuallyAnimated(*startTransform != *endTransform) {
+    if (!actuallyAnimated)
+        return;
     Decompose(startTransform->m, &T[0], &R[0], &S[0]);
     Decompose(endTransform->m, &T[1], &R[1], &S[1]);
     // Flip _R[1]_ if needed to select shortest path

@@ -72,25 +72,25 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
     }
 
     // Compute lens--film distance for given focus distance
-      // TL: If a film distance is given, hardset the focus distance. If not, use the focus distance given.
-      if(filmdistance == 0){
-          Float fb = FocusBinarySearch(focusDistance);
-          LOG(INFO) << StringPrintf("Binary search focus: %f -> %f\n", fb,
-                                    FocusDistance(fb));
-          elementInterfaces.back().thickness = FocusThickLens(focusDistance);
-          LOG(INFO) << StringPrintf("Thick lens focus: %f -> %f\n",
-                                    elementInterfaces.back().thickness,
+    // TL: If a film distance is given, hardset the focus distance. If not, use the focus distance given.
+    if(filmdistance == 0){
+        Float fb = FocusBinarySearch(focusDistance);
+        LOG(INFO) << StringPrintf("Binary search focus: %f -> %f\n", fb,
+                                  FocusDistance(fb));
+        elementInterfaces.back().thickness = FocusThickLens(focusDistance);
+        LOG(INFO) << StringPrintf("Thick lens focus: %f -> %f\n",
+                                  elementInterfaces.back().thickness,
                                     FocusDistance(elementInterfaces.back().thickness));
-      }else{
-          // Use given film distance
-          LOG(INFO) << StringPrintf("Focus distance hard set: %f -> %f\n",filmdistance,
-                                    FocusDistance(filmdistance));
-          elementInterfaces.back().thickness = filmdistance;
-      }
-          
-          // Print out film distance into terminal
-          std::cout << "Distance from film to back of lens: " << elementInterfaces.back().thickness << " m" << std::endl;
-          std::cout << "Focus distance in scene: " << FocusDistance(elementInterfaces.back().thickness) << " m" << std::endl;
+    } else {
+        // Use given film distance
+        LOG(INFO) << StringPrintf("Focus distance hard set: %f -> %f\n",filmdistance,
+                                  FocusDistance(filmdistance));
+        elementInterfaces.back().thickness = filmdistance;
+    }
+    
+    // Print out film distance into terminal
+    std::cout << "Distance from film to back of lens: " << elementInterfaces.back().thickness << " m" << std::endl;
+    std::cout << "Focus distance in scene: " << FocusDistance(elementInterfaces.back().thickness) << " m" << std::endl;
           
     // Compute exit pupil bounds at sampled points on the film
     int nSamples = 64;
@@ -100,6 +100,13 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
         Float r1 = (Float)(i + 1) / nSamples * film->diagonal / 2;
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
+
+    if (simpleWeighting)
+        Warning("\"simpleweighting\" option with RealisticCamera no longer "
+                "necessarily matches regular camera images. Further, pixel "
+                "values will vary a bit depending on the aperture size. See "
+                "this discussion for details: "
+                "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
 
 bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
@@ -111,7 +118,7 @@ bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
     // Added by Trisha to keep wavelength information
     if(rOut){
         rLens.wavelength = rOut->wavelength;
-    }else{
+    } else {
         rLens.wavelength = 550;
     }
     
@@ -707,10 +714,11 @@ Float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
               sample.pFilm.y / film->fullResolution.y);
     Point2f pFilm2 = film->GetPhysicalExtent().Lerp(s);
     Point3f pFilm(-pFilm2.x, pFilm2.y, 0);
-    
+
     // Trace ray from _pFilm_ through lens system
     Float exitPupilBoundsArea;
-    Point3f pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y),sample.pLens,&exitPupilBoundsArea);
+    Point3f pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens,
+                                    &exitPupilBoundsArea);
     Ray rFilm(pFilm, pRear - pFilm, Infinity,
               Lerp(sample.time, shutterOpen, shutterClose));
     if (!TraceLensesFromFilm(rFilm, ray)) {
@@ -726,10 +734,7 @@ Float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     // Return weighting for _RealisticCamera_ ray
     Float cosTheta = Normalize(rFilm.d).z;
     Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-    
-    if (noWeighting)
-        return 1.0f;
-    else if (simpleWeighting)
+    if (simpleWeighting)
         return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
     else
         return (shutterClose - shutterOpen) *

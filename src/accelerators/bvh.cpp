@@ -180,11 +180,11 @@ static void RadixSort(std::vector<MortonPrimitive> *v) {
 }
 
 // BVHAccel Method Definitions
-BVHAccel::BVHAccel(const std::vector<std::shared_ptr<Primitive>> &p,
+BVHAccel::BVHAccel(std::vector<std::shared_ptr<Primitive>> p,
                    int maxPrimsInNode, SplitMethod splitMethod)
     : maxPrimsInNode(std::min(255, maxPrimsInNode)),
       splitMethod(splitMethod),
-      primitives(p) {
+      primitives(std::move(p)) {
     ProfilePhase _(Prof::AccelConstruction);
     if (primitives.empty()) return;
     // Build BVH from _primitives_
@@ -206,10 +206,13 @@ BVHAccel::BVHAccel(const std::vector<std::shared_ptr<Primitive>> &p,
         root = recursiveBuild(arena, primitiveInfo, 0, primitives.size(),
                               &totalNodes, orderedPrims);
     primitives.swap(orderedPrims);
+    primitiveInfo.resize(0);
     LOG(INFO) << StringPrintf("BVH created with %d nodes for %d "
-                              "primitives (%.2f MB)", totalNodes,
-                              (int)primitives.size(),
+                              "primitives (%.2f MB), arena allocated %.2f MB",
+                              totalNodes, (int)primitives.size(),
                               float(totalNodes * sizeof(LinearBVHNode)) /
+                              (1024.f * 1024.f),
+                              float(arena.TotalAllocated()) /
                               (1024.f * 1024.f));
 
     // Compute representation of depth-first traversal of BVH tree
@@ -735,7 +738,7 @@ bool BVHAccel::IntersectP(const Ray &ray) const {
 }
 
 std::shared_ptr<BVHAccel> CreateBVHAccelerator(
-    const std::vector<std::shared_ptr<Primitive>> &prims, const ParamSet &ps) {
+    std::vector<std::shared_ptr<Primitive>> prims, const ParamSet &ps) {
     std::string splitMethodName = ps.FindOneString("splitmethod", "sah");
     BVHAccel::SplitMethod splitMethod;
     if (splitMethodName == "sah")
@@ -753,7 +756,7 @@ std::shared_ptr<BVHAccel> CreateBVHAccelerator(
     }
 
     int maxPrimsInNode = ps.FindOneInt("maxnodeprims", 4);
-    return std::make_shared<BVHAccel>(prims, maxPrimsInNode, splitMethod);
+    return std::make_shared<BVHAccel>(std::move(prims), maxPrimsInNode, splitMethod);
 }
 
 }  // namespace pbrt

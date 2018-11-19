@@ -43,6 +43,7 @@
 #include "shape.h"
 #include "material.h"
 #include "medium.h"
+#include "transform.h"
 
 namespace pbrt {
 
@@ -80,11 +81,7 @@ class GeometricPrimitive : public Primitive {
     GeometricPrimitive(const std::shared_ptr<Shape> &shape,
                        const std::shared_ptr<Material> &material,
                        const std::shared_ptr<AreaLight> &areaLight,
-                       const MediumInterface &mediumInterface)
-        : shape(shape),
-          material(material),
-          areaLight(areaLight),
-          mediumInterface(mediumInterface) {}
+                       const MediumInterface &mediumInterface);
     const AreaLight *GetAreaLight() const;
     const Material *GetMaterial() const;
     void ComputeScatteringFunctions(SurfaceInteraction *isect,
@@ -104,8 +101,7 @@ class TransformedPrimitive : public Primitive {
   public:
     // TransformedPrimitive Public Methods
     TransformedPrimitive(std::shared_ptr<Primitive> &primitive,
-                         const AnimatedTransform &PrimitiveToWorld)
-        : primitive(primitive), PrimitiveToWorld(PrimitiveToWorld) {}
+                         const AnimatedTransform &PrimitiveToWorld);
     bool Intersect(const Ray &r, SurfaceInteraction *in) const;
     bool IntersectP(const Ray &r) const;
     const AreaLight *GetAreaLight() const { return nullptr; }
