@@ -109,6 +109,119 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
 
+
+Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
+    // Calculate importance emitted from the camera via ray (and return raster position if relevant)
+    // Interpolate camera matrix and check if w if forward facing (TODO: relax forward-facing constraint)
+    Transform c2w;
+    CameraToWorld.Interpolate(ray.time, &c2w);
+    Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
+    if (cosTheta <= 0)
+        return 0;
+    // Point ray into lens system
+    Ray negRay = Transform(c2w.GetInverseMatrix())(ray);
+    negRay.d *= -1.0f;
+    // Back it up a bit to make sure we don't accidentally start inside lens system.
+    negRay.o -= negRay.d;
+    // Get the ray that will eventually hit the film plane (after it goes through the lens system).
+    Ray toFilmRay;
+    bool isValid = TraceLensesFromScene(negRay, &toFilmRay);
+    if (!isValid || toFilmRay.d.z >= 0) // If ray cannot possibly hit film, return 0
+        return 0;
+    // Get sample point on film.
+    Point3f pFilm = toFilmRay(-toFilmRay.d.z);
+
+    // Double check on x negation
+    Point2f pFilm2(-pFilm.x, pFilm.y);
+    Bounds2f fBounds = film->GetPhysicalExtent();
+    // Return zero importance for out of bounds points
+    if (pFilm2.x < fBounds.pMin.x || pFilm2.x >= fBounds.pMax.x ||
+        pFilm2.y < fBounds.pMin.y || pFilm2.y >= fBounds.pMax.y)
+        return 0;
+    // Fill out raster position if requested
+    if (pRaster2) {
+        *pRaster2 = Point2f(pFilm2.x, pFilm2.y);
+    }
+
+    // TOTAL HACK, TODO: replace. Approximation of image plane bounds at $z=1$ for _RealisticCamera_
+    float A = 0.5f;
+
+    float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Get something actually useful
+                                            // TODO: fix total hack
+    Float lensArea = (Pi * lensRadius * lensRadius);
+    // Use perspective camera approx hack TODO: fix
+    // Return importance for point on image plane
+    Float cos2Theta = cosTheta * cosTheta;
+    return Spectrum(1 / (A * lensArea * cos2Theta * cos2Theta));
+}
+
+void RealisticCamera::Pdf_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
+    // Interpolate camera matrix and fail if $\w{}$ is not forward-facing
+    float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Get something actually useful
+    Transform c2w;
+    CameraToWorld.Interpolate(ray.time, &c2w);
+    Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
+    if (cosTheta <= 0) {
+        *pdfPos = *pdfDir = 0;
+        return;
+    }
+    // Point ray into lens system
+    Ray negRay = Transform(c2w.GetInverseMatrix())(ray);
+    negRay.d *= -1.0f;
+    // Back it up a bit to make sure we don't accidentally start inside lens system.
+    negRay.o -= negRay.d;
+    // Get the ray that will eventually hit the film plane (after it goes through the lens system).
+    Ray toFilmRay;
+    bool isValid = TraceLensesFromScene(negRay, &toFilmRay);
+    if (!isValid || toFilmRay.d.z >= 0) { // If ray cannot possibly hit film, return 0
+        *pdfPos = *pdfDir = 0;
+        return;
+    }
+    // Get sample point on film.
+    Point3f pFilm = toFilmRay(-toFilmRay.d.z);
+
+    // Double check on x negation
+    Point2f pFilm2(-pFilm.x, pFilm.y);
+    Bounds2f fBounds = film->GetPhysicalExtent();
+    // Return zero importance for out of bounds points
+    if (pFilm2.x < fBounds.pMin.x || pFilm2.x >= fBounds.pMax.x ||
+        pFilm2.y < fBounds.pMin.y || pFilm2.y >= fBounds.pMax.y) {
+        *pdfPos = *pdfDir = 0;
+        return;
+    }
+
+    // TOTAL HACK, TODO: replace. Approximation of image plane bounds at $z=1$ for _RealisticCamera_
+    float A = 0.5f;
+
+    // TODO: fix total hack
+    Float lensArea = (Pi * lensRadius * lensRadius);
+    *pdfPos = 1 / lensArea;
+    *pdfDir = 1 / (A * cosTheta * cosTheta * cosTheta);
+}
+
+Spectrum RealisticCamera::Sample_Wi(const Interaction &ref, const Point2f &u, Vector3f *wi, Float *pdf, Point2f *pRaster, VisibilityTester *vis) const {
+    // Uniformly sample a lens interaction _lensIntr_
+    float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Get something actually useful
+
+
+    Point2f pLens = lensRadius * ConcentricSampleDisk(u);
+    Point3f pLensWorld = CameraToWorld(ref.time, Point3f(pLens.x, pLens.y, 0));
+    Interaction lensIntr(pLensWorld, ref.time, medium);
+    lensIntr.n = Normal3f(CameraToWorld(ref.time, Vector3f(0, 0, 1)));
+
+    // Populate arguments and compute the importance value
+    *vis = VisibilityTester(ref, lensIntr);
+    *wi = lensIntr.p - ref.p;
+    Float dist = wi->Length();
+    *wi /= dist;
+
+    // Compute PDF for importance arriving at _ref_
+    // Compute lens area of perspective camera
+    Float lensArea = (Pi * 30.0f * 30.0f);
+    *pdf = (dist * dist) / (AbsDot(lensIntr.n, *wi) * lensArea);
+    return We(lensIntr.SpawnRay(-*wi), pRaster);
+}
+
 bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
     Float elementZ = 0;
     // Transform _rCamera_ from camera to lens system space
