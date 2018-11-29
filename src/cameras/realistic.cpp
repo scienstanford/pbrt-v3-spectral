@@ -40,6 +40,7 @@
 #include "reflection.h"
 #include "stats.h"
 #include "lowdiscrepancy.h"
+#include "light.h"
 #include <array>
 
 namespace pbrt {
