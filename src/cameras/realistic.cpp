@@ -41,11 +41,81 @@
 #include "stats.h"
 #include "lowdiscrepancy.h"
 #include "light.h"
+#include "samplers/random.h"
 #include <array>
 
 namespace pbrt {
 
 STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
+
+
+void RealisticCamera::GenerateImportancePDFs() {
+
+    const int numPDFSteps = 1024;
+    std::vector<float> cosThetaToOmega(numPDFSteps);
+
+    std::vector<std::atomic<uint32_t>> cosThetaToOmegaAtomic(numPDFSteps);
+    for (auto& p : cosThetaToOmegaAtomic) {
+        p.store(0);
+    }
+
+    // Partition the image into tiles
+    const Bounds2i sampleBounds = film->GetSampleBounds();
+    const Vector2i sampleExtent = sampleBounds.Diagonal();
+    const int tileSize = 16;
+    const int nXTiles = (sampleExtent.x + tileSize - 1) / tileSize;
+    const int nYTiles = (sampleExtent.y + tileSize - 1) / tileSize;
+   
+    int spp = 16;
+    std::unique_ptr<Sampler> sampler = std::make_unique<RandomSampler>(spp);
+
+    ParallelFor2D([&](const Point2i tile) {
+        int seed = tile.y * nXTiles + tile.x;
+        std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed);
+        int x0 = sampleBounds.pMin.x + tile.x * tileSize;
+        int x1 = std::min(x0 + tileSize, sampleBounds.pMax.x);
+        int y0 = sampleBounds.pMin.y + tile.y * tileSize;
+        int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
+        Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
+        LOG(INFO) << "Starting image tile " << tileBounds;
+
+        std::unique_ptr<FilmTile> filmTile = film->GetFilmTile(tileBounds);
+        for (Point2i pPixel : tileBounds) {
+            tileSampler->StartPixel(pPixel);
+            do {
+                CameraSample cameraSample;
+                Point2f pFilm = (Point2f)pPixel + tileSampler->Get2D();
+                cameraSample.pFilm = pFilm;
+                cameraSample.time = tileSampler->Get1D();
+                cameraSample.pLens = tileSampler->Get2D();
+                Ray ray;
+                float w = GenerateRay(cameraSample, &ray);
+                if (w > 0.0) {
+                    Transform c2w;
+                    CameraToWorld.Interpolate(ray.time, &c2w);
+                    Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
+                    uint32_t i = uint32_t((1.0f - cosTheta) * numPDFSteps)*10;
+                    cosThetaToOmegaAtomic[i]++;
+                }
+            } while (tileSampler->StartNextSample());
+        }
+    }, Point2i(nXTiles, nYTiles));
+    for (int i = 0; i < cosThetaToOmegaAtomic.size(); ++i) {
+        cosThetaToOmega[i] = (float)cosThetaToOmegaAtomic[i];
+    }
+    pOmegaViaCosTheta = std::make_unique<Distribution1D>(cosThetaToOmega.data(), numPDFSteps);
+
+    // TODO: Why don't these align well for 50mm gauss lens? 
+    for (int i = 0; i < numPDFSteps; ++i) {
+        float cosTheta = 1.0f - ((i + 0.5f) / (numPDFSteps*10));
+        float A = 0.5f;
+        float pdfOmega = 1 / (A * cosTheta * cosTheta * cosTheta);
+        float calculated = pOmegaViaCosTheta->DiscretePDF(i);
+        //if (i % 10 == 0)
+            //printf("%d guesstimate vs. calc: %f v %f\n", i, pdfOmega, calculated);
+    }
+
+}
 
 // RealisticCamera Method Definitions
 RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
@@ -96,12 +166,13 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
     // Compute exit pupil bounds at sampled points on the film
     int nSamples = 64;
     exitPupilBounds.resize(nSamples);
-    ParallelFor([&](int i) {
+    ParallelFor([&](int64_t i) {
         Float r0 = (Float)i / nSamples * film->diagonal / 2;
         Float r1 = (Float)(i + 1) / nSamples * film->diagonal / 2;
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
 
+    GenerateImportancePDFs();
     if (simpleWeighting)
         Warning("\"simpleweighting\" option with RealisticCamera no longer "
                 "necessarily matches regular camera images. Further, pixel "
@@ -110,7 +181,7 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
 
-
+// MMara: We, Pdf_We, and Sample_Wi all implemented for bdpt
 Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     // Calculate importance emitted from the camera via ray (and return raster position if relevant)
     // Interpolate camera matrix and check if w if forward facing (TODO: relax forward-facing constraint)
@@ -143,7 +214,7 @@ Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     if (pRaster2) {
         *pRaster2 = Point2f(pFilm2.x, pFilm2.y);
     }
-
+    LOG(FATAL) << "RealisticCamera::We() is not properly implemented!";
     // TOTAL HACK, TODO: replace. Approximation of image plane bounds at $z=1$ for _RealisticCamera_
     float A = 0.5f;
 
@@ -156,16 +227,11 @@ Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     return Spectrum(1 / (A * lensArea * cos2Theta * cos2Theta));
 }
 
+
 void RealisticCamera::Pdf_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
-    // Interpolate camera matrix and fail if $\w{}$ is not forward-facing
-    float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Get something actually useful
     Transform c2w;
     CameraToWorld.Interpolate(ray.time, &c2w);
     Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
-    if (cosTheta <= 0) {
-        *pdfPos = *pdfDir = 0;
-        return;
-    }
     // Point ray into lens system
     Ray negRay = Transform(c2w.GetInverseMatrix())(ray);
     negRay.d *= -1.0f;
@@ -191,17 +257,21 @@ void RealisticCamera::Pdf_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const
         return;
     }
 
-    // TOTAL HACK, TODO: replace. Approximation of image plane bounds at $z=1$ for _RealisticCamera_
+    // Approximation of image plane bounds at $z=1$ for _RealisticCamera_ for 50mm dgauss lens. TODO: generalize.
     float A = 0.5f;
+    float pdfOmega = 1 / (A * cosTheta * cosTheta * cosTheta);
+    // float pdfOmega = cosThetaToPDFOmega(cosTheta);
 
-    // TODO: fix total hack
+    float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Correctly derive pdfPos (it's not actually used though)
     Float lensArea = (Pi * lensRadius * lensRadius);
     *pdfPos = 1 / lensArea;
-    *pdfDir = 1 / (A * cosTheta * cosTheta * cosTheta);
+    *pdfDir = pdfOmega;
 }
 
 Spectrum RealisticCamera::Sample_Wi(const Interaction &ref, const Point2f &u, Vector3f *wi, Float *pdf, Point2f *pRaster, VisibilityTester *vis) const {
     // Uniformly sample a lens interaction _lensIntr_
+
+    LOG(FATAL) << "RealisticCamera::Sample_Wi() is not properly implemented!";
     float lensRadius = 17.1 * 0.001 / 2.0f; // TODO: Get something actually useful
 
 
@@ -222,6 +292,7 @@ Spectrum RealisticCamera::Sample_Wi(const Interaction &ref, const Point2f &u, Ve
     *pdf = (dist * dist) / (AbsDot(lensIntr.n, *wi) * lensArea);
     return We(lensIntr.SpawnRay(-*wi), pRaster);
 }
+
 
 bool RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
     Float elementZ = 0;

@@ -226,6 +226,11 @@ Spectrum PerspectiveCamera::Sample_Wi(const Interaction &ref, const Point2f &u,
     return We(lensIntr.SpawnRay(-*wi), pRaster);
 }
 
+bool PerspectiveCamera::CanSample_Wi() const {
+    return true;
+}
+
+
 PerspectiveCamera *CreatePerspectiveCamera(const ParamSet &params,
                                            const AnimatedTransform &cam2world,
                                            Film *film, const Medium *medium) {

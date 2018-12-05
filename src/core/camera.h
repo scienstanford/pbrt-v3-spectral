@@ -61,6 +61,10 @@ class Camera {
     virtual Spectrum Sample_Wi(const Interaction &ref, const Point2f &u,
                                Vector3f *wi, Float *pdf, Point2f *pRaster,
                                VisibilityTester *vis) const;
+    // MMara: Addition so that we can have bidirectional sampling without implementing
+    // We() and Sample_Wi() (Only need Pdf_We). This will be temporarily in place until
+    // we properly implement Sample_Wi (and We) for RealisticCamera
+    virtual bool CanSample_Wi() const;
 
     // Camera Public Data
     AnimatedTransform CameraToWorld;

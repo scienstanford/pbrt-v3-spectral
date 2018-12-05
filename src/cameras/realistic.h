@@ -77,6 +77,8 @@ class RealisticCamera : public Camera {
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
 
+	std::unique_ptr<Distribution1D> pOmegaViaCosTheta; //MMara
+
     // RealisticCamera Private Methods
     Float LensRearZ() const { return elementInterfaces.back().thickness; }
     Float LensFrontZ() const {
@@ -109,6 +111,7 @@ class RealisticCamera : public Camera {
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
                             Float *sampleBoundsArea) const;
     void TestExitPupilBounds() const;
+    void GenerateImportancePDFs(); //MMara
 };
 
 RealisticCamera *CreateRealisticCamera(const ParamSet &params,
