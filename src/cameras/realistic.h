@@ -55,6 +55,11 @@ class RealisticCamera : public Camera {
                     bool caFlag, std::vector<Float> &lensData, Film *film,
                     const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
+    Spectrum We(const Ray &ray, Point2f *pRaster2 = nullptr) const;
+    void Pdf_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const;
+    Spectrum Sample_Wi(const Interaction &ref, const Point2f &sample,
+        Vector3f *wi, Float *pdf, Point2f *pRaster,
+        VisibilityTester *vis) const;
 
   private:
     // RealisticCamera Private Declarations
@@ -71,6 +76,8 @@ class RealisticCamera : public Camera {
     const bool caFlag;
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
+
+	std::unique_ptr<Distribution1D> pOmegaViaCosTheta; //MMara
 
     // RealisticCamera Private Methods
     Float LensRearZ() const { return elementInterfaces.back().thickness; }
@@ -104,6 +111,7 @@ class RealisticCamera : public Camera {
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
                             Float *sampleBoundsArea) const;
     void TestExitPupilBounds() const;
+    void GenerateImportancePDFs(); //MMara
 };
 
 RealisticCamera *CreateRealisticCamera(const ParamSet &params,

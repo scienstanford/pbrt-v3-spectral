@@ -114,4 +114,8 @@ Spectrum Camera::Sample_Wi(const Interaction &ref, const Point2f &u,
     return Spectrum(0.f);
 }
 
+bool Camera::CanSample_Wi() const {
+    return false;
+}
+
 }  // namespace pbrt

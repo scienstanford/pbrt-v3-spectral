@@ -62,6 +62,8 @@ class PerspectiveCamera : public ProjectiveCamera {
                        Vector3f *wi, Float *pdf, Point2f *pRaster,
                        VisibilityTester *vis) const;
 
+    bool CanSample_Wi() const;
+
   private:
     // PerspectiveCamera Private Data
     Vector3f dxCamera, dyCamera;

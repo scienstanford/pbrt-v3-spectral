@@ -79,6 +79,7 @@ int GenerateCameraSubpath(const Scene &scene, Sampler &sampler,
     cameraSample.pLens = sampler.Get2D();
     RayDifferential ray;
     Spectrum beta = camera.GenerateRayDifferential(cameraSample, &ray);
+	if (beta.IsBlack()) return 0; //MMara: RealisticCamera sometimes returns 0-weighted rays that should not be traced 
     ray.ScaleDifferentials(1 / std::sqrt(sampler.samplesPerPixel));
 
     // Generate first vertex on camera subpath and start random walk
@@ -453,6 +454,10 @@ Spectrum ConnectBDPT(
     if (t > 1 && s != 0 && cameraVertices[t - 1].type == VertexType::Light)
         return Spectrum(0.f);
 
+    // MMara: Skip t=1 paths if the camera can't generate properly weighted samples on the lens.
+    if (t == 1 && !camera.CanSample_Wi()) 
+        return Spectrum(0.f);
+
     // Perform connection and write contribution to _L_
     Vertex sampled;
     if (s == 0) {
@@ -540,6 +545,12 @@ BDPTIntegrator *CreateBDPTIntegrator(const ParamSet &params,
     int maxDepth = params.FindOneInt("maxdepth", 5);
     bool visualizeStrategies = params.FindOneBool("visualizestrategies", false);
     bool visualizeWeights = params.FindOneBool("visualizeweights", false);
+
+    if (!camera->CanSample_Wi()) { // Mmara
+        Warning(
+            "BDPT used with camera type that doesn't implement Sample_Wi. "
+            "Disabling bdpt connections (s,t) with t=1.");
+    }
 
     if ((visualizeStrategies || visualizeWeights) && maxDepth > 5) {
         Warning(
