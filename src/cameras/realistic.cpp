@@ -67,7 +67,7 @@ void RealisticCamera::GenerateImportancePDFs() {
     const int nYTiles = (sampleExtent.y + tileSize - 1) / tileSize;
    
     int spp = 16;
-    std::unique_ptr<Sampler> sampler = std::make_unique<RandomSampler>(spp);
+    std::unique_ptr<Sampler> sampler = std::unique_ptr<Sampler>(new RandomSampler(spp));
 
     ParallelFor2D([&](const Point2i tile) {
         int seed = tile.y * nXTiles + tile.x;
@@ -103,7 +103,7 @@ void RealisticCamera::GenerateImportancePDFs() {
     for (int i = 0; i < cosThetaToOmegaAtomic.size(); ++i) {
         cosThetaToOmega[i] = (float)cosThetaToOmegaAtomic[i];
     }
-    pOmegaViaCosTheta = std::make_unique<Distribution1D>(cosThetaToOmega.data(), numPDFSteps);
+    pOmegaViaCosTheta = std::unique_ptr<Distribution1D>(new Distribution1D(cosThetaToOmega.data(), numPDFSteps));
 
     // TODO: Why don't these align well for 50mm gauss lens? 
     for (int i = 0; i < numPDFSteps; ++i) {
