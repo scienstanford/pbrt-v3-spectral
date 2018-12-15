@@ -61,7 +61,7 @@ class MetadataIntegrator : public SamplerIntegrator {
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int depth) const;
     void Preprocess(const Scene &scene, Sampler &sampler);
-
+    virtual bool IgnoreRayWeight() const override { return true; }
   private:
     // MetadataIntegrator Private Data
     const MetadataStrategy strategy;
