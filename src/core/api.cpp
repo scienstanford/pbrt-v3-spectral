@@ -1605,7 +1605,7 @@ void pbrtObjectInstance(const std::string &name) {
     // nObjectInstancesUsed will be 1 for the first entry.
     // TransformedPrimitive's intersect routine overwrites the SurfaceIntersection's instanceId field
     std::shared_ptr<Primitive> prim(
-        std::make_shared<TransformedPrimitive>(in[0], animatedInstanceToWorld, nObjectInstancesUsed));
+        std::make_shared<TransformedPrimitive>(in[0], animatedInstanceToWorld, (uint32_t)nObjectInstancesUsed));
     renderOptions->primitives.push_back(prim);
     renderOptions->instanceNames.push_back(name); // MM
 }
