@@ -68,6 +68,7 @@ void RealisticCamera::GenerateImportancePDFs() {
    
     int spp = 16;
     std::unique_ptr<Sampler> sampler = std::unique_ptr<Sampler>(new RandomSampler(spp));
+    float cosThetaRange = 0.15f;
 
     ParallelFor2D([&](const Point2i tile) {
         int seed = tile.y * nXTiles + tile.x;
@@ -94,7 +95,11 @@ void RealisticCamera::GenerateImportancePDFs() {
                     Transform c2w;
                     CameraToWorld.Interpolate(ray.time, &c2w);
                     Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
-                    uint32_t i = uint32_t((1.0f - cosTheta) * numPDFSteps)*10;
+                    uint32_t i = uint32_t((1.0f - cosTheta) * numPDFSteps/cosThetaRange);
+                    if (i >= numPDFSteps) {
+                        printf("WARNING: cosTheta(%f) out of considered range [%f,1.0]\n", cosTheta, 1.0f-cosThetaRange);
+                        i = numPDFSteps - 1;
+                    }
                     cosThetaToOmegaAtomic[i]++;
                 }
             } while (tileSampler->StartNextSample());
@@ -107,7 +112,7 @@ void RealisticCamera::GenerateImportancePDFs() {
 
     // TODO: Why don't these align well for 50mm gauss lens? 
     for (int i = 0; i < numPDFSteps; ++i) {
-        float cosTheta = 1.0f - ((i + 0.5f) / (numPDFSteps*10));
+        float cosTheta = 1.0f - ((i + 0.5f) / (numPDFSteps/cosThetaRange));
         float A = 0.5f;
         float pdfOmega = 1 / (A * cosTheta * cosTheta * cosTheta);
         float calculated = pOmegaViaCosTheta->DiscretePDF(i);
@@ -172,7 +177,7 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &CameraToWorld,
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
 
-    GenerateImportancePDFs();
+    //GenerateImportancePDFs(); TODO(MMara): re-enable
     if (simpleWeighting)
         Warning("\"simpleweighting\" option with RealisticCamera no longer "
                 "necessarily matches regular camera images. Further, pixel "
