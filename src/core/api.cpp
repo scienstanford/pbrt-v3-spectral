@@ -188,7 +188,7 @@ struct RenderOptions {
     std::map<std::string, std::shared_ptr<Medium>> namedMedia;
     std::vector<std::shared_ptr<Light>> lights;
     std::vector<std::shared_ptr<Primitive>> primitives;
-    std::vector<std::string> primitiveNames; // TL
+    std::vector<std::string> instanceNames; // MM
     std::map<std::string, std::vector<std::shared_ptr<Primitive>>> instances;
     std::vector<std::shared_ptr<Primitive>> *currentInstance = nullptr;
     bool haveScatteringMedia = false;
@@ -1349,7 +1349,6 @@ void pbrtAreaLightSource(const std::string &name, const ParamSet &params) {
 void pbrtShape(const std::string &name, const ParamSet &params) {
     VERIFY_WORLD("Shape");
     std::vector<std::shared_ptr<Primitive>> prims;
-    std::vector<std::string> primNames; //Added by Trisha
     std::vector<std::shared_ptr<AreaLight>> areaLights;
     if (PbrtOptions.cat || (PbrtOptions.toPly && name != "trianglemesh")) {
         printf("%*sShape \"%s\" ", catIndentCount, "", name.c_str());
@@ -1371,7 +1370,6 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
         params.ReportUnused();
         MediumInterface mi = graphicsState.CreateMediumInterface();
         prims.reserve(shapes.size());
-        primNames.reserve(shapes.size());
         for (auto s : shapes) {
             // Possibly create area light for shape
             std::shared_ptr<AreaLight> area;
@@ -1382,7 +1380,6 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
             }
             prims.push_back(
                 std::make_shared<GeometricPrimitive>(s, mtl, area, mi));
-            primNames.push_back(name); //TL
         }
     } else {
         // Initialize _prims_ and _areaLights_ for animated shape
@@ -1402,11 +1399,9 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
         params.ReportUnused();
         MediumInterface mi = graphicsState.CreateMediumInterface();
         prims.reserve(shapes.size());
-        primNames.reserve(shapes.size());
         for (auto s : shapes) {
             prims.push_back(
                 std::make_shared<GeometricPrimitive>(s, mtl, nullptr, mi));
-            primNames.push_back(name); //TL
         }
         // Create single _TransformedPrimitive_ for _prims_
 
@@ -1424,8 +1419,6 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
             std::shared_ptr<Primitive> bvh = std::make_shared<BVHAccel>(prims);
             prims.clear();
             prims.push_back(bvh);
-            primNames.clear(); //MM
-            primNames.push_back(name); //TL
         }
         prims[0] = std::make_shared<TransformedPrimitive>(
             prims[0], animatedObjectToWorld);
@@ -1439,8 +1432,6 @@ void pbrtShape(const std::string &name, const ParamSet &params) {
     } else {
         renderOptions->primitives.insert(renderOptions->primitives.end(),
                                          prims.begin(), prims.end());
-        renderOptions->primitiveNames.insert(renderOptions->primitiveNames.end(),
-                                         primNames.begin(), primNames.end());
         if (areaLights.size())
             renderOptions->lights.insert(renderOptions->lights.end(),
                                          areaLights.begin(), areaLights.end());
@@ -1611,10 +1602,12 @@ void pbrtObjectInstance(const std::string &name) {
     AnimatedTransform animatedInstanceToWorld(
         InstanceToWorld[0], renderOptions->transformStartTime,
         InstanceToWorld[1], renderOptions->transformEndTime);
+    // nObjectInstancesUsed will be 1 for the first entry.
+    // TransformedPrimitive's intersect routine overwrites the SurfaceIntersection's instanceId field
     std::shared_ptr<Primitive> prim(
-        std::make_shared<TransformedPrimitive>(in[0], animatedInstanceToWorld));
+        std::make_shared<TransformedPrimitive>(in[0], animatedInstanceToWorld, nObjectInstancesUsed));
     renderOptions->primitives.push_back(prim);
-    renderOptions->primitiveNames.push_back(name); // TL
+    renderOptions->instanceNames.push_back(name); // MM
 }
 
 void pbrtWorldEnd() {
@@ -1659,12 +1652,13 @@ void pbrtWorldEnd() {
         newFileName = filename.substr(0, lastPos) + "_mesh.txt";
         metadataFile.open(newFileName.c_str());
         
-        std::vector<std::shared_ptr<Primitive>>::iterator itInner;
+        std::vector<std::string>::iterator itInner;
         int count = 0;
-        for (itInner = renderOptions->primitives.begin(); itInner != renderOptions->primitives.end(); itInner++,count++) {
-            std::shared_ptr<Primitive> currPrimitive = *itInner;
-            metadataFile << currPrimitive->primitiveId << " ";
-            metadataFile << renderOptions->primitiveNames[count] << "\n";
+        for (auto itInner = renderOptions->instanceNames.begin(); itInner != renderOptions->instanceNames.end(); itInner++,count++) {
+            std::string instanceName = *itInner;
+            // InstanceIDs start at 1
+            metadataFile << count+1 << " ";
+            metadataFile << instanceName << "\n";
         }
         std::cout << "Mesh metadata file written out." << std::endl;
     }

@@ -150,8 +150,8 @@ class SurfaceInteraction : public Interaction {
     mutable Vector3f dpdx, dpdy;
     mutable Float dudx = 0, dvdx = 0, dudy = 0, dvdy = 0;
     
-    // Added by Trisha in order to do pixel-wise classification
-    uint32_t primitiveId;
+    // Added by TLian (and MMara) in order to do pixel-wise classification
+    uint32_t instanceId = 0;
     uint32_t materialId;
     
     // Added after book publication. Shapes can optionally provide a face

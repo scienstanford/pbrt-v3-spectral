@@ -52,7 +52,7 @@ class Primitive {
   public:
     // Primitive Interface
     virtual ~Primitive();
-    Primitive() : primitiveId(nextprimitiveId++) { }
+    Primitive() { }
     virtual Bounds3f WorldBound() const = 0;
     virtual bool Intersect(const Ray &r, SurfaceInteraction *) const = 0;
     virtual bool IntersectP(const Ray &r) const = 0;
@@ -62,13 +62,6 @@ class Primitive {
                                             MemoryArena &arena,
                                             TransportMode mode,
                                             bool allowMultipleLobes) const = 0;
-    
-    // The following are added by TLian in order to be able to return pixel-wise classification
-    const uint32_t primitiveId;
-    
-    protected:
-    static uint32_t nextprimitiveId;
-    
 };
 
 // GeometricPrimitive Declarations
@@ -87,7 +80,6 @@ class GeometricPrimitive : public Primitive {
     void ComputeScatteringFunctions(SurfaceInteraction *isect,
                                     MemoryArena &arena, TransportMode mode,
                                     bool allowMultipleLobes) const;
-
   private:
     // GeometricPrimitive Private Data
     std::shared_ptr<Shape> shape;
@@ -101,7 +93,8 @@ class TransformedPrimitive : public Primitive {
   public:
     // TransformedPrimitive Public Methods
     TransformedPrimitive(std::shared_ptr<Primitive> &primitive,
-                         const AnimatedTransform &PrimitiveToWorld);
+                         const AnimatedTransform &PrimitiveToWorld, 
+                         uint32_t instanceId = 0);
     bool Intersect(const Ray &r, SurfaceInteraction *in) const;
     bool IntersectP(const Ray &r) const;
     const AreaLight *GetAreaLight() const { return nullptr; }
@@ -116,11 +109,11 @@ class TransformedPrimitive : public Primitive {
     Bounds3f WorldBound() const {
         return PrimitiveToWorld.MotionBounds(primitive->WorldBound());
     }
-
   private:
     // TransformedPrimitive Private Data
     std::shared_ptr<Primitive> primitive;
     const AnimatedTransform PrimitiveToWorld;
+    uint32_t instanceId;
 };
 
 // Aggregate Declarations

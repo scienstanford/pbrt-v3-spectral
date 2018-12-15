@@ -42,7 +42,6 @@ namespace pbrt {
 STAT_MEMORY_COUNTER("Memory/Primitives", primitiveMemory);
 
 // Primitive Method Definitions
-uint32_t Primitive::nextprimitiveId = 1;
 Primitive::~Primitive() {}
     
 const AreaLight *Aggregate::GetAreaLight() const {
@@ -70,8 +69,9 @@ void Aggregate::ComputeScatteringFunctions(SurfaceInteraction *isect,
 
 // TransformedPrimitive Method Definitions
 TransformedPrimitive::TransformedPrimitive(std::shared_ptr<Primitive> &primitive,
-                                           const AnimatedTransform &PrimitiveToWorld)
-    : primitive(primitive), PrimitiveToWorld(PrimitiveToWorld) {
+                                           const AnimatedTransform &PrimitiveToWorld, 
+                                           uint32_t instanceID)
+    : primitive(primitive), PrimitiveToWorld(PrimitiveToWorld), instanceId(instanceId) {
     primitiveMemory += sizeof(*this);
 }
 
@@ -86,7 +86,7 @@ bool TransformedPrimitive::Intersect(const Ray &r,
     // Transform instance's intersection data to world space
     if (!InterpolatedPrimToWorld.IsIdentity())
         *isect = InterpolatedPrimToWorld(*isect);
-    isect->primitiveId = primitiveId; // Added by Trisha
+    isect->instanceId = instanceId; // Added by MMara
     CHECK_GE(Dot(isect->n, isect->shading.n), 0);
     return true;
 }
@@ -122,7 +122,6 @@ bool GeometricPrimitive::Intersect(const Ray &r,
     if (!shape->Intersect(r, &tHit, isect)) return false;
     r.tMax = tHit;
     isect->primitive = this;
-    isect->primitiveId = primitiveId; // Added by Trisha
     isect->materialId = material->materialId; // Added by Trisha
     CHECK_GE(Dot(isect->n, isect->shading.n), 0.);
     // Initialize _SurfaceInteraction::mediumInterface_ after _Shape_
