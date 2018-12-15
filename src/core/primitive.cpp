@@ -70,7 +70,7 @@ void Aggregate::ComputeScatteringFunctions(SurfaceInteraction *isect,
 // TransformedPrimitive Method Definitions
 TransformedPrimitive::TransformedPrimitive(std::shared_ptr<Primitive> &primitive,
                                            const AnimatedTransform &PrimitiveToWorld, 
-                                           uint32_t instanceID)
+                                           uint32_t instanceId)
     : primitive(primitive), PrimitiveToWorld(PrimitiveToWorld), instanceId(instanceId) {
     primitiveMemory += sizeof(*this);
 }

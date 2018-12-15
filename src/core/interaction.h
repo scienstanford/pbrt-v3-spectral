@@ -152,7 +152,7 @@ class SurfaceInteraction : public Interaction {
     
     // Added by TLian (and MMara) in order to do pixel-wise classification
     uint32_t instanceId = 0;
-    uint32_t materialId;
+    uint32_t materialId = 0;
     
     // Added after book publication. Shapes can optionally provide a face
     // index with an intersection point for use in Ptex texture lookups.
