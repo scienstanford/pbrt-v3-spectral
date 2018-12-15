@@ -72,7 +72,7 @@ Spectrum MetadataIntegrator::Li(const RayDifferential &ray,
         L = Spectrum(isect.materialId);
         
     }else if(strategy == MetadataStrategy::mesh){
-        L = Spectrum(isect.primitiveId);
+        L = Spectrum(isect.instanceId);
         
     }else if(strategy == MetadataStrategy::coordinates){
         // Return world coordinates of intersection.
