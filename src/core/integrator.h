@@ -94,6 +94,8 @@ class SamplerIntegrator : public Integrator {
                               const SurfaceInteraction &isect,
                               const Scene &scene, Sampler &sampler,
                               MemoryArena &arena, int depth) const;
+    //Added by MMara so that the metadata integrator can override to ignore
+    virtual bool IgnoreRayWeight() const { return false; }
 
   protected:
     // SamplerIntegrator Protected Data

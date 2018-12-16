@@ -235,6 +235,7 @@ void SamplerIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
+    const bool ignoreRayWeight = IgnoreRayWeight();
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
     {
         ParallelFor2D([&](Point2i tile) {
@@ -316,6 +317,8 @@ void SamplerIntegrator::Render(const Scene &scene) {
                     VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " <<
                         ray << " -> L = " << L;
 
+                    if (ignoreRayWeight)
+                        rayWeight = 1.0f; // Added by MMara
                     // Add camera ray's contribution to image
                     filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
 
