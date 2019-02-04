@@ -47,6 +47,24 @@ namespace pbrt {
 // OmniCamera Declarations
 class OmniCamera : public Camera {
   public:
+    struct LensElementInterface {
+        LensElementInterface() {}
+        LensElementInterface(Float cRadius, Float aRadius,
+            Float thickness, Float ior) :
+            curvatureRadius({cRadius,cRadius}),
+            apertureRadius({ aRadius ,aRadius }),
+            conicConstant({(Float)0.0, (Float)0.0 }),
+            transform(Transform()),
+            thickness(thickness),
+            eta(ior) {}
+        Vector2f curvatureRadius;
+        Vector2f apertureRadius;
+        Vector2f conicConstant;
+        Transform transform;
+        Float thickness;
+        Float eta;
+    };
+
     // OmniCamera Public Methods
     OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
@@ -57,12 +75,6 @@ class OmniCamera : public Camera {
 
   private:
     // OmniCamera Private Declarations
-    struct LensElementInterface {
-        Float curvatureRadius;
-        Float thickness;
-        Float eta;
-        Float apertureRadius;
-    };
 
     // OmniCamera Private Data
     const bool simpleWeighting;
@@ -80,7 +92,7 @@ class OmniCamera : public Camera {
         return zSum;
     }
     Float RearElementRadius() const {
-        return elementInterfaces.back().apertureRadius;
+        return elementInterfaces.back().apertureRadius.x;
     }
     bool TraceLensesFromFilm(const Ray &ray, Ray *rOut) const;
     static bool IntersectSphericalElement(Float radius, Float zCenter,

@@ -42,7 +42,11 @@
 #include "lowdiscrepancy.h"
 #include "light.h"
 #include "samplers/random.h"
+#include "ext/json.hpp"
 #include <array>
+#include <fstream>
+
+using json = nlohmann::json;
 
 namespace pbrt {
 
@@ -68,9 +72,12 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld,
                 lensData[i + 3] = apertureDiameter;
             }
         }
+        Float cRadius = lensData[i] * (Float).001;
+        Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
+        Float thickness = lensData[i + 1] * (Float).001;
+        Float ior = lensData[i + 2];
         elementInterfaces.push_back(LensElementInterface(
-            {lensData[i] * (Float).001, lensData[i + 1] * (Float).001,
-             lensData[i + 2], lensData[i + 3] * Float(.001) / Float(2.)}));
+            cRadius,aRadius,thickness,ior));
     }
 
     // Compute lens--film distance for given focus distance
@@ -133,7 +140,7 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadius.x == 0);
         if (isStop) {
             // The refracted ray computed in the previous lens element
             // interface may be pointed towards film plane(+z) in some
@@ -141,8 +148,8 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
             if (rLens.d.z >= 0.0) return false;
             t = (elementZ - rLens.o.z) / rLens.d.z;
         } else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadius.x;
+            Float zCenter = elementZ + element.curvatureRadius.x;
             if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
                 return false;
         }
@@ -151,7 +158,7 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
         // Test intersection point against element aperture
         Point3f pHit = rLens(t);
         Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius * element.apertureRadius) return false;
+        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
         rLens.o = pHit;
 
         // Update ray path for element interface interaction
@@ -215,12 +222,12 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadius.x == 0);
         if (isStop)
             t = (elementZ - rLens.o.z) / rLens.d.z;
         else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadius.x;
+            Float zCenter = elementZ + element.curvatureRadius.x;
             if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
                 return false;
         }
@@ -229,7 +236,7 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
         // Test intersection point against element aperture
         Point3f pHit = rLens(t);
         Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius * element.apertureRadius) return false;
+        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
         rLens.o = pHit;
 
         // Update ray path for from-scene element interface interaction
@@ -259,15 +266,15 @@ void OmniCamera::DrawLensSystem() const {
     Float z = sumz;
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        Float r = element.curvatureRadius;
+        Float r = element.curvatureRadius.x;
         if (r == 0) {
             // stop
             printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", z,
-                   element.apertureRadius, z, 2 * element.apertureRadius);
-            printf("Line[{{%f, %f}, {%f, %f}}]}, ", z, -element.apertureRadius,
-                   z, -2 * element.apertureRadius);
+                   element.apertureRadius.x, z, 2 * element.apertureRadius.x);
+            printf("Line[{{%f, %f}, {%f, %f}}]}, ", z, -element.apertureRadius.x,
+                   z, -2 * element.apertureRadius.x);
         } else {
-            Float theta = std::abs(std::asin(element.apertureRadius / r));
+            Float theta = std::abs(std::asin(element.apertureRadius.x / r));
             if (r > 0) {
                 // convex as seen from front of lens
                 Float t0 = Pi - theta;
@@ -283,22 +290,22 @@ void OmniCamera::DrawLensSystem() const {
                 // connect top/bottom to next element
                 CHECK_LT(i + 1, elementInterfaces.size());
                 Float nextApertureRadius =
-                    elementInterfaces[i + 1].apertureRadius;
-                Float h = std::max(element.apertureRadius, nextApertureRadius);
+                    elementInterfaces[i + 1].apertureRadius.x;
+                Float h = std::max(element.apertureRadius.x, nextApertureRadius);
                 Float hlow =
-                    std::min(element.apertureRadius, nextApertureRadius);
+                    std::min(element.apertureRadius.x, nextApertureRadius);
 
                 Float zp0, zp1;
                 if (r > 0) {
-                    zp0 = z + element.curvatureRadius -
-                          element.apertureRadius / std::tan(theta);
+                    zp0 = z + element.curvatureRadius.x -
+                          element.apertureRadius.x / std::tan(theta);
                 } else {
-                    zp0 = z + element.curvatureRadius +
-                          element.apertureRadius / std::tan(theta);
+                    zp0 = z + element.curvatureRadius.x +
+                          element.apertureRadius.x / std::tan(theta);
                 }
 
                 Float nextCurvatureRadius =
-                    elementInterfaces[i + 1].curvatureRadius;
+                    elementInterfaces[i + 1].curvatureRadius.x;
                 Float nextTheta = std::abs(
                     std::asin(nextApertureRadius / nextCurvatureRadius));
                 if (nextCurvatureRadius > 0) {
@@ -314,10 +321,10 @@ void OmniCamera::DrawLensSystem() const {
                 printf("Line[{{%f, %f}, {%f, %f}}], ", zp0, -h, zp1, -h);
 
                 // vertical lines when needed to close up the element profile
-                if (element.apertureRadius < nextApertureRadius) {
+                if (element.apertureRadius.x < nextApertureRadius) {
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp0, h, zp0, hlow);
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp0, -h, zp0, -hlow);
-                } else if (element.apertureRadius > nextApertureRadius) {
+                } else if (element.apertureRadius.x > nextApertureRadius) {
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, h, zp1, hlow);
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, -h, zp1, -hlow);
                 }
@@ -343,15 +350,15 @@ void OmniCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
     for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = elementInterfaces[i];
         elementZ -= element.thickness;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadius.x == 0);
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
         if (isStop)
             t = -(ray.o.z - elementZ) / ray.d.z;
         else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadius.x;
+            Float zCenter = elementZ + element.curvatureRadius.x;
             if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
                 goto done;
         }
@@ -363,7 +370,7 @@ void OmniCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
         // Test intersection point against element aperture
         Point3f pHit = ray(t);
         Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius * element.apertureRadius;
+        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
         if (r2 > apertureRadius2) goto done;
         ray.o = pHit;
 
@@ -407,15 +414,15 @@ void OmniCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
     Ray ray = CameraToLens(r);
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadius.x == 0);
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
         if (isStop)
             t = -(ray.o.z - elementZ) / ray.d.z;
         else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadius.x;
+            Float zCenter = elementZ + element.curvatureRadius.x;
             if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
                 return;
         }
@@ -427,7 +434,7 @@ void OmniCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
         // Test intersection point against element aperture
         Point3f pHit = ray(t);
         Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius * element.apertureRadius;
+        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
         if (r2 > apertureRadius2) return;
         ray.o = pHit;
 
@@ -745,13 +752,13 @@ Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
 }
 
 OmniCamera *CreateOmniCamera(const ParamSet &params,
-                                       const AnimatedTransform &cam2world,
-                                       Film *film, const Medium *medium) {
+    const AnimatedTransform &cam2world,
+    Film *film, const Medium *medium) {
     Float shutteropen = params.FindOneFloat("shutteropen", 0.f);
     Float shutterclose = params.FindOneFloat("shutterclose", 1.f);
     if (shutterclose < shutteropen) {
         Warning("Shutter close time [%f] < shutter open [%f].  Swapping them.",
-                shutterclose, shutteropen);
+            shutterclose, shutteropen);
         std::swap(shutterclose, shutteropen);
     }
 
@@ -761,29 +768,151 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     Float focusDistance = params.FindOneFloat("focusdistance", 10.0);
     bool simpleWeighting = params.FindOneBool("simpleweighting", true);
     bool noWeighting = params.FindOneBool("noweighting", false); // Added by TL for depth maps.
-    
+
     if (lensFile == "") {
         Error("No lens description file supplied!");
         return nullptr;
     }
     // Load element data from lens description file
     std::vector<Float> lensData;
-    if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
-        Error("Error reading lens specification file \"%s\".",
-              lensFile.c_str());
-        return nullptr;
-    }
-    if (lensData.size() % 4 != 0) {
-        // Trisha: If the size has an extra value, it's possible this lens type was meant for pbrt-v2-spectral and has an extra focal length value at the top. In this case, let's automatically convert it by removing this extra value.
-        if(lensData.size() % 4 == 1){
-            Warning("Extra value in lens specification file, this lens file may be for pbrt-v2-spectral. Removing extra value to make it compatible with pbrt-v3-spectral...");
-            lensData.erase(lensData.begin());
+
+    auto endsWith = [](const std::string& str, const std::string& suffix) {
+        return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+    };
+
+    if (endsWith(lensFile, ".dat")) {
+        if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
+            Error("Error reading lens specification file \"%s\".",
+                lensFile.c_str());
+            return nullptr;
         }
-        else{
-            Error(
-                  "Excess values in lens specification file \"%s\"; "
-                  "must be multiple-of-four values, read %d.",
-                  lensFile.c_str(), (int)lensData.size());
+        if (lensData.size() % 4 != 0) {
+            // Trisha: If the size has an extra value, it's possible this lens type was meant for pbrt-v2-spectral and has an extra focal length value at the top. In this case, let's automatically convert it by removing this extra value.
+            if (lensData.size() % 4 == 1) {
+                Warning("Extra value in lens specification file, this lens file may be for pbrt-v2-spectral. Removing extra value to make it compatible with pbrt-v3-spectral...");
+                lensData.erase(lensData.begin());
+            }
+            else {
+                Error(
+                    "Excess values in lens specification file \"%s\"; "
+                    "must be multiple-of-four values, read %d.",
+                    lensFile.c_str(), (int)lensData.size());
+                return nullptr;
+            }
+        }
+    } else {
+        if (!endsWith(lensFile, ".json")) {
+            Error("Invalid format for lens specification file \"%s\".",
+                lensFile.c_str());
+            return nullptr;
+        }
+        // read a JSON file
+        std::ifstream i(lensFile);
+        json j;
+        if (i && (i>>j)) {
+            // assert(j.is_object())
+            // j["name"]
+            // j["description"]
+            if (j["name"].is_string()) {
+                LOG(INFO) << StringPrintf("Loading lens %s.\n",
+                    j["name"].get<std::string>().c_str());
+            }
+            if (j["description"].is_string()) {
+                LOG(INFO) << StringPrintf("%s\n",
+                    j["description"].get<std::string>().c_str());
+            }
+            auto jsurfaces = j["surfaces"];
+            std::vector<OmniCamera::LensElementInterface> surfaces;
+
+            auto toVec2 = [](json val) {
+                if (val.is_number()) {
+                    return Vector2f{ (Float)val, (Float)val };
+                } else if (val.is_array() && val.size() == 2) {
+                    return Vector2f{ val[0], val[1] };
+                } 
+                return Vector2f(); // Default value
+            };
+            auto toTransform = [lensFile](json t) {
+                // Stored in columns in json, but pbrt stores matrices 
+                // in row-major order.
+                if (t.is_null()) { // Perfectly fine to have no transform
+                    return Transform();
+                }
+                if (!(t.size() == 4 && t[0].size() == 3 && 
+                    t[1].size() == 3 && t[2].size() == 3 && 
+                    t[3].size() == 3)) {
+                    Error("Invalid transform in lens specification file \"%s\", must be an array of 4 arrays of 3 floats each (column-major transform).", lensFile.c_str());
+                }
+                Float m[4][4];
+                for (int c = 0; c < 4; ++c) {
+                    for (int r = 0; r < 4; ++r) {
+                        m[r][c] = (Float)t[c][r];
+                    }
+                }
+                m[0][3] = m[1][3] = m[2][3] = (Float)0.0;
+                m[3][3] = (Float)1.0;
+                return Transform(m);
+            };
+
+            auto toLensElementInterface = [toVec2, toTransform](json surf) {
+                OmniCamera::LensElementInterface result;
+                result.apertureRadius   = toVec2(surf["semi_aperture"]);
+                result.conicConstant    = toVec2(surf["conic_constant"]);
+                result.curvatureRadius  = toVec2(surf["radius"]);
+                result.eta              = Float(surf["ior"]);
+                result.thickness        = Float(surf["thickness"]);
+                result.transform        = toTransform(surf["transform"]);
+                return result;
+            };
+
+
+            if (jsurfaces.is_array() && jsurfaces.size() > 0) {
+                for (auto jsurf : jsurfaces) {
+                    surfaces.push_back(toLensElementInterface(jsurf));
+                }
+            } else {
+                Error("Error, lens specification file without a valid surface array \"%s\".",
+                    lensFile.c_str());
+                return nullptr;
+            }
+
+            for (auto& s : surfaces) {
+                if (s.curvatureRadius.x != s.curvatureRadius.y) {
+                    Error("Error, lens specification file  \"%s\" contains aspheric element, NYI.",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+                if (s.apertureRadius.x != s.apertureRadius.y) {
+                    Error("Error, lens specification file  \"%s\" contains asymmetric aperture radius element, NYI.",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+                if (s.conicConstant.x != s.conicConstant.y || s.conicConstant.x != (Float)0.0) {
+                    Error("Error, lens specification file  \"%s\" contains conic element, NYI.",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+                if (!s.transform.IsIdentity()) {
+                    Error("Error, lens specification file  \"%s\" contains non-identity transform, NYI.",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+                lensData.push_back(s.curvatureRadius.x);
+                lensData.push_back(s.thickness);
+                lensData.push_back(s.eta);
+                lensData.push_back(s.apertureRadius.x);
+            }
+
+            auto microlens = j["microlens"];
+            if (!microlens.is_null()) {
+                Error("Error, microlens NYI, in lens specification file \"%s\".",
+                    lensFile.c_str());
+                return nullptr;
+            }
+
+        } else {
+            Error("Error reading lens specification file \"%s\".",
+                lensFile.c_str());
             return nullptr;
         }
     }
