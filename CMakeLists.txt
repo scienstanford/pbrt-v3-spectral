@@ -546,6 +546,11 @@ ADD_SANITIZERS ( imgtool )
 TARGET_COMPILE_FEATURES ( imgtool PRIVATE ${PBRT_CXX11_FEATURES} )
 TARGET_LINK_LIBRARIES ( imgtool ${ALL_PBRT_LIBS} )
 
+ADD_EXECUTABLE ( lenstool src/tools/lenstool.cpp )
+ADD_SANITIZERS ( lenstool )
+TARGET_COMPILE_FEATURES ( lenstool PRIVATE ${PBRT_CXX11_FEATURES} )
+TARGET_LINK_LIBRARIES ( lenstool ${ALL_PBRT_LIBS} )
+
 ADD_EXECUTABLE ( obj2pbrt src/tools/obj2pbrt.cpp )
 ADD_SANITIZERS ( obj2pbrt )
 
