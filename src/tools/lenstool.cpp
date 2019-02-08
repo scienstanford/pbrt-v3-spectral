@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <string>
+#include <fstream>
+#include <iomanip>
+#include "floatfile.h"
 #include "fileutil.h"
 #include "imageio.h"
 #include "pbrt.h"
@@ -85,10 +89,27 @@ int convert(int argc, char *argv[]) {
     if (endsWith(lensFile, ".dat")) {
         // Load element data from lens description file
         std::vector<Float> lensData;
+        std::string name;
+        std::string description;
         if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
             Error("Error reading lens specification file \"%s\".",
                 lensFile.c_str());
             return -1;
+        } else {
+            // TODO: More robust extraction of names, descriptions
+            std::ifstream infile(lensFile);
+            if (infile.good()) {
+                std::string nameLine, descriptionLine;
+                getline(infile, nameLine);
+                if (nameLine[0] == '#') {
+                    name = nameLine.substr(1);
+                }
+                getline(infile, descriptionLine);
+                while (descriptionLine[0] == '#') {
+                    description += descriptionLine.substr(1);
+                    getline(infile, descriptionLine);
+                } 
+            }
         }
         if (lensData.size() % 4 != 0) {
             // Trisha: If the size has an extra value, it's possible this lens type was meant for pbrt-v2-spectral and has an extra focal length value at the top. In this case, let's automatically convert it by removing this extra value.
@@ -104,12 +125,31 @@ int convert(int argc, char *argv[]) {
                 return -1;
             }
         }
+        
+        std::vector<json> surfaces;
+        for (int i = 0; i < lensData.size(); i += 4) {
+            json jsurf;
+            jsurf["radius"] = lensData[i+0];
+            jsurf["thickness"] = lensData[i+1];
+            jsurf["ior"] = lensData[i+2];
+            jsurf["semi_aperture"] = lensData[i+3];
+            surfaces.push_back(jsurf);
+        }
+
+        json j;
+        j["name"] = name;
+        j["description"] = description;
+        j["surfaces"] = surfaces;
+        std::ofstream outfile(outFilename);
+        outfile << std::setw(4) << j << std::endl;
+
         // Covert to outfile here
-        printf("Input file: %s, Ouput file: %s\n", inFilename, outFilename);
+        printf("Input file: %s, Ouput file: %s; %zd surfaces\n", inFilename, outFilename, surfaces.size());
+        
     } else {
         Error(
-            "Input to lenstool conver must be a .dat file, but given \"%s\"; ", 
-            lensFile.c_str())
+            "Input to lenstool conver must be a .dat file, but given \"%s\"; ",
+            lensFile.c_str());
     }
 
     return 0;
