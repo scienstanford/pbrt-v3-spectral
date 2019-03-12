@@ -62,7 +62,7 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
     const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
       simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
-
+    static RNG rng;
 
     auto floatsToElementInterfaces = [](std::vector<Float>& lensData, std::vector<LensElementInterface>& elementInterfaces, float apertureDiameter) {
         for (int i = 0; i < (int)lensData.size(); i += 4) {
@@ -81,8 +81,10 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
             Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
             Float thickness = lensData[i + 1] * (Float).001;
             Float ior = lensData[i + 2];
-            elementInterfaces.push_back(LensElementInterface(
-                cRadius, aRadius, thickness, ior));
+            LensElementInterface interface(
+                cRadius, aRadius, thickness, ior);
+            interface.transform = Translate(Vector3f(0.001, 0.001, 0.0)*rng.UniformFloat()-Vector3f(0.0005,0.0005,0.0));
+            elementInterfaces.push_back(interface);
         }
     };
 
@@ -170,11 +172,15 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
         } else {
             Float radius = element.curvatureRadius.x;
             Float zCenter = elementZ + element.curvatureRadius.x;
+            rLens = element.transform(rLens);
             if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
                 return false;
         }
         CHECK_GE(t, 0);
 
+        auto invTransform = Inverse(element.transform);
+        rLens = invTransform(rLens);
+        n = invTransform(n);
         // Test intersection point against element aperture
         Point3f pHit = rLens(t);
         Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
@@ -1045,9 +1051,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
 
 
             } else {
-                Error("Error, microlens NYI, in lens specification file \"%s\".",
-                    lensFile.c_str());
-                return nullptr;
             }
 
         } else {
