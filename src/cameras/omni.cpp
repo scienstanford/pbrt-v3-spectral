@@ -149,7 +149,7 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
                 return false;
         }
         CHECK_GE(t, 0);
-
+        // Transform the ray back into the original space.
         auto invTransform = Inverse(element.transform);
         rLens = invTransform(rLens);
         n = invTransform(n);
