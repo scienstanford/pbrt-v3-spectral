@@ -56,42 +56,15 @@ STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
 OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
     Float shutterClose, Float apertureDiameter, Float filmdistance,
     Float focusDistance, bool simpleWeighting, bool noWeighting,
-    bool caFlag, std::vector<Float> &lensData, std::vector<Float> &microlensData,
+    bool caFlag, std::vector<OmniCamera::LensElementInterface>& lensInterfaceData, std::vector<OmniCamera::LensElementInterface> &microlensData,
     Vector2i microlensDims, std::vector<Float> & microlensOffsets, float microlensSensorOffset,
-    Film *film,
-    const Medium *medium)
+    Film *film, const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
       simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
-    static RNG rng;
-
-    auto floatsToElementInterfaces = [](std::vector<Float>& lensData, std::vector<LensElementInterface>& elementInterfaces, float apertureDiameter) {
-        for (int i = 0; i < (int)lensData.size(); i += 4) {
-            if (lensData[i] == 0) {
-                if (apertureDiameter > lensData[i + 3]) {
-                    Warning(
-                        "Specified aperture diameter %f is greater than maximum "
-                        "possible %f.  Clamping it.",
-                        apertureDiameter, lensData[i + 3]);
-                }
-                else {
-                    lensData[i + 3] = apertureDiameter;
-                }
-            }
-            Float cRadius = lensData[i] * (Float).001;
-            Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
-            Float thickness = lensData[i + 1] * (Float).001;
-            Float ior = lensData[i + 2];
-            LensElementInterface interface(
-                cRadius, aRadius, thickness, ior);
-            interface.transform = Translate(Vector3f(0.001, 0.001, 0.0)*rng.UniformFloat()-Vector3f(0.0005,0.0005,0.0));
-            elementInterfaces.push_back(interface);
-        }
-    };
-
-    floatsToElementInterfaces(lensData, elementInterfaces, apertureDiameter);
     
+    elementInterfaces = lensInterfaceData;
     if (microlensData.size() > 0) {
-        floatsToElementInterfaces(microlensData, microlens.elementInterfaces, apertureDiameter);
+        microlens.elementInterfaces = microlensData;
         microlens.offsets.resize(microlensOffsets.size() / 2);
         for (int i = 0; i < microlens.offsets.size(); ++i) {
             microlens.offsets[i].x = microlensOffsets[2 * i + 0];
@@ -100,7 +73,6 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
         microlens.dimensions = microlensDims;
         microlens.offsetFromSensor = microlensSensorOffset;
     }
-
 
     // Compute lens--film distance for given focus distance
     // TL: If a film distance is given, hardset the focus distance. If not, use the focus distance given.
@@ -499,8 +471,7 @@ void OmniCamera::ComputeCardinalPoints(const Ray &rIn, const Ray &rOut,
     *pz = -rOut(tp).z;
 }
 
-void OmniCamera::ComputeThickLensApproximation(Float pz[2],
-                                                    Float fz[2]) const {
+void OmniCamera::ComputeThickLensApproximation(Float pz[2], Float fz[2]) const {
     // Find height $x$ from optical axis for parallel rays
     Float x = .001 * film->diagonal;
 
@@ -864,10 +835,10 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
         return nullptr;
     }
     // Load element data from lens description file
-    std::vector<Float> lensData;
+    std::vector<OmniCamera::LensElementInterface> lensInterfaceData;
 
     // Load element data from lens description file
-    std::vector<Float> microlensData;
+    std::vector<OmniCamera::LensElementInterface> microlensData;
 
     std::vector<Float> microlensOffsets;
 
@@ -878,6 +849,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     };
 
     if (endsWith(lensFile, ".dat")) {
+        std::vector<Float> lensData;
         if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
             Error("Error reading lens specification file \"%s\".",
                 lensFile.c_str());
@@ -897,6 +869,34 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 return nullptr;
             }
         }
+
+        auto floatsToElementInterfaces = [](std::vector<Float>& lensData, std::vector<OmniCamera::LensElementInterface>& elementInterfaces, float apertureDiameter) {
+            for (int i = 0; i < (int)lensData.size(); i += 4) {
+                if (lensData[i] == 0) {
+                    if (apertureDiameter > lensData[i + 3]) {
+                        Warning(
+                            "Specified aperture diameter %f is greater than maximum "
+                            "possible %f.  Clamping it.",
+                            apertureDiameter, lensData[i + 3]);
+                    }
+                    else {
+                        lensData[i + 3] = apertureDiameter;
+                    }
+                }
+                Float cRadius = lensData[i] * (Float).001;
+                Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
+                Float thickness = lensData[i + 1] * (Float).001;
+                Float ior = lensData[i + 2];
+                OmniCamera::LensElementInterface interface(
+                    cRadius, aRadius, thickness, ior);
+                //interface.transform = Translate(Vector3f(0.001, 0.001, 0.0)*rng.UniformFloat() - Vector3f(0.0005, 0.0005, 0.0));
+                elementInterfaces.push_back(interface);
+            }
+        };
+
+        floatsToElementInterfaces(lensData, lensInterfaceData, apertureDiameter);
+
+
     } else {
         if (!endsWith(lensFile, ".json")) {
             Error("Invalid format for lens specification file \"%s\".",
@@ -919,7 +919,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     j["description"].get<std::string>().c_str());
             }
             auto jsurfaces = j["surfaces"];
-            std::vector<OmniCamera::LensElementInterface> surfaces;
 
             auto toVec2 = [](json val) {
                 if (val.is_number()) {
@@ -951,66 +950,52 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     Error("Invalid transform in lens specification file \"%s\", must be an array of 4 arrays of 3 floats each (column-major transform).", lensFile.c_str());
                 }
                 Float m[4][4];
-                for (int c = 0; c < 4; ++c) {
-                    for (int r = 0; r < 4; ++r) {
+                for (int r = 0; r < 3; ++r) {
+                    for (int c = 0; c < 3; ++c) {
                         m[r][c] = (Float)t[c][r];
                     }
+                    // Translation specified in mm, needs to be converted to m
+                    m[r][3] = t[3][r] * (Float).001;
                 }
-                m[0][3] = m[1][3] = m[2][3] = (Float)0.0;
+                m[3][0] = m[3][1] = m[3][2] = (Float)0.0;
                 m[3][3] = (Float)1.0;
                 return Transform(m);
             };
 
-            auto toLensElementInterface = [toVec2, toTransform](json surf) {
+            auto toLensElementInterface = [toVec2, toTransform, apertureDiameter](json surf) {
                 OmniCamera::LensElementInterface result;
-                result.apertureRadius   = toVec2(surf["semi_aperture"]);
-                result.conicConstant    = toVec2(surf["conic_constant"]);
-                result.curvatureRadius  = toVec2(surf["radius"]);
+                // Convert mm to m
+                result.apertureRadius   = toVec2(surf["semi_aperture"]) * (Float).001;
+                result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
+                result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
                 result.eta              = Float(surf["ior"]);
-                result.thickness        = Float(surf["thickness"]);
+                result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
+                if (result.curvatureRadius.x == 0.0f) {
+                    Float apertureRadius = apertureDiameter / Float(2.);
+                    if (apertureRadius > result.apertureRadius.x) {
+                        Warning(
+                            "Specified aperture diameter %f is greater than maximum "
+                            "possible %f.  Clamping it.",
+                            apertureRadius, result.apertureRadius.x);
+                    } else {
+                        result.apertureRadius.x = apertureRadius;
+                        result.apertureRadius.y = apertureRadius;
+                    }
+                }
                 return result;
             };
 
 
             if (jsurfaces.is_array() && jsurfaces.size() > 0) {
                 for (auto jsurf : jsurfaces) {
-                    surfaces.push_back(toLensElementInterface(jsurf));
+                    lensInterfaceData.push_back(toLensElementInterface(jsurf));
                 }
             } else {
                 Error("Error, lens specification file without a valid surface array \"%s\".",
                     lensFile.c_str());
                 return nullptr;
             }
-            auto surfacesToFloats = [lensFile](const std::vector<OmniCamera::LensElementInterface>& in, std::vector<Float>& out) {
-                for (auto& s : in) {
-                    if (s.curvatureRadius.x != s.curvatureRadius.y) {
-                        Error("Error, lens specification file  \"%s\" contains aspheric element, NYI.",
-                            lensFile.c_str());
-                        return nullptr;
-                    }
-                    if (s.apertureRadius.x != s.apertureRadius.y) {
-                        Error("Error, lens specification file  \"%s\" contains asymmetric aperture radius element, NYI.",
-                            lensFile.c_str());
-                        return nullptr;
-                    }
-                    if (s.conicConstant.x != s.conicConstant.y || s.conicConstant.x != (Float)0.0) {
-                        Error("Error, lens specification file  \"%s\" contains conic element, NYI.",
-                            lensFile.c_str());
-                        return nullptr;
-                    }
-                    if (!s.transform.IsIdentity()) {
-                        Error("Error, lens specification file  \"%s\" contains non-identity transform, NYI.",
-                            lensFile.c_str());
-                        return nullptr;
-                    }
-                    out.push_back(s.curvatureRadius.x);
-                    out.push_back(s.thickness);
-                    out.push_back(s.eta);
-                    out.push_back(s.apertureRadius.x);
-                }
-            };
-            surfacesToFloats(surfaces, lensData);
             auto microlens = j["microlens"];
             if (!microlens.is_null()) {
                 microlensDims = toVec2i(microlens["dimensions"]);
@@ -1034,11 +1019,10 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 }
 
                 auto mljSurfaces = microlens["surfaces"];
-                std::vector<OmniCamera::LensElementInterface> mlSurfaces;
 
                 if (mljSurfaces.is_array() && mljSurfaces.size() > 0) {
                     for (auto jsurf : mljSurfaces) {
-                        mlSurfaces.push_back(toLensElementInterface(jsurf));
+                        microlensData.push_back(toLensElementInterface(jsurf));
                     }
                 }
                 else {
@@ -1046,10 +1030,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                         lensFile.c_str());
                     return nullptr;
                 }
-
-                surfacesToFloats(mlSurfaces, microlensData);
-
-
             } else {
             }
 
@@ -1068,7 +1048,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     
     return new OmniCamera(cam2world, shutteropen, shutterclose,
                                apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag,
-                               lensData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, film, medium);
+                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, film, medium);
 }
 
 }  // namespace pbrt

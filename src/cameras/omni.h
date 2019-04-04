@@ -75,10 +75,10 @@ class OmniCamera : public Camera {
     OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
                     Float focusDistance, bool simpleWeighting, bool noWeighting,
-                    bool caFlag, std::vector<Float> &lensData, std::vector<Float> &microlensData, 
+                    bool caFlag, std::vector<OmniCamera::LensElementInterface> &lensData, 
+                    std::vector<OmniCamera::LensElementInterface> &microlensData,
                     Vector2i microlensDims, std::vector<Float> & microlensOffsets, float microlensSensorOffset,
-                    Film *film,
-                    const Medium *medium);
+                    Film *film, const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
   private:
