@@ -972,10 +972,10 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
                 if (result.curvatureRadius.x == 0.0f) {
-                    Float apertureRadius = apertureDiameter / Float(2.);
+                    Float apertureRadius = apertureDiameter * (Float).001 / Float(2.);
                     if (apertureRadius > result.apertureRadius.x) {
                         Warning(
-                            "Specified aperture diameter %f is greater than maximum "
+                            "Specified aperture radius %f is greater than maximum "
                             "possible %f.  Clamping it.",
                             apertureRadius, result.apertureRadius.x);
                     } else {
