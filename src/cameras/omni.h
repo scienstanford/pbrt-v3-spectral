@@ -64,17 +64,27 @@ class OmniCamera : public Camera {
         Float thickness;
         Float eta;
     };
+    struct MicrolensData {
+        std::vector<LensElementInterface> elementInterfaces;
+        float offsetFromSensor;
+        std::vector<Vector2f> offsets;
+        Vector2i dimensions;
+    };
 
     // OmniCamera Public Methods
     OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
                     Float focusDistance, bool simpleWeighting, bool noWeighting,
-                    bool caFlag, std::vector<Float> &lensData, Film *film,
-                    const Medium *medium);
+                    bool caFlag, std::vector<OmniCamera::LensElementInterface> &lensData, 
+                    std::vector<OmniCamera::LensElementInterface> &microlensData,
+                    Vector2i microlensDims, std::vector<Float> & microlensOffsets, float microlensSensorOffset,
+                    Film *film, const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
   private:
     // OmniCamera Private Declarations
+
+    enum IntersectResult {MISS,CULLED_BY_APERTURE,HIT};
 
     // OmniCamera Private Data
     const bool simpleWeighting;
@@ -82,6 +92,8 @@ class OmniCamera : public Camera {
     const bool caFlag;
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
+
+    MicrolensData microlens;
 
     // OmniCamera Private Methods
     Float LensRearZ() const { return elementInterfaces.back().thickness; }
@@ -94,7 +106,8 @@ class OmniCamera : public Camera {
     Float RearElementRadius() const {
         return elementInterfaces.back().apertureRadius.x;
     }
-    bool TraceLensesFromFilm(const Ray &ray, Ray *rOut) const;
+    bool TraceLensesFromFilm(const Ray &ray, const std::vector<LensElementInterface>& interfaces, Ray *rOut,
+        const Transform CameraToLens) const;
     static bool IntersectSphericalElement(Float radius, Float zCenter,
                                           const Ray &ray, Float *t,
                                           Normal3f *n);
@@ -114,7 +127,17 @@ class OmniCamera : public Camera {
     void RenderExitPupil(Float sx, Float sy, const char *filename) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
                             Float *sampleBoundsArea) const;
+
+    IntersectResult TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ,
+         Float& t, Normal3f& n, bool& isStop) const;
+
     void TestExitPupilBounds() const;
+
+    Point3f SampleMicrolensPupil(const Point2f &pFilm, const Point2f &lensSample,
+        Float *sampleBoundsArea) const;
+
+
+    bool HasMicrolens() const;
 };
 
 OmniCamera *CreateOmniCamera(const ParamSet &params,

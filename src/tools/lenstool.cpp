@@ -132,7 +132,7 @@ int convert(int argc, char *argv[]) {
             jsurf["radius"] = lensData[i+0];
             jsurf["thickness"] = lensData[i+1];
             jsurf["ior"] = lensData[i+2];
-            jsurf["semi_aperture"] = lensData[i+3];
+            jsurf["semi_aperture"] = lensData[i+3] / 2.0;
             surfaces.push_back(jsurf);
         }
 

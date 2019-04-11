@@ -53,31 +53,25 @@ namespace pbrt {
 STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
 
 // OmniCamera Method Definitions
-OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld,
-                                 Float shutterOpen, Float shutterClose,
-                                 Float apertureDiameter, Float filmdistance,
-                                 Float focusDistance, bool simpleWeighting, bool noWeighting,
-                                 bool caFlag, std::vector<Float> &lensData, Film *film,
-                                 const Medium *medium)
+OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
+    Float shutterClose, Float apertureDiameter, Float filmdistance,
+    Float focusDistance, bool simpleWeighting, bool noWeighting,
+    bool caFlag, std::vector<OmniCamera::LensElementInterface>& lensInterfaceData, std::vector<OmniCamera::LensElementInterface> &microlensData,
+    Vector2i microlensDims, std::vector<Float> & microlensOffsets, float microlensSensorOffset,
+    Film *film, const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
       simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
-    for (int i = 0; i < (int)lensData.size(); i += 4) {
-        if (lensData[i] == 0) {
-            if (apertureDiameter > lensData[i + 3]) {
-                Warning(
-                    "Specified aperture diameter %f is greater than maximum "
-                    "possible %f.  Clamping it.",
-                    apertureDiameter, lensData[i + 3]);
-            } else {
-                lensData[i + 3] = apertureDiameter;
-            }
+    
+    elementInterfaces = lensInterfaceData;
+    if (microlensData.size() > 0) {
+        microlens.elementInterfaces = microlensData;
+        microlens.offsets.resize(microlensOffsets.size() / 2);
+        for (int i = 0; i < microlens.offsets.size(); ++i) {
+            microlens.offsets[i].x = microlensOffsets[2 * i + 0];
+            microlens.offsets[i].y = microlensOffsets[2 * i + 1];
         }
-        Float cRadius = lensData[i] * (Float).001;
-        Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
-        Float thickness = lensData[i + 1] * (Float).001;
-        Float ior = lensData[i + 2];
-        elementInterfaces.push_back(LensElementInterface(
-            cRadius,aRadius,thickness,ior));
+        microlens.dimensions = microlensDims;
+        microlens.offsetFromSensor = microlensSensorOffset;
     }
 
     // Compute lens--film distance for given focus distance
@@ -110,7 +104,30 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld,
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
 
-    //GenerateImportancePDFs(); TODO(MMara): re-enable
+    const bool generateMathematicaDrawing = false;
+    if (generateMathematicaDrawing) {
+        printf("Graphics[{");
+        DrawLensSystem();
+        printf(",");
+        for (int i = 0; i < 15; ++i) {
+            Point3f pFilm(0, 0, 0);
+            Point2f pLens(i / 14.0f, 0.5f);
+            Float exitPupilBoundsArea;
+            Point3f pRear;
+            // Trace ray from _pFilm_ through lens system
+            if (HasMicrolens()) {
+                pRear = SampleMicrolensPupil(Point2f(pFilm.x, pFilm.y), pLens, &exitPupilBoundsArea);
+            } else {
+                pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), pLens, &exitPupilBoundsArea);
+            }
+            Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,0);
+            DrawRayPathFromFilm(rFilm, false, false);
+            printf(",");
+        }
+        printf("}]");
+    }
+
+
     if (simpleWeighting)
         Warning("\"simpleweighting\" option with OmniCamera no longer "
                 "necessarily matches regular camera images. Further, pixel "
@@ -119,10 +136,40 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld,
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
 
-bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
+OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ, Float& t, Normal3f& n, bool& isStop) const {
+    isStop = (element.curvatureRadius.x == 0);
+    auto invTransform = Inverse(element.transform);
+    Ray rElement = invTransform(rLens);
+    if (isStop) {
+        // The refracted ray computed in the previous lens element
+        // interface may be pointed towards film plane(+z) in some
+        // extreme situations; in such cases, 't' becomes negative.
+        if (rElement.d.z >= 0.0) return MISS;
+        t = (elementZ - rElement.o.z) / rElement.d.z;
+    } else {
+        Float radius = element.curvatureRadius.x;
+        Float zCenter = elementZ + element.curvatureRadius.x;
+        if (!IntersectSphericalElement(radius, zCenter, rElement, &t, &n))
+            return MISS;
+    }
+    CHECK_GE(t, 0);
+    // Transform the normal back into the original space.
+    n = element.transform(n);
+
+
+    // Test intersection point against element aperture
+    Point3f pHit = rElement(t);
+    Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
+    Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
+    if (r2 > apertureRadius2) return CULLED_BY_APERTURE;
+    return HIT;
+};
+
+bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, 
+    const std::vector<LensElementInterface>& interfaces, Ray *rOut,
+    const Transform CameraToLens = Scale(1, 1, -1)) const {
     Float elementZ = 0;
     // Transform _rCamera_ from camera to lens system space
-    static const Transform CameraToLens = Scale(1, 1, -1);
     Ray rLens = CameraToLens(rCamera);
     
     // Added by Trisha to keep wavelength information
@@ -132,34 +179,18 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const {
         rLens.wavelength = 550;
     }
     
-    for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
-        const LensElementInterface &element = elementInterfaces[i];
-        // Update ray from film accounting for interaction with _element_
-        elementZ -= element.thickness;
-
+    for (int i = interfaces.size() - 1; i >= 0; --i) {
+        const LensElementInterface &element = interfaces[i];
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius.x == 0);
-        if (isStop) {
-            // The refracted ray computed in the previous lens element
-            // interface may be pointed towards film plane(+z) in some
-            // extreme situations; in such cases, 't' becomes negative.
-            if (rLens.d.z >= 0.0) return false;
-            t = (elementZ - rLens.o.z) / rLens.d.z;
-        } else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
-                return false;
-        }
-        CHECK_GE(t, 0);
+        bool isStop;
+        elementZ -= element.thickness;
+        IntersectResult result = TraceElement(element, rLens, elementZ, t, n, isStop);
+        if (result != HIT)
+            return false;
 
-        // Test intersection point against element aperture
-        Point3f pHit = rLens(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
-        rLens.o = pHit;
+        rLens.o = rLens(t);
 
         // Update ray path for element interface interaction
         if (!isStop) {
@@ -222,22 +253,11 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius.x == 0);
-        if (isStop)
-            t = (elementZ - rLens.o.z) / rLens.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
-                return false;
-        }
-        CHECK_GE(t, 0);
-
-        // Test intersection point against element aperture
-        Point3f pHit = rLens(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
-        rLens.o = pHit;
+        bool isStop;
+        IntersectResult result = TraceElement(element, rLens, elementZ, t, n, isStop);
+        if (result != HIT)
+            return false;
+        rLens.o = rLens(t);
 
         // Update ray path for from-scene element interface interaction
         if (!isStop) {
@@ -264,29 +284,42 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
 void OmniCamera::DrawLensSystem() const {
     Float sumz = -LensFrontZ();
     Float z = sumz;
+
+    auto toZXCoord = [](const Point3f& p, const Transform& xForm) {
+        const Point3f p3 = xForm(p);
+        return Point2f(p3.z, p3.x);
+    };
+
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
+        const Transform& xForm = element.transform;
         Float r = element.curvatureRadius.x;
         if (r == 0) {
+            Point2f startU = toZXCoord(Point3f(element.apertureRadius.x,0,z), xForm);
+            Point2f startL = toZXCoord(Point3f(-element.apertureRadius.x, 0, z), xForm);
+            Point2f endU = toZXCoord(Point3f(2*element.apertureRadius.x, 0, z), xForm);
+            Point2f endL = toZXCoord(Point3f(-2* element.apertureRadius.x, 0, z), xForm);
             // stop
-            printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", z,
-                   element.apertureRadius.x, z, 2 * element.apertureRadius.x);
-            printf("Line[{{%f, %f}, {%f, %f}}]}, ", z, -element.apertureRadius.x,
-                   z, -2 * element.apertureRadius.x);
+            printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", startU.x, startU.y, endU.x, endU.y);
+            printf("Line[{{%f, %f}, {%f, %f}}]}, ", startL.x, startL.y, endL.x, endL.y);
         } else {
+            // TODO compute proper tilt
+            Point2f C = toZXCoord(Point3f(0, 0, z + r), xForm);
             Float theta = std::abs(std::asin(element.apertureRadius.x / r));
             if (r > 0) {
                 // convex as seen from front of lens
                 Float t0 = Pi - theta;
                 Float t1 = Pi + theta;
-                printf("Circle[{%f, 0}, %f, {%f, %f}], ", z + r, r, t0, t1);
+                printf("Circle[{%f, %f}, %f, {%f, %f}], ", C.x, C.y, r, t0, t1);
             } else {
                 // concave as seen from front of lens
                 Float t0 = -theta;
                 Float t1 = theta;
-                printf("Circle[{%f, 0}, %f, {%f, %f}], ", z + r, -r, t0, t1);
+                printf("Circle[{%f, %f}, %f, {%f, %f}], ", C.x, C.y, -r, t0, t1);
             }
             if (element.eta != 0 && element.eta != 1) {
+                // TODO: re-enable
+                /*
                 // connect top/bottom to next element
                 CHECK_LT(i + 1, elementInterfaces.size());
                 Float nextApertureRadius =
@@ -328,6 +361,7 @@ void OmniCamera::DrawLensSystem() const {
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, h, zp1, hlow);
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, -h, zp1, -hlow);
                 }
+                */
             }
         }
         z += element.thickness;
@@ -342,37 +376,28 @@ void OmniCamera::DrawLensSystem() const {
 void OmniCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
                                           bool toOpticalIntercept) const {
     Float elementZ = 0;
+    printf("{ ");
+    if (!TraceLensesFromFilm(r, elementInterfaces, nullptr)) printf("Dashed, ");
     // Transform _ray_ from camera to lens system space
     static const Transform CameraToLens = Scale(1, 1, -1);
     Ray ray = CameraToLens(r);
-    printf("{ ");
-    if (!TraceLensesFromFilm(r, nullptr)) printf("Dashed, ");
     for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = elementInterfaces[i];
-        elementZ -= element.thickness;
-        bool isStop = (element.curvatureRadius.x == 0);
-        // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        if (isStop)
-            t = -(ray.o.z - elementZ) / ray.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
-                goto done;
-        }
-        CHECK_GE(t, 0);
+        bool isStop;
+        elementZ -= element.thickness;
+        IntersectResult result = TraceElement(element, ray, elementZ, t, n, isStop);
+        if (result == MISS)
+            goto done;
 
         printf("Line[{{%f, %f}, {%f, %f}}],", ray.o.z, ray.o.x, ray(t).z,
                ray(t).x);
 
-        // Test intersection point against element aperture
-        Point3f pHit = ray(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
-        if (r2 > apertureRadius2) goto done;
-        ray.o = pHit;
+        if (result == CULLED_BY_APERTURE)
+            goto done;
+
+        ray.o = ray(t);
 
         // Update ray path for element interface interaction
         if (!isStop) {
@@ -414,29 +439,18 @@ void OmniCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
     Ray ray = CameraToLens(r);
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        bool isStop = (element.curvatureRadius.x == 0);
-        // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        if (isStop)
-            t = -(ray.o.z - elementZ) / ray.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
-                return;
-        }
-        CHECK_GE(t, 0.f);
+        bool isStop;
+        IntersectResult result = TraceElement(element, ray, elementZ, t, n, isStop);
+        if (result == MISS) return;
 
         printf("Line[{{%f, %f}, {%f, %f}}],", ray.o.z, ray.o.x, ray(t).z,
-               ray(t).x);
+            ray(t).x);
 
-        // Test intersection point against element aperture
-        Point3f pHit = ray(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
-        if (r2 > apertureRadius2) return;
-        ray.o = pHit;
+        if (result == CULLED_BY_APERTURE) return;
+
+        ray.o = ray(t);
 
         // Update ray path for from-scene element interface interaction
         if (!isStop) {
@@ -473,8 +487,7 @@ void OmniCamera::ComputeCardinalPoints(const Ray &rIn, const Ray &rOut,
     *pz = -rOut(tp).z;
 }
 
-void OmniCamera::ComputeThickLensApproximation(Float pz[2],
-                                                    Float fz[2]) const {
+void OmniCamera::ComputeThickLensApproximation(Float pz[2], Float fz[2]) const {
     // Find height $x$ from optical axis for parallel rays
     Float x = .001 * film->diagonal;
 
@@ -488,7 +501,7 @@ void OmniCamera::ComputeThickLensApproximation(Float pz[2],
 
     // Compute cardinal points for scene side of lens system
     rFilm = Ray(Point3f(x, 0, LensRearZ() - 1), Vector3f(0, 0, 1));
-    CHECK(TraceLensesFromFilm(rFilm, &rScene))
+    CHECK(TraceLensesFromFilm(rFilm, elementInterfaces, &rScene))
         << "Unable to trace ray from film to scene for thick lens "
            "approximation. Is aperture stop extremely small?";
     ComputeCardinalPoints(rFilm, rScene, &pz[1], &fz[1]);
@@ -547,7 +560,7 @@ Float OmniCamera::FocusDistance(Float filmDistance) {
     for (Float scale : scaleFactors) {
         lu = scale * bounds.pMax[0];
         if (TraceLensesFromFilm(Ray(Point3f(0, 0, LensRearZ() - filmDistance),
-                                    Vector3f(lu, 0, filmDistance)),
+                                    Vector3f(lu, 0, filmDistance)), elementInterfaces,
                                 &ray)) {
             foundFocusRay = true;
             break;
@@ -578,19 +591,23 @@ Bounds2f OmniCamera::BoundExitPupil(Float pFilmX0, Float pFilmX1) const {
 
     // Compute bounding box of projection of rear element on sampling plane
     Float rearRadius = RearElementRadius();
-    Bounds2f projRearBounds(Point2f(-1.5f * rearRadius, -1.5f * rearRadius),
-                            Point2f(1.5f * rearRadius, 1.5f * rearRadius));
+
+    Point3f finalElementTranslation = elementInterfaces[elementInterfaces.size() - 1].transform(Point3f(0,0,0));
+    Point2f xy(finalElementTranslation.x, finalElementTranslation.y);
+    Bounds2f projRearBounds(Point2f(-1.5f * rearRadius, -1.5f * rearRadius) + xy,
+                            Point2f(1.5f * rearRadius, 1.5f * rearRadius) + xy);
+
     for (int i = 0; i < nSamples; ++i) {
         // Find location of sample points on $x$ segment and rear lens element
         Point3f pFilm(Lerp((i + 0.5f) / nSamples, pFilmX0, pFilmX1), 0, 0);
         Float u[2] = {RadicalInverse(0, i), RadicalInverse(1, i)};
         Point3f pRear(Lerp(u[0], projRearBounds.pMin.x, projRearBounds.pMax.x),
                       Lerp(u[1], projRearBounds.pMin.y, projRearBounds.pMax.y),
-                      LensRearZ());
+                      LensRearZ() + finalElementTranslation.z);
 
         // Expand pupil bounds if ray makes it through the lens system
         if (Inside(Point2f(pRear.x, pRear.y), pupilBounds) ||
-            TraceLensesFromFilm(Ray(pFilm, pRear - pFilm), nullptr)) {
+            TraceLensesFromFilm(Ray(pFilm, pRear - pFilm), elementInterfaces, nullptr)) {
             pupilBounds = Union(pupilBounds, Point2f(pRear.x, pRear.y));
             ++nExitingRays;
         }
@@ -631,7 +648,7 @@ void OmniCamera::RenderExitPupil(Float sx, Float sy,
                 *imagep++ = 1;
                 *imagep++ = 1;
             } else if (TraceLensesFromFilm(Ray(pFilm, pRear - pFilm),
-                                           nullptr)) {
+                elementInterfaces, nullptr)) {
                 *imagep++ = 0.5f;
                 *imagep++ = 0.5f;
                 *imagep++ = 0.5f;
@@ -648,6 +665,7 @@ void OmniCamera::RenderExitPupil(Float sx, Float sy,
                Point2i(nSamples, nSamples));
     delete[] image;
 }
+
 
 Point3f OmniCamera::SampleExitPupil(const Point2f &pFilm,
                                          const Point2f &lensSample,
@@ -668,6 +686,31 @@ Point3f OmniCamera::SampleExitPupil(const Point2f &pFilm,
     Float cosTheta = (rFilm != 0) ? pFilm.x / rFilm : 1;
     return Point3f(cosTheta * pLens.x - sinTheta * pLens.y,
                    sinTheta * pLens.x + cosTheta * pLens.y, LensRearZ());
+}
+
+static Vector2f mapMul(Vector2f v0, Vector2f v1) {
+    return Vector2f(v0.x*v1.x, v0.y*v1.y);
+}
+static Vector2f mapDiv(Vector2f v0, Vector2f v1) {
+    return Vector2f(v0.x/v1.x, v0.y/v1.y);
+}
+static Point2f mapDiv(Point2f v0, Vector2f v1) {
+    return Point2f(v0.x / v1.x, v0.y / v1.y);
+}
+
+Point3f OmniCamera::SampleMicrolensPupil(const Point2f &pFilm, const Point2f &lensSample,
+    Float *sampleBoundsArea) const {
+    Bounds2f extent = film->GetPhysicalExtent();
+    Vector2f normFilm = mapDiv(pFilm - extent.pMin, extent.pMax - extent.pMin);
+    Vector2i d = microlens.dimensions;
+    Vector2f df = Vector2f(d.x, d.y);
+    Vector2f lensSpace = mapMul(normFilm, df);
+    Point2f lensIndex(floor(lensSpace.x), floor(lensSpace.y));
+    Point2f sampledLensSpacePt = mapDiv(lensIndex+lensSample, df);
+    // sample on microlens
+    Point2f result2 = extent.Lerp(sampledLensSpacePt);
+
+    return Point3f(result2.x, result2.y, microlens.offsetFromSensor);
 }
 
 void OmniCamera::TestExitPupilBounds() const {
@@ -695,7 +738,7 @@ void OmniCamera::TestExitPupilBounds() const {
 
         Ray testRay(pFilm, Point3f(pd.x, pd.y, 0.f) - pFilm);
         Ray testOut;
-        if (!TraceLensesFromFilm(testRay, &testOut)) continue;
+        if (!TraceLensesFromFilm(testRay, elementInterfaces, &testOut)) continue;
 
         if (!Inside(pd, pupilBounds)) {
             fprintf(stderr,
@@ -716,22 +759,35 @@ void OmniCamera::TestExitPupilBounds() const {
     fprintf(stderr, ".");
 }
 
+
 Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     ProfilePhase prof(Prof::GenerateCameraRay);
     ++totalRays;
     // Find point on film, _pFilm_, corresponding to _sample.pFilm_
     Point2f s(sample.pFilm.x / film->fullResolution.x,
-              sample.pFilm.y / film->fullResolution.y);
+        sample.pFilm.y / film->fullResolution.y);
     Point2f pFilm2 = film->GetPhysicalExtent().Lerp(s);
     Point3f pFilm(-pFilm2.x, pFilm2.y, 0);
 
-    // Trace ray from _pFilm_ through lens system
     Float exitPupilBoundsArea;
-    Point3f pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens,
-                                    &exitPupilBoundsArea);
-    Ray rFilm(pFilm, pRear - pFilm, Infinity,
-              Lerp(sample.time, shutterOpen, shutterClose));
-    if (!TraceLensesFromFilm(rFilm, ray)) {
+    Point3f pRear;
+    // Trace ray from _pFilm_ through lens system
+    if (HasMicrolens()) {
+        pRear = SampleMicrolensPupil(Point2f(pFilm.x, pFilm.y), sample.pLens, &exitPupilBoundsArea);
+    } else {
+        pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens, &exitPupilBoundsArea);
+    }
+    Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,
+        Lerp(sample.time, shutterOpen, shutterClose));
+
+    if (HasMicrolens()) {
+        if (!TraceLensesFromFilm(rFilm, microlens.elementInterfaces, &rFilm)) {
+            ++vignettedRays;
+            return 0;
+        }
+    }
+
+    if (!TraceLensesFromFilm(rFilm, elementInterfaces, ray)) {
         ++vignettedRays;
         return 0;
     }
@@ -741,14 +797,31 @@ Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     ray->d = Normalize(ray->d);
     ray->medium = medium;
 
+
     // Return weighting for _OmniCamera_ ray
-    Float cosTheta = Normalize(rFilm.d).z;
-    Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-    if (simpleWeighting)
-        return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
-    else
-        return (shutterClose - shutterOpen) *
-               (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
+    if (HasMicrolens()) {
+        // TODO: Proper weighting
+        Float cosTheta = Normalize(rFilm.d).z;
+        Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
+        if (simpleWeighting)
+            return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
+        else
+            return (shutterClose - shutterOpen) *
+            (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
+    } else {
+        Float cosTheta = Normalize(rFilm.d).z;
+        Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
+        if (simpleWeighting)
+            return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
+        else
+            return (shutterClose - shutterOpen) *
+            (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
+    }
+}
+
+
+bool OmniCamera::HasMicrolens() const {
+    return microlens.elementInterfaces.size() > 0;
 }
 
 OmniCamera *CreateOmniCamera(const ParamSet &params,
@@ -767,20 +840,35 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     Float apertureDiameter = params.FindOneFloat("aperturediameter", 1.0);
     Float focusDistance = params.FindOneFloat("focusdistance", 10.0);
     bool simpleWeighting = params.FindOneBool("simpleweighting", true);
-    bool noWeighting = params.FindOneBool("noweighting", false); // Added by TL for depth maps.
+    bool noWeighting = params.FindOneBool("noweighting", false);
+
+    Float microlensSensorOffset = params.FindOneFloat("microlenssensoroffset", 0.0);
+    int microlensSimulationRadius = params.FindOneInt("microlenssimulationradius", 0);
+
+    if (microlensSimulationRadius != 0) {
+        Warning("We only currently support simulating one microlens per pixel, switching microlensSimulationRadius to 0");
+    }
 
     if (lensFile == "") {
         Error("No lens description file supplied!");
         return nullptr;
     }
     // Load element data from lens description file
-    std::vector<Float> lensData;
+    std::vector<OmniCamera::LensElementInterface> lensInterfaceData;
+
+    // Load element data from lens description file
+    std::vector<OmniCamera::LensElementInterface> microlensData;
+
+    std::vector<Float> microlensOffsets;
+
+    Vector2i microlensDims;
 
     auto endsWith = [](const std::string& str, const std::string& suffix) {
         return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
     };
 
     if (endsWith(lensFile, ".dat")) {
+        std::vector<Float> lensData;
         if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
             Error("Error reading lens specification file \"%s\".",
                 lensFile.c_str());
@@ -800,6 +888,34 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 return nullptr;
             }
         }
+
+        auto floatsToElementInterfaces = [](std::vector<Float>& lensData, std::vector<OmniCamera::LensElementInterface>& elementInterfaces, float apertureDiameter) {
+            for (int i = 0; i < (int)lensData.size(); i += 4) {
+                if (lensData[i] == 0) {
+                    if (apertureDiameter > lensData[i + 3]) {
+                        Warning(
+                            "Specified aperture diameter %f is greater than maximum "
+                            "possible %f.  Clamping it.",
+                            apertureDiameter, lensData[i + 3]);
+                    }
+                    else {
+                        lensData[i + 3] = apertureDiameter;
+                    }
+                }
+                Float cRadius = lensData[i] * (Float).001;
+                Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
+                Float thickness = lensData[i + 1] * (Float).001;
+                Float ior = lensData[i + 2];
+                OmniCamera::LensElementInterface interface(
+                    cRadius, aRadius, thickness, ior);
+                //interface.transform = Translate(Vector3f(0.001, 0.001, 0.0)*rng.UniformFloat() - Vector3f(0.0005, 0.0005, 0.0));
+                elementInterfaces.push_back(interface);
+            }
+        };
+
+        floatsToElementInterfaces(lensData, lensInterfaceData, apertureDiameter);
+
+
     } else {
         if (!endsWith(lensFile, ".json")) {
             Error("Invalid format for lens specification file \"%s\".",
@@ -822,7 +938,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     j["description"].get<std::string>().c_str());
             }
             auto jsurfaces = j["surfaces"];
-            std::vector<OmniCamera::LensElementInterface> surfaces;
 
             auto toVec2 = [](json val) {
                 if (val.is_number()) {
@@ -832,6 +947,16 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 } 
                 return Vector2f(); // Default value
             };
+            auto toVec2i = [](json val) {
+                if (val.is_number()) {
+                    return Vector2i{ (int)val, (int)val };
+                }
+                else if (val.is_array() && val.size() == 2) {
+                    return Vector2i{ val[0], val[1] };
+                }
+                return Vector2i(); // Default value
+            };
+
             auto toTransform = [lensFile](json t) {
                 // Stored in columns in json, but pbrt stores matrices 
                 // in row-major order.
@@ -844,70 +969,87 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     Error("Invalid transform in lens specification file \"%s\", must be an array of 4 arrays of 3 floats each (column-major transform).", lensFile.c_str());
                 }
                 Float m[4][4];
-                for (int c = 0; c < 4; ++c) {
-                    for (int r = 0; r < 4; ++r) {
+                for (int r = 0; r < 3; ++r) {
+                    for (int c = 0; c < 3; ++c) {
                         m[r][c] = (Float)t[c][r];
                     }
+                    // Translation specified in mm, needs to be converted to m
+                    m[r][3] = t[3][r] * (Float).001;
                 }
-                m[0][3] = m[1][3] = m[2][3] = (Float)0.0;
+                m[3][0] = m[3][1] = m[3][2] = (Float)0.0;
                 m[3][3] = (Float)1.0;
                 return Transform(m);
             };
 
-            auto toLensElementInterface = [toVec2, toTransform](json surf) {
+            auto toLensElementInterface = [toVec2, toTransform, apertureDiameter](json surf) {
                 OmniCamera::LensElementInterface result;
-                result.apertureRadius   = toVec2(surf["semi_aperture"]);
-                result.conicConstant    = toVec2(surf["conic_constant"]);
-                result.curvatureRadius  = toVec2(surf["radius"]);
+                // Convert mm to m
+                result.apertureRadius   = toVec2(surf["semi_aperture"]) * (Float).001;
+                result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
+                result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
                 result.eta              = Float(surf["ior"]);
-                result.thickness        = Float(surf["thickness"]);
+                result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
+                if (result.curvatureRadius.x == 0.0f) {
+                    Float apertureRadius = apertureDiameter * (Float).001 / Float(2.);
+                    if (apertureRadius > result.apertureRadius.x) {
+                        Warning(
+                            "Specified aperture radius %f is greater than maximum "
+                            "possible %f.  Clamping it.",
+                            apertureRadius, result.apertureRadius.x);
+                    } else {
+                        result.apertureRadius.x = apertureRadius;
+                        result.apertureRadius.y = apertureRadius;
+                    }
+                }
                 return result;
             };
 
 
             if (jsurfaces.is_array() && jsurfaces.size() > 0) {
                 for (auto jsurf : jsurfaces) {
-                    surfaces.push_back(toLensElementInterface(jsurf));
+                    lensInterfaceData.push_back(toLensElementInterface(jsurf));
                 }
             } else {
                 Error("Error, lens specification file without a valid surface array \"%s\".",
                     lensFile.c_str());
                 return nullptr;
             }
-
-            for (auto& s : surfaces) {
-                if (s.curvatureRadius.x != s.curvatureRadius.y) {
-                    Error("Error, lens specification file  \"%s\" contains aspheric element, NYI.",
-                        lensFile.c_str());
-                    return nullptr;
-                }
-                if (s.apertureRadius.x != s.apertureRadius.y) {
-                    Error("Error, lens specification file  \"%s\" contains asymmetric aperture radius element, NYI.",
-                        lensFile.c_str());
-                    return nullptr;
-                }
-                if (s.conicConstant.x != s.conicConstant.y || s.conicConstant.x != (Float)0.0) {
-                    Error("Error, lens specification file  \"%s\" contains conic element, NYI.",
-                        lensFile.c_str());
-                    return nullptr;
-                }
-                if (!s.transform.IsIdentity()) {
-                    Error("Error, lens specification file  \"%s\" contains non-identity transform, NYI.",
-                        lensFile.c_str());
-                    return nullptr;
-                }
-                lensData.push_back(s.curvatureRadius.x);
-                lensData.push_back(s.thickness);
-                lensData.push_back(s.eta);
-                lensData.push_back(s.apertureRadius.x);
-            }
-
             auto microlens = j["microlens"];
             if (!microlens.is_null()) {
-                Error("Error, microlens NYI, in lens specification file \"%s\".",
-                    lensFile.c_str());
-                return nullptr;
+                microlensDims = toVec2i(microlens["dimensions"]);
+
+                if (microlensDims.x <= 0 || microlensDims.y <= 0) {
+                    Error("Error, microlens specification without valid dimensions in \"%s\".",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+
+                auto mljOffsets = microlens["offsets"];
+                if (mljOffsets.is_array() && mljOffsets.size() > 0) {
+                    if (mljOffsets.size() != microlensDims.x*microlensDims.y) {
+                        Error("Error, microlens dimensions (%d x %d ) mismatch number of offsets (%d) in \"%s\".",
+                            microlensDims.x, microlensDims.y, (int)mljOffsets.size(), lensFile.c_str());
+                        return nullptr;
+                    }
+                    for (auto offset : mljOffsets) {
+                        microlensOffsets.push_back(Float(offset));
+                    }
+                }
+
+                auto mljSurfaces = microlens["surfaces"];
+
+                if (mljSurfaces.is_array() && mljSurfaces.size() > 0) {
+                    for (auto jsurf : mljSurfaces) {
+                        microlensData.push_back(toLensElementInterface(jsurf));
+                    }
+                }
+                else {
+                    Error("Error, microlens specification without a valid surface array in \"%s\".",
+                        lensFile.c_str());
+                    return nullptr;
+                }
+            } else {
             }
 
         } else {
@@ -917,17 +1059,15 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
         }
     }
     
-    // Added by Trisha
     // Add functionality to hard set the film distance
     Float filmDistance = params.FindOneFloat("filmdistance", 0);
     
-    // Added by Trisha
     // Chromatic aberration flag
     bool caFlag = params.FindOneBool("chromaticAberrationEnabled", false);
     
     return new OmniCamera(cam2world, shutteropen, shutterclose,
                                apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag,
-                               lensData, film, medium);
+                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, film, medium);
 }
 
 }  // namespace pbrt
