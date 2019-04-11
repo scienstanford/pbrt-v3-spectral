@@ -974,7 +974,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                         m[r][c] = (Float)t[c][r];
                     }
                     // Translation specified in mm, needs to be converted to m
-                    m[r][3] = t[3][r] * (Float).001;
+                    m[r][3] = (Float)t[3][r] * (Float).001;
                 }
                 m[3][0] = m[3][1] = m[3][2] = (Float)0.0;
                 m[3][3] = (Float)1.0;

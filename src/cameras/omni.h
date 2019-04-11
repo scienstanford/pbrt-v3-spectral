@@ -51,12 +51,12 @@ class OmniCamera : public Camera {
         LensElementInterface() {}
         LensElementInterface(Float cRadius, Float aRadius,
             Float thickness, Float ior) :
-            curvatureRadius({cRadius,cRadius}),
-            apertureRadius({ aRadius ,aRadius }),
-            conicConstant({(Float)0.0, (Float)0.0 }),
+            curvatureRadius(cRadius,cRadius),
+            apertureRadius(aRadius ,aRadius),
+            conicConstant((Float)0.0, (Float)0.0),
             transform(Transform()),
             thickness(thickness),
-            eta(ior,ior) {}
+            eta(ior) {}
         Vector2f curvatureRadius;
         Vector2f apertureRadius;
         Vector2f conicConstant;
