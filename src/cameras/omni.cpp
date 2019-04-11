@@ -104,6 +104,30 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
 
+    const bool generateMathematicaDrawing = false;
+    if (generateMathematicaDrawing) {
+        printf("Graphics[{");
+        DrawLensSystem();
+        printf(",");
+        for (int i = 0; i < 15; ++i) {
+            Point3f pFilm(0, 0, 0);
+            Point2f pLens(i / 14.0f, 0.5f);
+            Float exitPupilBoundsArea;
+            Point3f pRear;
+            // Trace ray from _pFilm_ through lens system
+            if (HasMicrolens()) {
+                pRear = SampleMicrolensPupil(Point2f(pFilm.x, pFilm.y), pLens, &exitPupilBoundsArea);
+            } else {
+                pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), pLens, &exitPupilBoundsArea);
+            }
+            Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,0);
+            DrawRayPathFromFilm(rFilm, false, false);
+            printf(",");
+        }
+        printf("}]");
+    }
+
+
     if (simpleWeighting)
         Warning("\"simpleweighting\" option with OmniCamera no longer "
                 "necessarily matches regular camera images. Further, pixel "
@@ -111,6 +135,35 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
                 "this discussion for details: "
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
+
+OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ, Float& t, Normal3f& n, bool& isStop) const {
+    isStop = (element.curvatureRadius.x == 0);
+    auto invTransform = Inverse(element.transform);
+    Ray rElement = invTransform(rLens);
+    if (isStop) {
+        // The refracted ray computed in the previous lens element
+        // interface may be pointed towards film plane(+z) in some
+        // extreme situations; in such cases, 't' becomes negative.
+        if (rElement.d.z >= 0.0) return MISS;
+        t = (elementZ - rElement.o.z) / rElement.d.z;
+    } else {
+        Float radius = element.curvatureRadius.x;
+        Float zCenter = elementZ + element.curvatureRadius.x;
+        if (!IntersectSphericalElement(radius, zCenter, rElement, &t, &n))
+            return MISS;
+    }
+    CHECK_GE(t, 0);
+    // Transform the normal back into the original space.
+    n = element.transform(n);
+
+
+    // Test intersection point against element aperture
+    Point3f pHit = rElement(t);
+    Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
+    Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
+    if (r2 > apertureRadius2) return CULLED_BY_APERTURE;
+    return HIT;
+};
 
 bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, 
     const std::vector<LensElementInterface>& interfaces, Ray *rOut,
@@ -128,36 +181,16 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
     
     for (int i = interfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = interfaces[i];
-        // Update ray from film accounting for interaction with _element_
-        elementZ -= element.thickness;
-
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius.x == 0);
-        if (isStop) {
-            // The refracted ray computed in the previous lens element
-            // interface may be pointed towards film plane(+z) in some
-            // extreme situations; in such cases, 't' becomes negative.
-            if (rLens.d.z >= 0.0) return false;
-            t = (elementZ - rLens.o.z) / rLens.d.z;
-        } else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            rLens = element.transform(rLens);
-            if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
-                return false;
-        }
-        CHECK_GE(t, 0);
-        // Transform the ray back into the original space.
-        auto invTransform = Inverse(element.transform);
-        rLens = invTransform(rLens);
-        n = invTransform(n);
-        // Test intersection point against element aperture
-        Point3f pHit = rLens(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
-        rLens.o = pHit;
+        bool isStop;
+        elementZ -= element.thickness;
+        IntersectResult result = TraceElement(element, rLens, elementZ, t, n, isStop);
+        if (result != HIT)
+            return false;
+
+        rLens.o = rLens(t);
 
         // Update ray path for element interface interaction
         if (!isStop) {
@@ -220,22 +253,11 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius.x == 0);
-        if (isStop)
-            t = (elementZ - rLens.o.z) / rLens.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
-                return false;
-        }
-        CHECK_GE(t, 0);
-
-        // Test intersection point against element aperture
-        Point3f pHit = rLens(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        if (r2 > element.apertureRadius.x * element.apertureRadius.x) return false;
-        rLens.o = pHit;
+        bool isStop;
+        IntersectResult result = TraceElement(element, rLens, elementZ, t, n, isStop);
+        if (result != HIT)
+            return false;
+        rLens.o = rLens(t);
 
         // Update ray path for from-scene element interface interaction
         if (!isStop) {
@@ -262,29 +284,42 @@ bool OmniCamera::TraceLensesFromScene(const Ray &rCamera,
 void OmniCamera::DrawLensSystem() const {
     Float sumz = -LensFrontZ();
     Float z = sumz;
+
+    auto toZXCoord = [](const Point3f& p, const Transform& xForm) {
+        const Point3f p3 = xForm(p);
+        return Point2f(p3.z, p3.x);
+    };
+
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
+        const Transform& xForm = element.transform;
         Float r = element.curvatureRadius.x;
         if (r == 0) {
+            Point2f startU = toZXCoord(Point3f(element.apertureRadius.x,0,z), xForm);
+            Point2f startL = toZXCoord(Point3f(-element.apertureRadius.x, 0, z), xForm);
+            Point2f endU = toZXCoord(Point3f(2*element.apertureRadius.x, 0, z), xForm);
+            Point2f endL = toZXCoord(Point3f(-2* element.apertureRadius.x, 0, z), xForm);
             // stop
-            printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", z,
-                   element.apertureRadius.x, z, 2 * element.apertureRadius.x);
-            printf("Line[{{%f, %f}, {%f, %f}}]}, ", z, -element.apertureRadius.x,
-                   z, -2 * element.apertureRadius.x);
+            printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", startU.x, startU.y, endU.x, endU.y);
+            printf("Line[{{%f, %f}, {%f, %f}}]}, ", startL.x, startL.y, endL.x, endL.y);
         } else {
+            // TODO compute proper tilt
+            Point2f C = toZXCoord(Point3f(0, 0, z + r), xForm);
             Float theta = std::abs(std::asin(element.apertureRadius.x / r));
             if (r > 0) {
                 // convex as seen from front of lens
                 Float t0 = Pi - theta;
                 Float t1 = Pi + theta;
-                printf("Circle[{%f, 0}, %f, {%f, %f}], ", z + r, r, t0, t1);
+                printf("Circle[{%f, %f}, %f, {%f, %f}], ", C.x, C.y, r, t0, t1);
             } else {
                 // concave as seen from front of lens
                 Float t0 = -theta;
                 Float t1 = theta;
-                printf("Circle[{%f, 0}, %f, {%f, %f}], ", z + r, -r, t0, t1);
+                printf("Circle[{%f, %f}, %f, {%f, %f}], ", C.x, C.y, -r, t0, t1);
             }
             if (element.eta != 0 && element.eta != 1) {
+                // TODO: re-enable
+                /*
                 // connect top/bottom to next element
                 CHECK_LT(i + 1, elementInterfaces.size());
                 Float nextApertureRadius =
@@ -326,6 +361,7 @@ void OmniCamera::DrawLensSystem() const {
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, h, zp1, hlow);
                     printf("Line[{{%f, %f}, {%f, %f}}], ", zp1, -h, zp1, -hlow);
                 }
+                */
             }
         }
         z += element.thickness;
@@ -340,37 +376,28 @@ void OmniCamera::DrawLensSystem() const {
 void OmniCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
                                           bool toOpticalIntercept) const {
     Float elementZ = 0;
+    printf("{ ");
+    if (!TraceLensesFromFilm(r, elementInterfaces, nullptr)) printf("Dashed, ");
     // Transform _ray_ from camera to lens system space
     static const Transform CameraToLens = Scale(1, 1, -1);
     Ray ray = CameraToLens(r);
-    printf("{ ");
-    if (!TraceLensesFromFilm(r, elementInterfaces, nullptr)) printf("Dashed, ");
     for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = elementInterfaces[i];
-        elementZ -= element.thickness;
-        bool isStop = (element.curvatureRadius.x == 0);
-        // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        if (isStop)
-            t = -(ray.o.z - elementZ) / ray.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
-                goto done;
-        }
-        CHECK_GE(t, 0);
+        bool isStop;
+        elementZ -= element.thickness;
+        IntersectResult result = TraceElement(element, ray, elementZ, t, n, isStop);
+        if (result == MISS)
+            goto done;
 
         printf("Line[{{%f, %f}, {%f, %f}}],", ray.o.z, ray.o.x, ray(t).z,
                ray(t).x);
 
-        // Test intersection point against element aperture
-        Point3f pHit = ray(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
-        if (r2 > apertureRadius2) goto done;
-        ray.o = pHit;
+        if (result == CULLED_BY_APERTURE)
+            goto done;
+
+        ray.o = ray(t);
 
         // Update ray path for element interface interaction
         if (!isStop) {
@@ -412,29 +439,18 @@ void OmniCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
     Ray ray = CameraToLens(r);
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        bool isStop = (element.curvatureRadius.x == 0);
-        // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        if (isStop)
-            t = -(ray.o.z - elementZ) / ray.d.z;
-        else {
-            Float radius = element.curvatureRadius.x;
-            Float zCenter = elementZ + element.curvatureRadius.x;
-            if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
-                return;
-        }
-        CHECK_GE(t, 0.f);
+        bool isStop;
+        IntersectResult result = TraceElement(element, ray, elementZ, t, n, isStop);
+        if (result == MISS) return;
 
         printf("Line[{{%f, %f}, {%f, %f}}],", ray.o.z, ray.o.x, ray(t).z,
-               ray(t).x);
+            ray(t).x);
 
-        // Test intersection point against element aperture
-        Point3f pHit = ray(t);
-        Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
-        Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
-        if (r2 > apertureRadius2) return;
-        ray.o = pHit;
+        if (result == CULLED_BY_APERTURE) return;
+
+        ray.o = ray(t);
 
         // Update ray path for from-scene element interface interaction
         if (!isStop) {
@@ -575,15 +591,19 @@ Bounds2f OmniCamera::BoundExitPupil(Float pFilmX0, Float pFilmX1) const {
 
     // Compute bounding box of projection of rear element on sampling plane
     Float rearRadius = RearElementRadius();
-    Bounds2f projRearBounds(Point2f(-1.5f * rearRadius, -1.5f * rearRadius),
-                            Point2f(1.5f * rearRadius, 1.5f * rearRadius));
+
+    Point3f finalElementTranslation = elementInterfaces[elementInterfaces.size() - 1].transform(Point3f(0,0,0));
+    Point2f xy(finalElementTranslation.x, finalElementTranslation.y);
+    Bounds2f projRearBounds(Point2f(-1.5f * rearRadius, -1.5f * rearRadius) + xy,
+                            Point2f(1.5f * rearRadius, 1.5f * rearRadius) + xy);
+
     for (int i = 0; i < nSamples; ++i) {
         // Find location of sample points on $x$ segment and rear lens element
         Point3f pFilm(Lerp((i + 0.5f) / nSamples, pFilmX0, pFilmX1), 0, 0);
         Float u[2] = {RadicalInverse(0, i), RadicalInverse(1, i)};
         Point3f pRear(Lerp(u[0], projRearBounds.pMin.x, projRearBounds.pMax.x),
                       Lerp(u[1], projRearBounds.pMin.y, projRearBounds.pMax.y),
-                      LensRearZ());
+                      LensRearZ() + finalElementTranslation.z);
 
         // Expand pupil bounds if ray makes it through the lens system
         if (Inside(Point2f(pRear.x, pRear.y), pupilBounds) ||
@@ -677,7 +697,6 @@ static Vector2f mapDiv(Vector2f v0, Vector2f v1) {
 static Point2f mapDiv(Point2f v0, Vector2f v1) {
     return Point2f(v0.x / v1.x, v0.y / v1.y);
 }
-
 
 Point3f OmniCamera::SampleMicrolensPupil(const Point2f &pFilm, const Point2f &lensSample,
     Float *sampleBoundsArea) const {

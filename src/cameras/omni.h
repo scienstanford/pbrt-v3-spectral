@@ -84,6 +84,8 @@ class OmniCamera : public Camera {
   private:
     // OmniCamera Private Declarations
 
+    enum IntersectResult {MISS,CULLED_BY_APERTURE,HIT};
+
     // OmniCamera Private Data
     const bool simpleWeighting;
     const bool noWeighting;
@@ -125,6 +127,10 @@ class OmniCamera : public Camera {
     void RenderExitPupil(Float sx, Float sy, const char *filename) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
                             Float *sampleBoundsArea) const;
+
+    IntersectResult TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ,
+         Float& t, Normal3f& n, bool& isStop) const;
+
     void TestExitPupilBounds() const;
 
     Point3f SampleMicrolensPupil(const Point2f &pFilm, const Point2f &lensSample,
