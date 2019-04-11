@@ -56,7 +56,7 @@ class OmniCamera : public Camera {
             conicConstant({(Float)0.0, (Float)0.0 }),
             transform(Transform()),
             thickness(thickness),
-            eta(ior) {}
+            eta(ior,ior) {}
         Vector2f curvatureRadius;
         Vector2f apertureRadius;
         Vector2f conicConstant;
