@@ -104,6 +104,7 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
         exitPupilBounds[i] = BoundExitPupil(r0, r1);
     }, nSamples);
 
+    // Print out a mathematica command that generates useful figures; could be moved into lenstool and heavily parameterized
     const bool generateMathematicaDrawing = false;
     if (generateMathematicaDrawing) {
         printf("Graphics[{");
@@ -136,16 +137,17 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
 
-OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ, Float& t, Normal3f& n, bool& isStop) const {
+OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, 
+    const Float& elementZ, Float& t, Normal3f& n, bool& isStop) const {
     isStop = (element.curvatureRadius.x == 0);
     auto invTransform = Inverse(element.transform);
     Ray rElement = invTransform(rLens);
     if (isStop) {
         // The refracted ray computed in the previous lens element
-        // interface may be pointed towards film plane(+z) in some
+        // interface may be pointed "backwards" in some
         // extreme situations; in such cases, 't' becomes negative.
-        if (rElement.d.z >= 0.0) return MISS;
         t = (elementZ - rElement.o.z) / rElement.d.z;
+        if (rElement.d.z == 0.0 || t < 0) return MISS;
     } else {
         Float radius = element.curvatureRadius.x;
         Float zCenter = elementZ + element.curvatureRadius.x;
@@ -155,7 +157,6 @@ OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface 
     CHECK_GE(t, 0);
     // Transform the normal back into the original space.
     n = element.transform(n);
-
 
     // Test intersection point against element aperture
     Point3f pHit = rElement(t);
