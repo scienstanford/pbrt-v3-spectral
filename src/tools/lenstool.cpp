@@ -74,7 +74,7 @@ int convert(int argc, char *argv[]) {
     }
 
     if (i + 1 >= argc)
-        usage("missing second filename for \"convert\"");
+        usage("missing second filename (output) for \"convert\"");
     else if (i >= argc)
         usage("missing filenames for \"convert\"");
 
@@ -132,7 +132,7 @@ int convert(int argc, char *argv[]) {
             jsurf["radius"] = lensData[i+0];
             jsurf["thickness"] = lensData[i+1];
             jsurf["ior"] = lensData[i+2];
-            jsurf["semi_aperture"] = lensData[i+3] / 2.0;
+            jsurf["semi_aperture"] = lensData[i+3] / 2.0f;
             surfaces.push_back(jsurf);
         }
 
