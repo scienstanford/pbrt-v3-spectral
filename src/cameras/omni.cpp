@@ -940,14 +940,45 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 m[3][3] = (Float)1.0;
                 return Transform(m);
             };
+            auto toIORSpectrum = [lensFile](json jiors) {
+                // Stored in columns in json, but pbrt stores matrices 
+                // in row-major order.
+                if (jiors.is_number()) { // Perfectly fine to have no transform
+                    return (Float)jiors;
+                }
+                if (!(jiors.is_array()) || (jiors.size() != 2) || (!jiors[0].is_array())
+                    || (!jiors[1].is_array()) || (jiors[0].size() != jiors[1].size())
+                    || (!(jiors[0][0].is_number())) || (!(jiors[1][0].is_number()))) {
+                    Error("Invalid ior in lens specification file \"%s\","
+                        " must be either a single float, or a pair of parallel arrays."
+                        " The first array should be a list of wavelengths (in nm),"
+                        " The second array should be the ior at those wavelengths.", lensFile.c_str());
+                }
+                size_t numSamples = jiors[0].size();
+                std::vector<Float> wavelengths(numSamples);
+                std::vector<Float> iors(numSamples);
+                for (int i = 0; i < numSamples; ++i) {
+                    wavelengths[i] = (Float)jiors[0][i];
+                    iors[i] = (Float)jiors[1][i];
+                }
+                SampledSpectrum s = SampledSpectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
+                for (int i = 0; i < numSamples-1; ++i) {
+                    if (!(s[i] == s[i + 1])) {
+                        Error("Invalid ior in lens specification file \"%s\","
+                            " spectrum must be constant (wavelength-varying ior NYI)", 
+                            lensFile.c_str());
+                    }
+                }
+                return s[0];
+            };
 
-            auto toLensElementInterface = [toVec2, toTransform, apertureDiameter](json surf) {
+            auto toLensElementInterface = [toVec2, toTransform, toIORSpectrum, apertureDiameter](json surf) {
                 OmniCamera::LensElementInterface result;
                 // Convert mm to m
                 result.apertureRadius   = toVec2(surf["semi_aperture"]) * (Float).001;
                 result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
                 result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
-                result.eta              = Float(surf["ior"]);
+                result.eta              = toIORSpectrum(surf["ior"]);
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
                 if (result.curvatureRadius.x == 0.0f) {

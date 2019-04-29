@@ -274,7 +274,11 @@ namespace pbrt {
                             
                             // Evaluate radiance along camera ray
                     
-                            // This specific ray (with an assigned wavelength band) will go through the rest of the rendering pipeline in "Li". This includes going out through the lens (where it will be refracted according to its wavelength), reflecting off objects, and finally hitting a light source. The radiance is returned here. The radiance is returned as a full spectrum, but we only care about the value associated with the ray's assigned wavelength. This is because the direction the ray exited the lens is dependent on the wavelength.
+                            // This specific ray (with an assigned wavelength band) will go through the rest of the rendering pipeline in "Li". 
+                            // This includes going out through the lens (where it will be refracted according to its wavelength), 
+                            // reflecting off objects, and finally hitting a light source. The radiance is returned here. 
+                            // The radiance is returned as a full spectrum, but we only care about the value associated with the ray's assigned 
+                            // wavelength. This is because the direction the ray exited the lens is dependent on the wavelength.
                             if (rayWeight > 0) Ls = Li(ray, scene, *tileSampler, arena, 0);
                             
                             // Issue warning if unexpected radiance value returned
