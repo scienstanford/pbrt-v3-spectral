@@ -869,54 +869,13 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     };
 
     if (endsWith(lensFile, ".dat")) {
-        std::vector<Float> lensData;
-        if (!ReadFloatFile(lensFile.c_str(), &lensData)) {
-            Error("Error reading lens specification file \"%s\".",
-                lensFile.c_str());
-            return nullptr;
-        }
-        if (lensData.size() % 4 != 0) {
-            // Trisha: If the size has an extra value, it's possible this lens type was meant for pbrt-v2-spectral and has an extra focal length value at the top. In this case, let's automatically convert it by removing this extra value.
-            if (lensData.size() % 4 == 1) {
-                Warning("Extra value in lens specification file, this lens file may be for pbrt-v2-spectral. Removing extra value to make it compatible with pbrt-v3-spectral...");
-                lensData.erase(lensData.begin());
-            }
-            else {
-                Error(
-                    "Excess values in lens specification file \"%s\"; "
-                    "must be multiple-of-four values, read %d.",
-                    lensFile.c_str(), (int)lensData.size());
-                return nullptr;
-            }
-        }
-
-        auto floatsToElementInterfaces = [](std::vector<Float>& lensData, std::vector<OmniCamera::LensElementInterface>& elementInterfaces, float apertureDiameter) {
-            for (int i = 0; i < (int)lensData.size(); i += 4) {
-                if (lensData[i] == 0) {
-                    if (apertureDiameter > lensData[i + 3]) {
-                        Warning(
-                            "Specified aperture diameter %f is greater than maximum "
-                            "possible %f.  Clamping it.",
-                            apertureDiameter, lensData[i + 3]);
-                    }
-                    else {
-                        lensData[i + 3] = apertureDiameter;
-                    }
-                }
-                Float cRadius = lensData[i] * (Float).001;
-                Float aRadius = lensData[i + 3] * (Float).001 / Float(2.);
-                Float thickness = lensData[i + 1] * (Float).001;
-                Float ior = lensData[i + 2];
-                OmniCamera::LensElementInterface interface(
-                    cRadius, aRadius, thickness, ior);
-                //interface.transform = Translate(Vector3f(0.001, 0.001, 0.0)*rng.UniformFloat() - Vector3f(0.0005, 0.0005, 0.0));
-                elementInterfaces.push_back(interface);
-            }
-        };
-
-        floatsToElementInterfaces(lensData, lensInterfaceData, apertureDiameter);
-
-
+        Error(
+            "Invalid lens file format for file \"%s\"," 
+            "must use new json. To convert \"realistic\""
+            "camera style .dat files, use the `lenstool` command:"
+            "  lenstool convert [input .dat filename] [output .json filename]",
+            lensFile.c_str());
+        return nullptr;
     } else {
         if (!endsWith(lensFile, ".json")) {
             Error("Invalid format for lens specification file \"%s\".",
@@ -981,14 +940,45 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 m[3][3] = (Float)1.0;
                 return Transform(m);
             };
+            auto toIORSpectrum = [lensFile](json jiors) {
+                // Stored in columns in json, but pbrt stores matrices 
+                // in row-major order.
+                if (jiors.is_number()) { // Perfectly fine to have no transform
+                    return (Float)jiors;
+                }
+                if (!(jiors.is_array()) || (jiors.size() != 2) || (!jiors[0].is_array())
+                    || (!jiors[1].is_array()) || (jiors[0].size() != jiors[1].size())
+                    || (!(jiors[0][0].is_number())) || (!(jiors[1][0].is_number()))) {
+                    Error("Invalid ior in lens specification file \"%s\","
+                        " must be either a single float, or a pair of parallel arrays."
+                        " The first array should be a list of wavelengths (in nm),"
+                        " The second array should be the ior at those wavelengths.", lensFile.c_str());
+                }
+                size_t numSamples = jiors[0].size();
+                std::vector<Float> wavelengths(numSamples);
+                std::vector<Float> iors(numSamples);
+                for (int i = 0; i < numSamples; ++i) {
+                    wavelengths[i] = (Float)jiors[0][i];
+                    iors[i] = (Float)jiors[1][i];
+                }
+                SampledSpectrum s = SampledSpectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
+                for (int i = 0; i < numSamples-1; ++i) {
+                    if (!(s[i] == s[i + 1])) {
+                        Error("Invalid ior in lens specification file \"%s\","
+                            " spectrum must be constant (wavelength-varying ior NYI)", 
+                            lensFile.c_str());
+                    }
+                }
+                return s[0];
+            };
 
-            auto toLensElementInterface = [toVec2, toTransform, apertureDiameter](json surf) {
+            auto toLensElementInterface = [toVec2, toTransform, toIORSpectrum, apertureDiameter](json surf) {
                 OmniCamera::LensElementInterface result;
                 // Convert mm to m
                 result.apertureRadius   = toVec2(surf["semi_aperture"]) * (Float).001;
                 result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
                 result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
-                result.eta              = Float(surf["ior"]);
+                result.eta              = toIORSpectrum(surf["ior"]);
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
                 if (result.curvatureRadius.x == 0.0f) {
@@ -1005,7 +995,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 }
                 return result;
             };
-
 
             if (jsurfaces.is_array() && jsurfaces.size() > 0) {
                 for (auto jsurf : jsurfaces) {
@@ -1050,9 +1039,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                         lensFile.c_str());
                     return nullptr;
                 }
-            } else {
-            }
-
+            } 
         } else {
             Error("Error reading lens specification file \"%s\".",
                 lensFile.c_str());

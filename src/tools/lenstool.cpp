@@ -18,6 +18,7 @@
 #include "pbrt.h"
 #include "spectrum.h"
 #include "parallel.h"
+#include "transform.h"
 #include "ext/json.hpp"
 #include <glog/logging.h>
 using namespace nlohmann;
@@ -36,14 +37,28 @@ static void usage(const char *msg = nullptr, ...) {
 commands: convert
 
 convert options:
-    --inputscale <n>   Input units per mm (which are used in the output). Default: 1.0
+    --inputscale <n>    Input units per mm (which are used in the output). Default: 1.0
+    --implicitdefaults  Omit fields from the json file if they match the defaults.
 )");
     exit(1);
 }
 
+namespace pbrt {
+    void to_json(json& j, const Transform& t) {
+        const Matrix4x4& m = t.GetMatrix();
+        for (int c = 0; c < 4; ++c) {
+            json col;
+            for (int r = 0; r < 3; ++r) {
+                col.push_back(m.m[c][r]);
+            }
+            j.push_back(col);
+        }
+    }
+}
+
 int convert(int argc, char *argv[]) {
     float scale = 1.f;
-
+    bool implicitDefaults = false;
     int i;
     auto parseArg = [&]() -> std::pair<std::string, double> {
         const char *ptr = argv[i];
@@ -65,12 +80,17 @@ int convert(int argc, char *argv[]) {
     std::pair<std::string, double> arg;
     for (i = 0; i < argc; ++i) {
         if (argv[i][0] != '-') break;
-        std::pair<std::string, double> arg = parseArg();
-        if (std::get<0>(arg) == "inputscale") {
-            scale = std::get<1>(arg);
-            if (scale == 0) usage("--inputscale value must be non-zero");
-        } else
-            usage();
+        if (!strcmp(argv[i], "--implicitdefaults") || !strcmp(argv[i], "-implicitdefaults"))
+            implicitDefaults = !implicitDefaults;
+        else {
+            std::pair<std::string, double> arg = parseArg();
+            if (std::get<0>(arg) == "inputscale") {
+                scale = std::get<1>(arg);
+                if (scale == 0) usage("--inputscale value must be non-zero");
+            }
+            else
+                usage();
+        }
     }
 
     if (i + 1 >= argc)
@@ -80,11 +100,19 @@ int convert(int argc, char *argv[]) {
 
     const char *inFilename = argv[i], *outFilename = argv[i + 1];
 
-
-
     auto endsWith = [](const std::string& str, const std::string& suffix) {
         return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
     };
+
+    json identity; 
+    pbrt::to_json(identity, Transform(Matrix4x4()));
+    json jwavelengths;
+    for (int i = 0; i < nSpectralSamples; ++i) {
+        Float t = ((Float)i)/(nSpectralSamples-1);
+        Float lambda = (1.0 - t)*sampledLambdaStart + t*sampledLambdaEnd;
+        jwavelengths.push_back(lambda);
+    }
+
     std::string lensFile = inFilename;
     if (endsWith(lensFile, ".dat")) {
         // Load element data from lens description file
@@ -131,8 +159,19 @@ int convert(int argc, char *argv[]) {
             json jsurf;
             jsurf["radius"] = lensData[i+0];
             jsurf["thickness"] = lensData[i+1];
-            jsurf["ior"] = lensData[i+2];
             jsurf["semi_aperture"] = lensData[i+3] / 2.0f;
+            Float ior = lensData[i + 2];
+            if (implicitDefaults) {
+                jsurf["ior"] = ior;
+            } else {
+                json jior;
+                for (int i = 0; i < nSpectralSamples; ++i) {
+                    jior.push_back(ior);
+                }
+                jsurf["ior"] = {jwavelengths,jior};
+                jsurf["conic_constant"] = (Float)0.0;
+                jsurf["transform"] = identity;
+            }
             surfaces.push_back(jsurf);
         }
 
