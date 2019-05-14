@@ -890,7 +890,14 @@ def WalkObjectTree(pbrtGeometry, pbrtMaterials, obj, exportedMaterials, function
             while cache:
                 pbrtGeometry.write(indent + "AttributeBegin\n")
                 indent += "\t"
-                pbrtGeometry.write(indent + "# " + cache.GetName() + "\n")
+                
+                # Get bounding box width, height and depth --Zhenyi
+                bbox = cache.GetRad()
+                if bbox != rootObj:
+                    pbrtGeometry.write(indent + "#ObjectName " + cache.GetName() + ":" + str(cache.GetRad()) + "\n")
+                else:
+                    pbrtGeometry.write(indent + "#ObjectName " + cache.GetName() + "\n")
+
                 ml = cache.GetMl()
                 if ml != c4d.Matrix():
                     pbrtGeometry.write(indent + 'ConcatTransform [' + str(ml.v1.x) + ' ' + str(ml.v1.y) + ' ' + str(ml.v1.z) + ' 0  ' + str(ml.v2.x) + ' ' + str(ml.v2.y) + ' ' + str(ml.v2.z) + ' 0  ' + str(ml.v3.x) + ' ' + str(ml.v3.y) + ' ' + str(ml.v3.z) + ' 0  ' + str(ml.off.x) +  ' ' + str(ml.off.y) + ' ' + str(ml.off.z) + ' 1]\n')
@@ -902,7 +909,14 @@ def WalkObjectTree(pbrtGeometry, pbrtMaterials, obj, exportedMaterials, function
             for child in obj.GetChildren():
                 pbrtGeometry.write(indent + "AttributeBegin\n")
                 indent += "\t"
-                pbrtGeometry.write(indent + "# " + child.GetName() + "\n")
+                
+                # Get bounding box width, height and depth --Zhenyi
+                bbox = child.GetRad()
+                if bbox != rootObj:
+                    pbrtGeometry.write(indent + "#ObjectName " + child.GetName() + ":" + str(child.GetRad()) + "\n")
+                else:
+                    pbrtGeometry.write(indent + "#ObjectName " + child.GetName() + "\n")
+
                 ml = child.GetMl()
                 if ml != c4d.Matrix():
                     pbrtGeometry.write(indent + 'ConcatTransform [' + str(ml.v1.x) + ' ' + str(ml.v1.y) + ' ' + str(ml.v1.z) + ' 0  ' + str(ml.v2.x) + ' ' + str(ml.v2.y) + ' ' + str(ml.v2.z) + ' 0  ' + str(ml.v3.x) + ' ' + str(ml.v3.y) + ' ' + str(ml.v3.z) + ' 0  ' + str(ml.off.x) +  ' ' + str(ml.off.y) + ' ' + str(ml.off.z) + ' 1]\n')
@@ -914,7 +928,13 @@ def WalkObjectTree(pbrtGeometry, pbrtMaterials, obj, exportedMaterials, function
         for o in obj.GetObjects():
             pbrtGeometry.write(indent + "AttributeBegin\n")
             indent += "\t"
-            pbrtGeometry.write(indent + "# " + o.GetName() + "\n")
+            # Get bounding box width, height and depth --Zhenyi
+            bbox = o.GetRad()
+            if bbox != rootObj:
+                pbrtGeometry.write(indent + "#ObjectName " + o.GetName() + ":" + str(o.GetRad()) + "\n")
+            else:
+                pbrtGeometry.write(indent + "#ObjectName " + o.GetName() + ":" + "\n")
+
             ml = o.GetMl()
             if ml != c4d.Matrix():
                 pbrtGeometry.write(indent + 'ConcatTransform [' + str(ml.v1.x) + ' ' + str(ml.v1.y) + ' ' + str(ml.v1.z) + ' 0  ' + str(ml.v2.x) + ' ' + str(ml.v2.y) + ' ' + str(ml.v2.z) + ' 0  ' + str(ml.v3.x) + ' ' + str(ml.v3.y) + ' ' + str(ml.v3.z) + ' 0  ' + str(ml.off.x) +  ' ' + str(ml.off.y) + ' ' + str(ml.off.z) + ' 1]\n')
@@ -1031,6 +1051,7 @@ class PbrtThread(c4d.threading.C4DThread):
         #
         # output scene options that are derived from the camera/viewport
         #
+        pbrt.write('# Exported by PBRT exporter for Cinema 4D \n')
         camera = doc.GetRenderBaseDraw()
         mi = camera.GetMi()
         cameraObject = camera.GetSceneCamera(doc)
