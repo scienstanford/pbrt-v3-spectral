@@ -34,11 +34,19 @@ static void usage(const char *msg = nullptr, ...) {
     }
     fprintf(stderr, R"(usage: lenstool <command> [options] <filenames...>
 
-commands: convert
+commands: convert insertmicrolens
 
 convert options:
     --inputscale <n>    Input units per mm (which are used in the output). Default: 1.0
     --implicitdefaults  Omit fields from the json file if they match the defaults.
+
+insertmicrolens options:
+    --xdim <n>             How many microlenses span the X direction. Default: 16
+    --ydim <n>             How many microlenses span the Y direction. Default: 16
+    --filmwidth <n>        Width of target film in mm. Default: 20.0
+    --filmheight <n>       Height of target film in mm. Default: 20.0
+    --filmtolens <n>       Distance from film to back of main lens system (in mm). Default: 50.0
+    --filmtomicrolens <n>  Distance from film to back of microlens. Default: 0.0 
 )");
     exit(1);
 }
@@ -55,6 +63,10 @@ namespace pbrt {
         }
     }
 }
+
+static bool endsWith(const std::string& str, const std::string& suffix) {
+    return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+};
 
 int convert(int argc, char *argv[]) {
     float scale = 1.f;
@@ -93,16 +105,12 @@ int convert(int argc, char *argv[]) {
         }
     }
 
-    if (i + 1 >= argc)
+    if (i >= argc)
+        usage("missing filenames for \"convert\""); 
+    else if (i + 1 >= argc)
         usage("missing second filename (output) for \"convert\"");
-    else if (i >= argc)
-        usage("missing filenames for \"convert\"");
 
     const char *inFilename = argv[i], *outFilename = argv[i + 1];
-
-    auto endsWith = [](const std::string& str, const std::string& suffix) {
-        return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
-    };
 
     json identity; 
     pbrt::to_json(identity, Transform(Matrix4x4()));
@@ -194,6 +202,128 @@ int convert(int argc, char *argv[]) {
     return 0;
 }
 
+int insertmicrolens(int argc, char *argv[]) {
+    int xDim = 16;
+    int yDim = 16;
+    Float filmWidth = 20.0;
+    Float filmHeight = 20.0;
+    Float filmToLens = 50.0;
+    Float filmToMicrolens = 0.0;
+    int i;
+    auto parseArg = [&]() -> std::pair<std::string, double> {
+        const char *ptr = argv[i];
+        // Skip over a leading dash or two.
+        CHECK_EQ(*ptr, '-');
+        ++ptr;
+        if (*ptr == '-') ++ptr;
+
+        // Copy the flag name to the string.
+        std::string flag;
+        while (*ptr && *ptr != '=') flag += *ptr++;
+
+        if (!*ptr && i + 1 == argc)
+            usage("missing value after %s flag", argv[i]);
+        const char *value = (*ptr == '=') ? (ptr + 1) : argv[++i];
+        return{ flag, atof(value) };
+    }; 
+
+    std::pair<std::string, double> arg;
+    for (i = 0; i < argc; ++i) {
+        if (argv[i][0] != '-') break;
+        std::pair<std::string, double> arg = parseArg();
+        if (std::get<0>(arg) == "xdim") {
+            xDim = (int)std::get<1>(arg);
+            if (xDim <= 0) usage("--xDim value must be positive");
+        } 
+        else if (std::get<0>(arg) == "ydim") {
+            yDim = (int)std::get<1>(arg);
+            if (yDim <= 0) usage("--yDim value must be positive");
+        }
+        else if (std::get<0>(arg) == "filmwidth") {
+            filmWidth = (int)std::get<1>(arg);
+            if (filmWidth <= 0) usage("--filmwidth value must be positive");
+        }
+        else if (std::get<0>(arg) == "filmheight") {
+            filmHeight = (int)std::get<1>(arg);
+            if (filmHeight <= 0) usage("--filmheight value must be positive");
+        }
+        else if (std::get<0>(arg) == "filmtolens") {
+            filmToLens = (int)std::get<1>(arg);
+            if (filmToLens <= 0) usage("--filmtolens value must be positive");
+        }
+        else if (std::get<0>(arg) == "filmtomicrolens") {
+            filmToMicrolens = (int)std::get<1>(arg);
+            if (filmToMicrolens != 0.0) usage("--filmtomicrolens currently must be exactly 0! More complicated algorithms NYI.");
+        }
+        else
+            usage();
+    }
+
+    if (i >= argc)
+        usage("missing filenames for \"insertmicrolens\"");
+    else if (i + 1 >= argc)
+        usage("missing second filename (microlens file) for \"insertmicrolens\"");
+    else if (i + 2 >= argc)
+        usage("missing third filename (output file) for \"insertmicrolens\"");
+
+    const char *inFilename = argv[i], *microlensFilename = argv[i + 1], *outFilename = argv[i + 2];
+
+
+    auto readJSONLenses = [](std::string lensFile, json& output) {
+        if (!endsWith(lensFile, ".json")) {
+            Error("Invalid format for lens specification file \"%s\".",
+                lensFile.c_str());
+            return false;
+        }
+        // read a JSON file
+        std::ifstream i(lensFile);
+        if (i && (i >> output)) {
+            return true;
+        } else {
+            Error("Error reading lens specification file \"%s\".",
+                lensFile.c_str());
+            return false;
+        }
+    };
+    json jlens, jmicrolens;
+    readJSONLenses(inFilename, jlens);
+    readJSONLenses(microlensFilename, jmicrolens);
+    if (!jmicrolens["microlens"].is_null()) {
+        Error("Error, microlens surface specification had its own microlens specification: \"%s\".",
+            microlensFilename);
+    }
+
+    std::string mlname = jmicrolens["name"].get<std::string>();
+    jlens["name"] = jlens["name"].get<std::string>() + " w/ microlens " + mlname;
+    
+    std::string microDescript = jmicrolens["description"].get<std::string>();
+    if (microDescript == std::string("")) {
+        microDescript = "\nWith added microlens " + mlname;
+    } else {
+        microDescript = "\nWith added microlens " + mlname + ":\n" + microDescript;
+    }
+    
+    json outMicro;
+    outMicro["dimensions"] = { xDim, yDim };
+    outMicro["surfaces"] = jmicrolens["surfaces"];
+    json offsets;
+    for (int y = 0; y < yDim; ++y) {
+        for (int x = 0; x < xDim; ++x) {
+            offsets.push_back(json{ 0.0, 0.0 });
+        }
+    }
+    outMicro["offsets"] = offsets;
+    
+    jlens["microlens"] = outMicro;
+    std::ofstream outfile(outFilename);
+    outfile << std::setw(4) << jlens << std::endl;
+
+    // Covert to outfile here
+    printf("%s + %s = %s\n", inFilename, microlensFilename, outFilename);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
     FLAGS_stderrthreshold = 1; // Warning and above.
@@ -202,6 +332,8 @@ int main(int argc, char *argv[]) {
 
     if (!strcmp(argv[1], "convert"))
         return convert(argc - 2, argv + 2);
+    else if (!strcmp(argv[1], "insertmicrolens"))
+        return insertmicrolens(argc - 2, argv + 2);
     else
         usage("unknown command \"%s\"", argv[1]);
 
