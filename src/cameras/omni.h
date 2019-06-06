@@ -69,6 +69,8 @@ class OmniCamera : public Camera {
         float offsetFromSensor;
         std::vector<Vector2f> offsets;
         Vector2i dimensions;
+        // Non-physical term
+        int simulationRadius;
     };
 
     // OmniCamera Public Methods
@@ -78,7 +80,7 @@ class OmniCamera : public Camera {
                     bool caFlag, const std::vector<OmniCamera::LensElementInterface> &lensData, 
                     const std::vector<OmniCamera::LensElementInterface> &microlensData,
                     Vector2i microlensDims, const std::vector<Vector2f> & microlensOffsets, 
-                    float microlensSensorOffset, Film *film, const Medium *medium);
+                    float microlensSensorOffset, int microlensSimulationRadius, Film *film, const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
   private:

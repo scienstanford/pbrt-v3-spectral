@@ -59,7 +59,7 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
     bool caFlag, const std::vector<OmniCamera::LensElementInterface> &lensInterfaceData,
     const std::vector<OmniCamera::LensElementInterface> &microlensData,
     Vector2i microlensDims, const std::vector<Vector2f> & microlensOffsets,
-    float microlensSensorOffset, Film *film, const Medium *medium)
+    float microlensSensorOffset, int microlensSimulationRadius, Film *film, const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
       simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
     
@@ -69,6 +69,7 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
         microlens.offsets = microlensOffsets;
         microlens.dimensions = microlensDims;
         microlens.offsetFromSensor = microlensSensorOffset;
+        microlens.simulationRadius = microlensSimulationRadius;
     }
 
     // Compute lens--film distance for given focus distance
@@ -717,12 +718,15 @@ Point2i OmniCamera::MicrolensIndex(const Point2f& p) const {
 Point3f OmniCamera::SampleMicrolensPupil(const Point2f &pFilm, const Point2f &lensSample,
     Float *sampleBoundsArea) const {
     Point2f lensIndex = Point2f(MicrolensIndex(pFilm));
+    Float R = (Float)microlens.simulationRadius;
+    lensIndex -= Vector2f(R, R);
+    Float diameter = (R * 2.0) + 1.0;
     Vector2i d = microlens.dimensions;
     Vector2f df = Vector2f(d.x, d.y);
-    Point2f sampledLensSpacePt = mapDiv(lensIndex+lensSample, df);
+    Point2f sampledLensSpacePt = mapDiv(lensIndex+(lensSample*diameter), df);
     // sample on microlens
     Point2f result2 = film->GetPhysicalExtent().Lerp(sampledLensSpacePt);
-    if (sampleBoundsArea) *sampleBoundsArea = film->GetPhysicalExtent().Area() / (df.x*df.y);
+    if (sampleBoundsArea) *sampleBoundsArea = film->GetPhysicalExtent().Area()*diameter*diameter / (df.x*df.y);
     return Point3f(result2.x, result2.y, microlens.offsetFromSensor);
 }
 
@@ -820,6 +824,10 @@ bool OmniCamera::TraceFullLensSystemFromFilm(const Ray& rIn, Ray* rOut) const {
         Transform CameraToMicrolens = Scale(1, 1, -1)*Translate({ -element.center.x, -element.center.y, 0.0f });
         Ray rAfterMicrolens;
         if (rOut) rAfterMicrolens = *rOut;
+        /** TODO: here?
+        for (int i = 0; i <= microlens.simulationRadius; ++i) {
+            int diameter = 2 * i + 1;
+        }*/
         if (!TraceLensesFromFilm(rIn, microlens.elementInterfaces, &rAfterMicrolens, CameraToMicrolens, element.centeredBounds)) {
             return false;
         }
@@ -866,8 +874,12 @@ Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
         // TODO: Proper weighting
         Float cosTheta = Normalize(rFilm.d).z;
         Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-        if (simpleWeighting)
-            return cos4Theta;
+        if (simpleWeighting) {
+            // Normalize by expecting that on average rays only make it through
+            // one microlens to the outside world
+            Float simDiameter = (microlens.simulationRadius*2.0 + 1.0);
+            return cos4Theta * (simDiameter*simDiameter);
+        } 
         else
             return (shutterClose - shutterOpen) *
             (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
@@ -907,10 +919,6 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
 
     Float microlensSensorOffset = params.FindOneFloat("microlenssensoroffset", 0.001);
     int microlensSimulationRadius = params.FindOneInt("microlenssimulationradius", 0);
-
-    if (microlensSimulationRadius != 0) {
-        Warning("We only currently support simulating one microlens per pixel, switching microlensSimulationRadius to 0");
-    }
 
     if (lensFile == "") {
         Error("No lens description file supplied!");
@@ -1117,7 +1125,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     
     return new OmniCamera(cam2world, shutteropen, shutterclose,
                                apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag,
-                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, film, medium);
+                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, microlensSimulationRadius, film, medium);
 }
 
 }  // namespace pbrt
