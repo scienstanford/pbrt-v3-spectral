@@ -133,11 +133,10 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
                 "this discussion for details: "
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
 }
-static Bounds2f UNBOUNDED = Bounds2f({ -INFINITY,-INFINITY }, { INFINITY, INFINITY });
 
 OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, 
     const Float& elementZ, Float& t, Normal3f& n, bool& isStop, 
-    const Bounds2f& bounds = UNBOUNDED) const {
+    const ConvexQuadf& bounds = ConvexQuadf()) const {
     isStop = (element.curvatureRadius.x == 0);
     auto invTransform = Inverse(element.transform);
     Ray rElement = invTransform(rLens);
@@ -162,8 +161,7 @@ OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface 
     Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
     Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
     if (r2 > apertureRadius2) return CULLED_BY_APERTURE;
-    if (pHit.x > bounds.pMax.x || pHit.x < bounds.pMin.x ||
-        pHit.y > bounds.pMax.y || pHit.y < bounds.pMin.y) {
+    if (!bounds.Contains(Point2f(pHit))) {
         return CULLED_BY_APERTURE;
     }
     return HIT;
@@ -171,7 +169,7 @@ OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface 
 
 bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera, 
     const std::vector<LensElementInterface>& interfaces, Ray *rOut,
-    const Transform CameraToLens = Scale(1, 1, -1), const Bounds2f& bounds = UNBOUNDED) const {
+    const Transform CameraToLens = Scale(1, 1, -1), const ConvexQuadf& bounds = ConvexQuadf()) const {
     Float elementZ = 0;
     // Transform _rCamera_ from camera to lens system space
     Ray rLens = CameraToLens(rCamera);
@@ -793,16 +791,19 @@ OmniCamera::MicrolensElement OmniCamera::MicrolensElementFromIndex(const Point2i
     MicrolensElement element;
     element.index = idx;
     element.center = MicrolensCenterFromIndex(idx);
-    Point2f minPoint(INFINITY, INFINITY);
-    Point2f maxPoint(-INFINITY, -INFINITY);
-    const Point2i offsets[4] = { {-1,0}, {1,0}, {0,-1}, {0,1} };
-    for (const auto& off : offsets) {
-        Point2f neighborCenter = MicrolensCenterFromIndex(idx + off);
-        Point2f midPoint = (neighborCenter - Vector2f(element.center))*0.5f;
-        minPoint = Min(minPoint, midPoint);
-        maxPoint = Max(maxPoint, midPoint);
+    const Point2i offsets[4] = { {0,0}, {0,1}, {1,0}, {1,1} };
+    Point2f corners[4];
+    for (int i = 0; i < 4; ++i) {
+        corners[i] = Point2f(0, 0);
+        Point2i cornerIdx = idx-Vector2i(offsets[i]);
+        for (const auto& off : offsets) {
+            Point2f neighborCenter = MicrolensCenterFromIndex(cornerIdx + off);
+            corners[i] += neighborCenter;
+        }
+        corners[i] *= (Float)0.25;
+        corners[i] += -element.center; // Center the corners
     }
-    element.centeredBounds = Bounds2f(minPoint, maxPoint);
+    element.centeredBounds = ConvexQuadf(corners[0], corners[1], corners[2], corners[3]);
     return element;
 }
 

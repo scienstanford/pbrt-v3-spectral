@@ -97,7 +97,7 @@ class OmniCamera : public Camera {
 
     struct MicrolensElement {
         Point2f center;
-        Bounds2f centeredBounds;
+        ConvexQuadf centeredBounds;
         Point2i index;
         Transform ComputeCameraToMicrolens() const;
     };
@@ -114,7 +114,7 @@ class OmniCamera : public Camera {
         return elementInterfaces.back().apertureRadius.x;
     }
     bool TraceLensesFromFilm(const Ray &ray, const std::vector<LensElementInterface>& interfaces, Ray *rOut,
-        const Transform CameraToLens, const Bounds2f& bounds) const;
+        const Transform CameraToLens, const ConvexQuadf& bounds) const;
     static bool IntersectSphericalElement(Float radius, Float zCenter,
                                           const Ray &ray, Float *t,
                                           Normal3f *n);
@@ -136,7 +136,7 @@ class OmniCamera : public Camera {
                             Float *sampleBoundsArea) const;
 
     IntersectResult TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ,
-         Float& t, Normal3f& n, bool& isStop, const Bounds2f& bounds) const;
+         Float& t, Normal3f& n, bool& isStop, const ConvexQuadf& bounds) const;
 
     void TestExitPupilBounds() const;
 
