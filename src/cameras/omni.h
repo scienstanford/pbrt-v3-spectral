@@ -117,6 +117,9 @@ class OmniCamera : public Camera {
     }
     bool TraceLensesFromFilm(const Ray &ray, const std::vector<LensElementInterface>& interfaces, Ray *rOut,
         const Transform CameraToLens, const ConvexQuadf& bounds) const;
+    float TToBackLens(const Ray &ray, const std::vector<LensElementInterface>& interfaces,
+        const Transform CameraToLens, const ConvexQuadf& bounds) const;
+
     static bool IntersectSphericalElement(Float radius, Float zCenter,
                                           const Ray &ray, Float *t,
                                           Normal3f *n);

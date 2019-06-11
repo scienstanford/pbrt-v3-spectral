@@ -46,7 +46,6 @@ insertmicrolens options:
     --filmwidth <n>        Width of target film in mm. Default: 20.0
     --filmheight <n>       Height of target film in mm. Default: 20.0
     --filmtolens <n>       Distance from film to back of main lens system (in mm). Default: 50.0
-    --filmtomicrolens <n>  Distance from film to back of microlens. Default: 0.0 
 )");
     exit(1);
 }
@@ -240,19 +239,19 @@ int insertmicrolens(int argc, char *argv[]) {
             if (yDim <= 0) usage("--yDim value must be positive");
         }
         else if (std::get<0>(arg) == "filmwidth") {
-            filmWidth = (int)std::get<1>(arg);
+            filmWidth = (Float)std::get<1>(arg);
             if (filmWidth <= 0) usage("--filmwidth value must be positive");
         }
         else if (std::get<0>(arg) == "filmheight") {
-            filmHeight = (int)std::get<1>(arg);
+            filmHeight = (Float)std::get<1>(arg);
             if (filmHeight <= 0) usage("--filmheight value must be positive");
         }
         else if (std::get<0>(arg) == "filmtolens") {
-            filmToLens = (int)std::get<1>(arg);
+            filmToLens = (Float)std::get<1>(arg);
             if (filmToLens <= 0) usage("--filmtolens value must be positive");
         }
         else if (std::get<0>(arg) == "filmtomicrolens") {
-            filmToMicrolens = (int)std::get<1>(arg);
+            filmToMicrolens = (Float)std::get<1>(arg);
             if (filmToMicrolens != 0.0) usage("--filmtomicrolens currently must be exactly 0! More complicated algorithms NYI.");
         }
         else

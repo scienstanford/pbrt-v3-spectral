@@ -222,6 +222,24 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
     return true;
 }
 
+float OmniCamera::TToBackLens(const Ray &rCamera,
+    const std::vector<LensElementInterface>& interfaces,
+    const Transform CameraToLens = Scale(1, 1, -1), const ConvexQuadf& bounds = ConvexQuadf()) const {
+    // Transform _rCamera_ from camera to lens system space
+    Ray rLens = CameraToLens(rCamera);
+
+    const LensElementInterface &element = interfaces[interfaces.size() - 1];
+    // Compute intersection of ray with lens element
+    Float t;
+    Normal3f n;
+    bool isStop;
+    Float elementZ = -element.thickness;
+    IntersectResult result = TraceElement(element, rLens, elementZ, t, n, isStop, bounds);
+    if (result != HIT)
+        return std::numeric_limits<Float>::infinity();
+    return t;
+}
+
 bool OmniCamera::IntersectSphericalElement(Float radius, Float zCenter,
                                                 const Ray &ray, Float *t,
                                                 Normal3f *n) {
@@ -777,7 +795,7 @@ void OmniCamera::TestExitPupilBounds() const {
 }
 
 Transform OmniCamera::MicrolensElement::ComputeCameraToMicrolens() const {
-    return Transform();
+    return Scale(1, 1, -1)*Translate({ -center.x, -center.y, 0.0f });
 }
 
 Point2f OmniCamera::MicrolensCenterFromIndex(const Point2i& idx) const {
@@ -820,18 +838,43 @@ OmniCamera::MicrolensElement OmniCamera::ComputeMicrolensElement(const Ray& film
 
 bool OmniCamera::TraceFullLensSystemFromFilm(const Ray& rIn, Ray* rOut) const {
     if (HasMicrolens()) {
-        MicrolensElement element = ComputeMicrolensElement(rIn);
-        Transform CameraToMicrolens = Scale(1, 1, -1)*Translate({ -element.center.x, -element.center.y, 0.0f });
-        Ray rAfterMicrolens;
-        if (rOut) rAfterMicrolens = *rOut;
-        /** TODO: here?
-        for (int i = 0; i <= microlens.simulationRadius; ++i) {
-            int diameter = 2 * i + 1;
-        }*/
-        if (!TraceLensesFromFilm(rIn, microlens.elementInterfaces, &rAfterMicrolens, CameraToMicrolens, element.centeredBounds)) {
+        MicrolensElement centerElement = ComputeMicrolensElement(rIn);
+        Float tMin = std::numeric_limits<Float>::infinity();
+        int R = microlens.simulationRadius;
+        Point2i cIdx = centerElement.index;
+        MicrolensElement toTrace = centerElement;
+        // Check to find the first microlens we intersect with
+        // Could be sped up by only checking the directions of the projection of the ray
+        for (int y = -R; y <= R; ++y) {
+            for (int x = -R; x <= R; ++x) {
+                const MicrolensElement el = MicrolensElementFromIndex(cIdx + Vector2i(x,y));
+                float newT = TToBackLens(rIn, microlens.elementInterfaces, el.ComputeCameraToMicrolens(), el.centeredBounds);
+                if (newT < tMin) {
+                    tMin = newT;
+                    toTrace = el;
+                }
+            }
+        }
+        if (tMin < std::numeric_limits<Float>::infinity()) {
+            Ray rAfterMicrolens;
+            if (rOut) rAfterMicrolens = *rOut;
+            if (!TraceLensesFromFilm(rIn, microlens.elementInterfaces, &rAfterMicrolens, toTrace.ComputeCameraToMicrolens(), toTrace.centeredBounds)) {
+                return false;
+            }
+
+            bool result = TraceLensesFromFilm(rAfterMicrolens, elementInterfaces, rOut);
+            /*
+            static int paths = 0;
+            if (result && cIdx != toTrace.index) {
+                ++paths;
+                if (paths % 100 == 0) {
+                    printf("Contributing non-center microlens path count: %d\n", paths);
+                }
+            }*/
+            return result;
+        } else {
             return false;
         }
-        return TraceLensesFromFilm(rAfterMicrolens, elementInterfaces, rOut);
     } else {
         return TraceLensesFromFilm(rIn, elementInterfaces, rOut);
     }
