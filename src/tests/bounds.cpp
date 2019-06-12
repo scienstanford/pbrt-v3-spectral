@@ -106,3 +106,45 @@ TEST(Bounds3, Union) {
     Bounds3f e = Union(a, d);
     EXPECT_EQ(Bounds3f(Point3f(-15, -10, 5), Point3f(0, 20, 30)), e);
 }
+
+
+TEST(ConvexQuad, Contains) {
+    ConvexQuadf a(Point2f(0, 0), Point2f(1, 1), Point2f(0, 1), Point2f(1, 0));
+    ConvexQuadf b; // degenerate
+    ConvexQuadf c(Point2f(-2, -5), Point2f(-5, -1), Point2f(-1, -2), Point2f(-6, -6));
+
+    Point2f p0(0.3, 0.8);
+    Point2f p1(-5.5, -2);
+    Point2f p2(-5.9, -5.9);
+    Point2f p3(0, 0);
+    Point2f p4(1000, -1000);
+
+    EXPECT_TRUE(a.Contains(p0));
+    EXPECT_TRUE(b.Contains(p0));
+    EXPECT_FALSE(c.Contains(p0));
+
+    EXPECT_FALSE(a.Contains(p1));
+    EXPECT_TRUE(b.Contains(p1));
+    EXPECT_FALSE(c.Contains(p1));
+
+    EXPECT_FALSE(a.Contains(p2));
+    EXPECT_TRUE(b.Contains(p2));
+    EXPECT_TRUE(c.Contains(p2));
+
+    EXPECT_TRUE(a.Contains(p3));
+    EXPECT_TRUE(b.Contains(p3));
+    EXPECT_FALSE(c.Contains(p3));
+
+    EXPECT_FALSE(a.Contains(p4));
+    EXPECT_TRUE(b.Contains(p4));
+    EXPECT_FALSE(c.Contains(p4));
+}
+
+TEST(ConvexQuad, Area) {
+    ConvexQuadf a(Point2f(0, 0), Point2f(1, 1), Point2f(0, 1), Point2f(1, 0));
+    ConvexQuadf b; // degenerate
+    ConvexQuadf c(Point2f(-2, -5), Point2f(-5, -1), Point2f(-1, -2), Point2f(-6, -6));
+    EXPECT_EQ(a.Area(), 1.0);
+    EXPECT_GT(b.Area(), 100000.0);
+    EXPECT_EQ(c.Area(), 16.0);
+}

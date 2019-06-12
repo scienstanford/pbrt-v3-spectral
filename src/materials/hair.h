@@ -165,7 +165,7 @@ static uint32_t Compact1By1(uint32_t x) {
 static Point2f DemuxFloat(Float f) {
     CHECK(f >= 0 && f < 1);
     uint64_t v = f * (1ull << 32);
-    CHECK_LT(v, 0x100000000);
+    CHECK_LT(v, (uint64_t)0x100000000);
     uint32_t bits[2] = {Compact1By1(v), Compact1By1(v >> 1)};
     return {bits[0] / Float(1 << 16), bits[1] / Float(1 << 16)};
 }

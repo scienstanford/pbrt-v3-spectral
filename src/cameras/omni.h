@@ -69,6 +69,8 @@ class OmniCamera : public Camera {
         float offsetFromSensor;
         std::vector<Vector2f> offsets;
         Vector2i dimensions;
+        // Non-physical term
+        int simulationRadius;
     };
 
     // OmniCamera Public Methods
@@ -78,7 +80,7 @@ class OmniCamera : public Camera {
                     bool caFlag, const std::vector<OmniCamera::LensElementInterface> &lensData, 
                     const std::vector<OmniCamera::LensElementInterface> &microlensData,
                     Vector2i microlensDims, const std::vector<Vector2f> & microlensOffsets, 
-                    float microlensSensorOffset, Film *film, const Medium *medium);
+                    float microlensSensorOffset, int microlensSimulationRadius, Film *film, const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
   private:
@@ -97,7 +99,7 @@ class OmniCamera : public Camera {
 
     struct MicrolensElement {
         Point2f center;
-        Bounds2f centeredBounds;
+        ConvexQuadf centeredBounds;
         Point2i index;
         Transform ComputeCameraToMicrolens() const;
     };
@@ -114,7 +116,10 @@ class OmniCamera : public Camera {
         return elementInterfaces.back().apertureRadius.x;
     }
     bool TraceLensesFromFilm(const Ray &ray, const std::vector<LensElementInterface>& interfaces, Ray *rOut,
-        const Transform CameraToLens, const Bounds2f& bounds) const;
+        const Transform CameraToLens, const ConvexQuadf& bounds) const;
+    float TToBackLens(const Ray &ray, const std::vector<LensElementInterface>& interfaces,
+        const Transform CameraToLens, const ConvexQuadf& bounds) const;
+
     static bool IntersectSphericalElement(Float radius, Float zCenter,
                                           const Ray &ray, Float *t,
                                           Normal3f *n);
@@ -136,7 +141,7 @@ class OmniCamera : public Camera {
                             Float *sampleBoundsArea) const;
 
     IntersectResult TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ,
-         Float& t, Normal3f& n, bool& isStop, const Bounds2f& bounds) const;
+         Float& t, Normal3f& n, bool& isStop, const ConvexQuadf& bounds) const;
 
     void TestExitPupilBounds() const;
 
