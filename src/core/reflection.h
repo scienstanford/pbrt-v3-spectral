@@ -206,7 +206,7 @@ inline std::ostream &operator<<(std::ostream &os, const BSDF &bsdf) {
     return os;
 }
 
-// BxDF Declarations
+// BxDF Declaration
 class BxDF {
   public:
     // BxDF Interface

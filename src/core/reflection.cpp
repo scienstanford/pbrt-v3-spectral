@@ -735,8 +735,7 @@ Spectrum BSDF::Sample_f(const Vector3f &woWorld, Vector3f *wiWorld,
     if (wo.z == 0) return 0.;
     *pdf = 0;
     if (sampledType) *sampledType = bxdf->type;
-    Spectrum f = bxdf->Sample_f(wo, &wi, uRemapped, pdf, sampledType);
-    VLOG(2) << "For wo = " << wo << ", sampled f = " << f << ", pdf = "
+    Spectrum f = bxdf->Sample_f(wo, &wi, uRemapped, pdf, sampledType);VLOG(2) << "For wo = " << wo << ", sampled f = " << f << ", pdf = "
             << *pdf << ", ratio = " << ((*pdf > 0) ? (f / *pdf) : Spectrum(0.))
             << ", wi = " << wi;
     if (*pdf == 0) {
