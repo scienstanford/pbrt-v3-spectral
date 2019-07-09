@@ -30,16 +30,17 @@ namespace pbrt {
 class BBRRDF : public BxDF {
     public:
       // BBRRDF Public Methods
-        BBRRDF(BxDF *bxdf, const MatrixXd &reradMatrix)
+    BBRRDF(BxDF *bxdf, const Eigen::MatrixXd &reradMatrix)
             : BxDF(BxDFType(bxdf->type)), bxdf(bxdf),
-                        reradMatrix(reradMatrix){}
-        Spectrum f(const Vector3d &wo, const Vector3f &wi);
+                        reradMatrix(reradMatrix) {}
+        Spectrum f(const Vector3f &wo, const Vector3f &wi) const;
         std::string ToString() const;
     
     private:
         BxDF *bxdf;
-        MatrixXd reradMatrix;
-    
+        Eigen::MatrixXd reradMatrix;
 };
 
 } // pbrt namespace
+
+#endif // PBRT_CORE_BBRRDF_H
