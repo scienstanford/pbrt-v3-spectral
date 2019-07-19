@@ -42,6 +42,7 @@
 #include "pbrt.h"
 #include "camera.h"
 #include "film.h"
+#include <gsl/gsl_randist.h>
 
 namespace pbrt {
 
@@ -52,7 +53,7 @@ class RealisticCamera : public Camera {
     RealisticCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
                     Float focusDistance, bool simpleWeighting, bool noWeighting,
-                    bool caFlag, std::vector<Float> &lensData, Film *film,
+                    bool caFlag,  bool diffractionEnabled, std::vector<Float> &lensData, Film *film,
                     const Medium *medium);
     Float GenerateRay(const CameraSample &sample, Ray *) const;
     Spectrum We(const Ray &ray, Point2f *pRaster2 = nullptr) const;
@@ -74,9 +75,13 @@ class RealisticCamera : public Camera {
     const bool simpleWeighting;
     const bool noWeighting;
     const bool caFlag;
+    const bool diffractionEnabled;
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
-
+    
+    // GSL seed for random number generation
+    gsl_rng * r;
+    
 	std::unique_ptr<Distribution1D> pOmegaViaCosTheta; //MMara
 
     // RealisticCamera Private Methods
