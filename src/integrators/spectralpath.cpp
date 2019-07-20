@@ -307,17 +307,12 @@ namespace pbrt {
                             VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " <<
                             ray << " -> L = " << Ls;
                             
-                            // Isolate the returned radiance for this wavelength
-                            
-                            float Ls_lambda;
-                            Ls.GetValueAtWavelength(ray.wavelength, &Ls_lambda);
-                            
-                            // Assign the result to all wavelengths sampled around the target wavelength. For example, if nWaveBands = 3, then we would split the spectrum into three equal parts and assign the result from the first wavelength to the first third, the second wavelength to the second third, etc.
+                            // Assign the result to all wavelengths sampled around the target wavelength. For example, if nWaveBands = 3, then we would split the spectrum into three equal parts and assign the first third of the spectrum traced using the first wavelength, to the first third of the final spectrum, and so on.
                             int bottomIndex = deltaIndex*s;
                             int topIndex = std::min(deltaIndex*(s+1),nSpectralSamples);
-
+                            
                             for(int waveIndex = bottomIndex; waveIndex < topIndex; waveIndex++){
-                                L.AssignValueAtIndex(waveIndex, Ls_lambda);
+                                L[waveIndex] = Ls[waveIndex];
                             }
 
                         }
