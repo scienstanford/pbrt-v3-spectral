@@ -65,7 +65,11 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                             Sampler &sampler, MemoryArena &arena,
                             int depth) const {
     ProfilePhase p(Prof::SamplerIntegratorLi);
-    Spectrum L(0.f), beta(1.f);
+    //Spectrum L(0.f), beta(1.f);
+    // Zheng Lyu Changed the place for fluorescence
+    Spectrum L(0.f);
+    FluoSpectrum beta(1.f);
+    
     RayDifferential ray(r);
     bool specularBounce = false;
     int bounces;
@@ -91,11 +95,11 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (bounces == 0 || specularBounce) {
             // Add emitted light at path vertex or from the environment
             if (foundIntersection) {
-                L += beta * isect.Le(-ray.d);
+                L += beta.Spectrum() * isect.Le(-ray.d);
                 VLOG(2) << "Added Le -> L = " << L;
             } else {
                 for (const auto &light : scene.infiniteLights)
-                    L += beta * light->Le(ray);
+                    L += beta.Spectrum() * light->Le(ray);
                 VLOG(2) << "Added infinite area lights -> L = " << L;
             }
         }

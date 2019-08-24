@@ -57,6 +57,7 @@
 #include <alloca.h>
 #endif
 #include <assert.h>
+#include <Eigen/Dense>
 #include <string.h>
 #include <glog/logging.h>
 
@@ -91,6 +92,8 @@
 #define ALLOCA(TYPE, COUNT) (TYPE *) alloca((COUNT) * sizeof(TYPE))
 
 namespace pbrt {
+    
+
 
 // Global Forward Declarations
 class Scene;
@@ -119,6 +122,11 @@ class Shape;
 class Primitive;
 class GeometricPrimitive;
 class TransformedPrimitive;
+#ifdef PBRT_FLOAT_AS_DOUBLE
+    typedef double Float;
+#else
+    typedef float Float;
+#endif  // PBRT_FLOAT_AS_DOUBLE
 template <int nSpectrumSamples>
 class CoefficientSpectrum;
 class RGBSpectrum;
@@ -128,8 +136,11 @@ class SampledSpectrum;
 #endif
 #ifdef PBRT_SAMPLED_SPECTRUM
   typedef SampledSpectrum Spectrum;
+  static const int nSpectralSamples = 31;
+  typedef Eigen::Matrix<Float, nSpectralSamples, nSpectralSamples> FluoSpectrum;
 #else
   typedef RGBSpectrum Spectrum;
+  typedef Eigen::Matrix3f FluoSpectrum;
 #endif
 class Camera;
 struct CameraSample;
@@ -157,11 +168,7 @@ class VisibilityTester;
 class AreaLight;
 struct Distribution1D;
 class Distribution2D;
-#ifdef PBRT_FLOAT_AS_DOUBLE
-  typedef double Float;
-#else
-  typedef float Float;
-#endif  // PBRT_FLOAT_AS_DOUBLE
+
 class RNG;
 class ProgressReporter;
 class MemoryArena;
