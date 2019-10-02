@@ -44,6 +44,7 @@
 #include "microfacet.h"
 #include "shape.h"
 #include "spectrum.h"
+#include "photolumi.h"
 
 namespace pbrt {
 

@@ -46,6 +46,7 @@
 #include "reflection.h"
 #include "sampler.h"
 #include "material.h"
+#include "photolumi.h" // Added by Zheng Lyu (09-20-2019)
 
 namespace pbrt {
 

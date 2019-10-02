@@ -15,8 +15,9 @@
 
 // materials/fluorescent.h
 #include "pbrt.h"
+#include "reflection.h"
 #include "material.h"
-#include "Eigen/Dense"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -24,21 +25,24 @@ namespace pbrt {
 class FluorescentMaterial : public Material {
     public:
         // FluorescentMaterial Public Methods
-        FluorescentMaterial(const std::shared_ptr<Texture<Matrix>> &reradMatrix)
-                            : reradMatrix(reradMatrix);
+        FluorescentMaterial(const std::shared_ptr<Texture<PhotoLumi>> &reRadMatrix,
+                            const std::shared_ptr<Texture<Float>> &bumpMap)
+            : reRadMatrix(reRadMatrix),
+              bumpMap(bumpMap){}
         void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                         TransportMode mode,
                                         bool allowMultipleLobes) const;
     
-    
     private:
         // FluorescentMaterial Private Data
-    std::shared_ptr<Matrix> reradMatrix;
+        std::shared_ptr<Texture<PhotoLumi>> reRadMatrix;
+        std::shared_ptr<Texture<Float>> bumpMap;
  
 };
     
 
 FluorescentMaterial *CreateFluorescentMaterial(const TextureParams &mp);
+    
 }
 
 

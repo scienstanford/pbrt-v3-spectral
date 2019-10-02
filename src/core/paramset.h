@@ -44,6 +44,7 @@
 #include "geometry.h"
 #include "texture.h"
 #include "spectrum.h"
+#include "photolumi.h"
 #include <stdio.h>
 #include <map>
 
@@ -81,6 +82,8 @@ class ParamSet {
                                  int nValues);
     void AddSampledSpectrum(const std::string &, std::unique_ptr<Float[]> v,
                             int nValues);
+    void AddSampledPhotoLumi(const std::string &, std::unique_ptr<Float[]> v,
+                             int nValues);
     bool EraseInt(const std::string &);
     bool EraseBool(const std::string &);
     bool EraseFloat(const std::string &);
@@ -90,6 +93,7 @@ class ParamSet {
     bool EraseVector3f(const std::string &);
     bool EraseNormal3f(const std::string &);
     bool EraseSpectrum(const std::string &);
+    bool ErasePhotoLumi(const std::string &);
     bool EraseString(const std::string &);
     bool EraseTexture(const std::string &);
     Float FindOneFloat(const std::string &, Float d) const;
@@ -101,6 +105,7 @@ class ParamSet {
     Vector3f FindOneVector3f(const std::string &, const Vector3f &d) const;
     Normal3f FindOneNormal3f(const std::string &, const Normal3f &d) const;
     Spectrum FindOneSpectrum(const std::string &, const Spectrum &d) const;
+    PhotoLumi FindOnePhotoLumi(const std::string &, const PhotoLumi &d) const;
     std::string FindOneString(const std::string &, const std::string &d) const;
     std::string FindOneFilename(const std::string &,
                                 const std::string &d) const;
@@ -114,6 +119,7 @@ class ParamSet {
     const Vector3f *FindVector3f(const std::string &, int *nValues) const;
     const Normal3f *FindNormal3f(const std::string &, int *nValues) const;
     const Spectrum *FindSpectrum(const std::string &, int *nValues) const;
+    const PhotoLumi *FindPhotoLumi(const std::string &, int *nValues) const;
     const std::string *FindString(const std::string &, int *nValues) const;
     void ReportUnused() const;
     void Clear();
@@ -134,6 +140,7 @@ class ParamSet {
     std::vector<std::shared_ptr<ParamSetItem<Vector3f>>> vector3fs;
     std::vector<std::shared_ptr<ParamSetItem<Normal3f>>> normals;
     std::vector<std::shared_ptr<ParamSetItem<Spectrum>>> spectra;
+    std::vector<std::shared_ptr<ParamSetItem<PhotoLumi>>> photolumis;
     std::vector<std::shared_ptr<ParamSetItem<std::string>>> strings;
     std::vector<std::shared_ptr<ParamSetItem<std::string>>> textures;
     static std::map<std::string, Spectrum> cachedSpectra;
@@ -165,9 +172,11 @@ class TextureParams {
     TextureParams(
         const ParamSet &geomParams, const ParamSet &materialParams,
         std::map<std::string, std::shared_ptr<Texture<Float>>> &fTex,
-        std::map<std::string, std::shared_ptr<Texture<Spectrum>>> &sTex)
+        std::map<std::string, std::shared_ptr<Texture<Spectrum>>> &sTex,
+        std::map<std::string, std::shared_ptr<Texture<PhotoLumi>>> &pTex)
         : floatTextures(fTex),
           spectrumTextures(sTex),
+          photolumiTextures(pTex),
           geomParams(geomParams),
           materialParams(materialParams) {}
     std::shared_ptr<Texture<Spectrum>> GetSpectrumTexture(
@@ -178,6 +187,11 @@ class TextureParams {
                                                     Float def) const;
     std::shared_ptr<Texture<Float>> GetFloatTextureOrNull(
         const std::string &name) const;
+    std::shared_ptr<Texture<PhotoLumi>> GetPhotoLumiTexture(
+        const std::string &name, const PhotoLumi &def) const;
+    std::shared_ptr<Texture<PhotoLumi>> GetPhotoLumiTextureOrNull(
+        const std::string &name) const;
+    
     Float FindFloat(const std::string &n, Float d) const {
         return geomParams.FindOneFloat(n, materialParams.FindOneFloat(n, d));
     }
@@ -212,6 +226,10 @@ class TextureParams {
         return geomParams.FindOneSpectrum(n,
                                           materialParams.FindOneSpectrum(n, d));
     }
+    PhotoLumi FindPhotoLumi (const std::string &n, const PhotoLumi &d) const {
+        return geomParams.FindOnePhotoLumi(n, materialParams.FindOnePhotoLumi(n, d));
+    }
+    
     void ReportUnused() const;
     const ParamSet &GetGeomParams() const { return geomParams; }
     const ParamSet &GetMaterialParams() const { return materialParams; }
@@ -220,6 +238,7 @@ class TextureParams {
     // TextureParams Private Data
     std::map<std::string, std::shared_ptr<Texture<Float>>> &floatTextures;
     std::map<std::string, std::shared_ptr<Texture<Spectrum>>> &spectrumTextures;
+    std::map<std::string, std::shared_ptr<Texture<PhotoLumi>>> &photolumiTextures;
     const ParamSet &geomParams, &materialParams;
 };
 

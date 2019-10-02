@@ -33,6 +33,7 @@
 // integrators/path.cpp*
 #include "integrators/path.h"
 #include "bssrdf.h"
+#include "bbrrdf.h"
 #include "camera.h"
 #include "film.h"
 #include "interaction.h"
@@ -66,9 +67,9 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                             int depth) const {
     ProfilePhase p(Prof::SamplerIntegratorLi);
     //Spectrum L(0.f), beta(1.f);
-    // Zheng Lyu Changed the place for fluorescence
+    // Zheng Lyu Changed the place for fluorescence (09-20-2019)
     Spectrum L(0.f);
-    FluoSpectrum beta(1.f);
+    PhotoLumi beta(1.f);
     
     RayDifferential ray(r);
     bool specularBounce = false;
@@ -95,11 +96,21 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (bounces == 0 || specularBounce) {
             // Add emitted light at path vertex or from the environment
             if (foundIntersection) {
-                L += beta.Spectrum() * isect.Le(-ray.d);
+                Spectrum tmpLe = isect.Le(-ray.d);
+                PhotoLumi tmpMul = beta * tmpLe;
+                tmpMul.Transpose();
+                tmpMul.ToSpectrum();
+                L += tmpMul.getSpectrum();
                 VLOG(2) << "Added Le -> L = " << L;
             } else {
-                for (const auto &light : scene.infiniteLights)
-                    L += beta.Spectrum() * light->Le(ray);
+                for (const auto &light : scene.infiniteLights) {
+                    Spectrum tmpLe = Spectrum(light->Le(ray));
+                    PhotoLumi tmpMul = beta * tmpLe;
+                    tmpMul.Transpose();
+                    tmpMul.ToSpectrum();
+                    L += tmpMul.getSpectrum();
+                }
+
                 VLOG(2) << "Added infinite area lights -> L = " << L;
             }
         }
@@ -123,8 +134,12 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (isect.bsdf->NumComponents(BxDFType(BSDF_ALL & ~BSDF_SPECULAR)) >
             0) {
             ++totalPaths;
-            Spectrum Ld = beta * UniformSampleOneLight(isect, scene, arena,
-                                                       sampler, false, distrib);
+            Spectrum tmpLe = UniformSampleOneLight(isect, scene, arena,
+                                                   sampler, false, distrib);
+            PhotoLumi tmpMul = beta * tmpLe;
+            tmpMul.Transpose();
+            tmpMul.ToSpectrum();
+            Spectrum Ld = tmpMul.getSpectrum();
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -139,10 +154,12 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
-        beta *= f * AbsDot(wi, isect.shading.n) / pdf;
+        Spectrum tmpSp = f * AbsDot(wi, isect.shading.n) / pdf;
+        beta *= tmpSp;
+        beta.ToSpectrum();
         VLOG(2) << "Updated beta = " << beta;
-        CHECK_GE(beta.y(), 0.f);
-        DCHECK(!std::isinf(beta.y()));
+        CHECK_GE(beta.getSpectrum().y(), 0.f);
+        DCHECK(!std::isinf(beta.getSpectrum().y()));
         specularBounce = (flags & BSDF_SPECULAR) != 0;
         if ((flags & BSDF_SPECULAR) && (flags & BSDF_TRANSMISSION)) {
             Float eta = isect.bsdf->eta;
@@ -159,32 +176,51 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             SurfaceInteraction pi;
             Spectrum S = isect.bssrdf->Sample_S(
                 scene, sampler.Get1D(), sampler.Get2D(), arena, &pi, &pdf);
-            DCHECK(!std::isinf(beta.y()));
+            DCHECK(!std::isinf(beta.getSpectrum().y()));
             if (S.IsBlack() || pdf == 0) break;
-            beta *= S / pdf;
+            Spectrum tmpSp = S / pdf;
+            beta *= tmpSp;
 
             // Account for the direct subsurface scattering component
-            L += beta * UniformSampleOneLight(pi, scene, arena, sampler, false,
-                                              lightDistribution->Lookup(pi.p));
+            Spectrum tmpLe = UniformSampleOneLight(pi, scene, arena, sampler, false,
+                                                   lightDistribution->Lookup(pi.p));
+            PhotoLumi tmpMul = beta * tmpLe;
+            tmpMul.Transpose();
+            tmpMul.ToSpectrum();
+            L += tmpMul.getSpectrum();
 
             // Account for the indirect subsurface scattering component
             Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
-            beta *= f * AbsDot(wi, pi.shading.n) / pdf;
-            DCHECK(!std::isinf(beta.y()));
+            Spectrum betaTerm = f * AbsDot(wi, pi.shading.n) / pdf;
+            beta *= betaTerm;
+            DCHECK(!std::isinf(beta.getSpectrum().y()));
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
+        }
+        
+        // Account for fluorescent scattering, if applicable
+        if (isect.bbrrdf) {
+            SurfaceInteraction pi;
+            PhotoLumi p = isect.bbrrdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
+            p.ToSpectrum();
+            if (p.getSpectrum().IsBlack() || pdf == 0) break;
+            PhotoLumi tmpP = p * AbsDot(wi, isect.shading.n) / pdf;
+            beta *= tmpP;
+            beta.ToSpectrum();
         }
 
         // Possibly terminate the path with Russian roulette.
         // Factor out radiance scaling due to refraction in rrBeta.
-        Spectrum rrBeta = beta * etaScale;
+        beta *= etaScale;
+        beta.ToSpectrum();
+        Spectrum rrBeta = beta.getSpectrum();
         if (rrBeta.MaxComponentValue() < rrThreshold && bounces > 3) {
             Float q = std::max((Float).05, 1 - rrBeta.MaxComponentValue());
             if (sampler.Get1D() < q) break;
             beta /= 1 - q;
-            DCHECK(!std::isinf(beta.y()));
+            DCHECK(!std::isinf(beta.getSpectrum().y()));
         }
     }
     ReportValue(pathLength, bounces);

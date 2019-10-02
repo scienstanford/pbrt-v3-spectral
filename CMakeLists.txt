@@ -313,6 +313,16 @@ MESSAGE ( SEND_ERROR "Cannot find GSL.")
 ENDIF()
 INCLUDE_DIRECTORIES(${GSL_INCLUDE_DIRS})
 ###########################################################################
+
+###########################################################################
+# Eigen/Dense
+FIND_PACKAGE ( Eigen )
+IF(NOT Eigen_FOUND)
+INCLUDE_DIRECTORIES ( ${CMAKE_CURRENT_SOURCE_DIR}/src/ext/eigen3 )
+ENDIF()
+###########################################################################
+
+
 # OpenEXR
 
 SET(ILMBASE_NAMESPACE_VERSIONING OFF CACHE BOOL " " FORCE)

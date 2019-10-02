@@ -57,8 +57,8 @@
 #include <alloca.h>
 #endif
 #include <assert.h>
-#include <Eigen/Dense>
 #include <string.h>
+#include <Eigen/Dense>
 #include <glog/logging.h>
 
 // Platform-specific definitions
@@ -136,11 +136,21 @@ class SampledSpectrum;
 #endif
 #ifdef PBRT_SAMPLED_SPECTRUM
   typedef SampledSpectrum Spectrum;
-  static const int nSpectralSamples = 31;
-  typedef Eigen::Matrix<Float, nSpectralSamples, nSpectralSamples> FluoSpectrum;
 #else
   typedef RGBSpectrum Spectrum;
-  typedef Eigen::Matrix3f FluoSpectrum;
+#endif
+// ZhengLyu Added the photolumi spectrum
+template <int nSpectrumSamples>
+class CoefficientPhotoLumi;
+class RGBPhotoLumi;
+class SampledPhotoLumi;
+#ifndef PBRT_SAMPLED_PHOTOLUMI
+#define PBRT_SAMPLED_PHOTOLUMI
+#endif
+#ifdef PBRT_SAMPLED_PHOTOLUMI
+    typedef SampledPhotoLumi PhotoLumi;
+#else
+    typedef RGBPhotoLumi PhotoLumi;
 #endif
 class Camera;
 struct CameraSample;
@@ -163,6 +173,9 @@ class BSSRDF;
 class SeparableBSSRDF;
 class TabulatedBSSRDF;
 struct BSSRDFTable;
+// Added by Zheng Lyu
+class BBRRDF;
+class SurfaceBBRRDF;
 class Light;
 class VisibilityTester;
 class AreaLight;

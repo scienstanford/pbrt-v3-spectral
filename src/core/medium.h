@@ -42,6 +42,7 @@
 #include "pbrt.h"
 #include "geometry.h"
 #include "spectrum.h"
+#include "photolumi.h"
 #include <memory>
 
 namespace pbrt {

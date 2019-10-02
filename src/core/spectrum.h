@@ -47,7 +47,7 @@ namespace pbrt {
 // Spectrum Utility Declarations
 static const int sampledLambdaStart = 395;
 static const int sampledLambdaEnd = 705;
-// static const int nSpectralSamples = 31;
+static const int nSpectralSamples = 31;
 extern bool SpectrumSamplesSorted(const Float *lambda, const Float *vals,
                                   int n);
 extern void SortSpectrumSamples(Float *lambda, Float *vals, int n);
@@ -468,10 +468,16 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
     //
     //Trisha Added (10-2016)
     // Assign a value at a specific index (not wavelength!)
-    void AssignValueAtIndex(int index, Float value){
+    void AssignValueAtIndex(int index, Float value) {
         c[index] = value;
     }
     //
+    
+    // Zheng Lyu Added (9-2019)
+    // Get the value at a specific index (not wavelength!)
+    Float GetValueAtIndex(int index) {
+        return c[index];
+    }
     
     // Trisha Added (3-2018)
     // Useful for debugging
@@ -481,6 +487,7 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
         }
     }
     
+
     
     SampledSpectrum(const RGBSpectrum &r,
                     SpectrumType type = SpectrumType::Reflectance);

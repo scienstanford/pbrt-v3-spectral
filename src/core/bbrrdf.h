@@ -16,29 +16,63 @@
 #define PBRT_CORE_BBRRDF_H
 
 // core/bbrrdf.h*
-#include "pbrt.h"
-#include "geometry.h"
-#include "microfacet.h"
-#include "shape.h"
-#include "spectrum.h"
+#include "interaction.h"
 #include "reflection.h"
-#include "Eigen/Dense"
+#include "stats.h"
 
 namespace pbrt {
 
 // BBRRDF Declarations
-class BBRRDF : public BxDF {
+class BBRRDF {
     public:
-      // BBRRDF Public Methods
-    BBRRDF(BxDF *bxdf, const Eigen::MatrixXd &reradMatrix)
-            : BxDF(BxDFType(bxdf->type)), bxdf(bxdf),
-                        reradMatrix(reradMatrix) {}
-        Spectrum f(const Vector3f &wo, const Vector3f &wi) const;
-        std::string ToString() const;
+        // BBRRDF Public Methods
+        BBRRDF(PhotoLumi reRadMatrix) : reRadMatrix(reRadMatrix) {}
+        virtual ~BBRRDF() {}
+        virtual PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const = 0;
+        virtual PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
+                           const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
+                           BxDFType *sampledType = nullptr) const = 0;
+        virtual Float Pdf(const Vector3f &wo, const Vector3f &wi) const = 0;
     
-    private:
-        BxDF *bxdf;
-        Eigen::MatrixXd reradMatrix;
+    
+    protected:
+        // BBRRDF Protected Data
+        PhotoLumi reRadMatrix;
+    
+};
+
+//class SubSurfaceBBRRDF : public BBRRDF {
+//    public:
+//        // SubSurfaceBBRRDF Public Methods
+//        SubSurfaceBBRRDF(Eigen::MatrixXd reRadMatrix, const SurfaceInteraction &po, Float eta)
+//            : BBRRDF(reRadMatrix),
+//              po(po),
+//              eta(eta) {}
+//
+//        // The functions below are temporarily used for demo, which are not true
+//        PhotoLumi S(const SurfaceInteraction &pi, const Vector3f &wi) const;
+//        PhotoLumi Sample_S(const Scene &scene, Float u1, const Point2f &u2,
+//                                   MemoryArena &arena, SurfaceInteraction *si,
+//                                   Float *pdf) const;
+//
+//    protected:
+//        // SubSurfaceBSSRDF Protected Data
+//        const SurfaceInteraction &po;
+//        Float eta;
+//};
+
+class SurfaceBBRRDF : public BBRRDF {
+    public:
+        // SurfaceBBRRDF Public Methods
+        SurfaceBBRRDF(PhotoLumi reRadMatrix)
+            : BBRRDF(reRadMatrix) {}
+    
+        // The functions below are temporarily used for demo, which are not true
+        PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const;
+        PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
+                           const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
+                           BxDFType *sampledType = nullptr) const;
+        Float Pdf(const Vector3f &wo, const Vector3f &wi) const;
 };
 
 } // pbrt namespace

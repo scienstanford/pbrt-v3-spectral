@@ -168,6 +168,23 @@ void ParamSet::AddSampledSpectrum(const std::string &name,
     spectra.push_back(psi);
 }
 
+void ParamSet::AddSampledPhotoLumi(const std::string &name,
+                                   std::unique_ptr<Float[]> values,
+                                   int nValues) {
+    ErasePhotoLumi(name);
+    // x^2 + x - nValues = 0; Solve the equation
+    std::unique_ptr<Float[]> wl(new Float[nValues]);
+    std::unique_ptr<Float*[]> v(new Float*[nValues]);
+    for (int i = 0; i < nValues; ++i) {
+        v[i] = new Float[nValues];
+    }
+    std::unique_ptr<PhotoLumi[]> p(new PhotoLumi[1]);
+    p[0] = PhotoLumi::FromSampled(wl.get(), v.get(), nValues);
+    std::shared_ptr<ParamSetItem<PhotoLumi>> psi(
+        new ParamSetItem<PhotoLumi>(name, std::move(p), 1));
+    photolumis.push_back(psi);
+}
+
 void ParamSet::AddSampledSpectrumFiles(const std::string &name,
                                        const char **names, int nValues) {
     EraseSpectrum(name);
@@ -304,6 +321,15 @@ bool ParamSet::EraseSpectrum(const std::string &n) {
     return false;
 }
 
+bool ParamSet::ErasePhotoLumi(const std::string &n) {
+    for (size_t i = 0; i < photolumis.size(); ++i)
+        if (photolumis[i]->name == n) {
+            photolumis.erase(photolumis.begin() + i);
+            return true;
+        }
+    return false;
+}
+
 bool ParamSet::EraseString(const std::string &n) {
     for (size_t i = 0; i < strings.size(); ++i)
         if (strings[i]->name == n) {
@@ -415,6 +441,16 @@ const Spectrum *ParamSet::FindSpectrum(const std::string &name,
 Spectrum ParamSet::FindOneSpectrum(const std::string &name,
                                    const Spectrum &d) const {
     LOOKUP_ONE(spectra);
+}
+
+const PhotoLumi *ParamSet::FindPhotoLumi(const std::string &name,
+                                         int *nValues) const {
+    LOOKUP_PTR(photolumis);
+}
+
+PhotoLumi ParamSet::FindOnePhotoLumi(const std::string &name,
+                                    const PhotoLumi &d) const {
+    LOOKUP_ONE(photolumis);
 }
 
 const std::string *ParamSet::FindString(const std::string &name,
@@ -762,6 +798,56 @@ std::shared_ptr<Texture<Spectrum>> TextureParams::GetSpectrumTextureOrNull(
         return spectrumTextures[name];
     else {
         Error("Couldn't find spectrum texture named \"%s\" for parameter \"%s\"",
+              name.c_str(), n.c_str());
+        return nullptr;
+    }
+}
+
+std::shared_ptr<Texture<PhotoLumi>> TextureParams::GetPhotoLumiTexture(
+    const std::string &n, const PhotoLumi &def) const {
+    std::shared_ptr<Texture<PhotoLumi>> tex = GetPhotoLumiTextureOrNull(n);
+    if (tex)
+        return tex;
+    else
+        return std::make_shared<ConstantTexture<PhotoLumi>>(def);
+}
+
+std::shared_ptr<Texture<PhotoLumi>> TextureParams::GetPhotoLumiTextureOrNull(
+    const std::string &n) const {
+    // Check the shape parameters first
+    std::string name = geomParams.FindTexture(n);
+    if (name.empty()) {
+        int count;
+        const PhotoLumi *s = geomParams.FindPhotoLumi(n, &count);
+        if (s) {
+            if (count > 1)
+                Warning("Ignoring excess values provided with parameter \"%s\"",
+                        n.c_str());
+                return std::make_shared<ConstantTexture<PhotoLumi>>(*s);
+        }
+        
+        name = materialParams.FindTexture(n);
+        if (name.empty()) {
+            int count;
+            const PhotoLumi *s = materialParams.FindPhotoLumi(n, &count);
+            if (s) {
+                if (count > 1)
+                        Warning("Ignoring excess values provided with parameter \"%s\"",
+                                n.c_str());
+                    return std::make_shared<ConstantTexture<PhotoLumi>>(*s);
+            }
+        }
+        
+        if (name.empty())
+            return nullptr;
+    }
+    
+    // We have a texture name, from either the shape or the material's
+    // parameters.
+    if (photolumiTextures.find(name) != photolumiTextures.end())
+        return photolumiTextures[name];
+    else {
+        Error("Couldn't find photolumi texture named \"%s\" for parameter \"%s\"",
               name.c_str(), n.c_str());
         return nullptr;
     }
