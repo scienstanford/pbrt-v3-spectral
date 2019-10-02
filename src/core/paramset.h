@@ -187,6 +187,8 @@ class TextureParams {
                                                     Float def) const;
     std::shared_ptr<Texture<Float>> GetFloatTextureOrNull(
         const std::string &name) const;
+    
+    // Zheng Lyu added 10-02-2019
     std::shared_ptr<Texture<PhotoLumi>> GetPhotoLumiTexture(
         const std::string &name, const PhotoLumi &def) const;
     std::shared_ptr<Texture<PhotoLumi>> GetPhotoLumiTextureOrNull(

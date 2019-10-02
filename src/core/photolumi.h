@@ -30,6 +30,8 @@ namespace pbrt {
 extern bool PhotoLumiSamplesSorted(const Float *lambda, Float **vals,
                                    int n);
 extern void SortPhotoLumiSamples(Float *lambda, Float **vals, int n);
+extern Float AveragePhotoLumiSamples(const Float *lambda, Float **vals,
+                                     int n, Float lambdaStart, Float lambdaEnd, int j);
 enum class PhotoLumiType { Reflectance, Illuminant, Display };
 extern Float InterpolateSpectrumSamples(const Float *lambda, const Float *vals,
                                         int n, Float l);
