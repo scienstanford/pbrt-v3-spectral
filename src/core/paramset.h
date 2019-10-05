@@ -80,6 +80,8 @@ class ParamSet {
                               int nValues);
     void AddSampledSpectrumFiles(const std::string &, const char **,
                                  int nValues);
+    void AddSampledPhotoLumiFiles(const std::string &, const char **,
+                                  int nValues);
     void AddSampledSpectrum(const std::string &, std::unique_ptr<Float[]> v,
                             int nValues);
     void AddSampledPhotoLumi(const std::string &, std::unique_ptr<Float[]> v,
@@ -144,6 +146,8 @@ class ParamSet {
     std::vector<std::shared_ptr<ParamSetItem<std::string>>> strings;
     std::vector<std::shared_ptr<ParamSetItem<std::string>>> textures;
     static std::map<std::string, Spectrum> cachedSpectra;
+    // Zheng Lyu added 10-03-2019
+    static std::map<std::string, PhotoLumi> cachedPhotoLumi;
 };
 
 template <typename T>

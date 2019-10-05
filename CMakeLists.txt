@@ -386,6 +386,7 @@ INCLUDE_DIRECTORIES ( src/ext/ptex/src/ptex )
 
 SET ( PBRT_CORE_SOURCE
   src/core/api.cpp
+  src/core/bbrrdf.cpp
   src/core/bssrdf.cpp
   src/core/camera.cpp
   src/core/efloat.cpp
@@ -409,6 +410,7 @@ SET ( PBRT_CORE_SOURCE
   src/core/parallel.cpp
   src/core/paramset.cpp
   src/core/parser.cpp
+  src/core/photolumi.cpp
   src/core/primitive.cpp
   src/core/progressreporter.cpp
   src/core/quaternion.cpp
@@ -426,6 +428,7 @@ SET ( PBRT_CORE_SOURCE
 
 SET ( PBRT_CORE_HEADERS
   src/core/api.h
+  src/core/bbrrdf.h
   src/core/bssrdf.h
   src/core/camera.h
   src/core/efloat.h
@@ -440,6 +443,7 @@ SET ( PBRT_CORE_HEADERS
   src/core/interaction.h
   src/core/interpolation.h
   src/core/light.h
+  src/core/lightdistrib.h
   src/core/lowdiscrepancy.h
   src/core/material.h
   src/core/medium.h
@@ -450,6 +454,7 @@ SET ( PBRT_CORE_HEADERS
   src/core/paramset.h
   src/core/parser.h
   src/core/pbrt.h
+  src/core/photolumi.h
   src/core/primitive.h
   src/core/progressreporter.h
   src/core/quaternion.h

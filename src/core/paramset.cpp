@@ -173,6 +173,7 @@ void ParamSet::AddSampledPhotoLumi(const std::string &name,
                                    int nValues) {
     ErasePhotoLumi(name);
     // x^2 + x - nValues = 0; Solve the equation
+    nValues = int((std::sqrt(Float(nValues * 4) + 1) - 1) / 2);
     std::unique_ptr<Float[]> wl(new Float[nValues]);
     std::unique_ptr<Float*[]> v(new Float*[nValues]);
     for (int i = 0; i < nValues; ++i) {
@@ -224,12 +225,50 @@ void ParamSet::AddSampledSpectrumFiles(const std::string &name,
     spectra.push_back(psi);
 }
 
+// Zheng Lyu added 10-03-2019
+void ParamSet::AddSampledPhotoLumiFiles(const std::string &name,
+                                        const char **names, int nValues) {
+    ErasePhotoLumi(name);
+    std::unique_ptr<PhotoLumi[]> p(new PhotoLumi[nValues]);
+    for (int i = 0; i < nValues; ++i) {
+        std::string fn = AbsolutePath(ResolveFilename(names[i]));
+        if (cachedPhotoLumi.find(fn) != cachedPhotoLumi.end()) {
+            p[i] = cachedPhotoLumi[fn];
+            continue;
+        }
+        
+        std::vector<Float> vals;
+        if (!ReadFloatFile(fn.c_str(), &vals)) {
+            Warning(
+                "Unable to read PhotoLumi file \"%s\".  Using black distribution.",
+                fn.c_str());
+            p[i] = PhotoLumi(0.);
+        } else {
+            int k = 1;
+//            std::vector<Float> wls, v;
+//            for (size_t j = 0; j < vals.size() / 2; ++j) {
+//                wls.push_back(vals[2 * j]);
+//                v.push_back(vals[2 * j + 1]);
+//            }
+//            s[i] = Spectrum::FromSampled(&wls[0], &v[0], wls.size());
+        }
+        cachedPhotoLumi[fn] = p[i];
+    }
+    
+    std::shared_ptr<ParamSetItem<PhotoLumi>> psi(
+        new ParamSetItem<PhotoLumi>(name, std::move(p), nValues));
+    photolumis.push_back(psi);
+}
+
 std::map<std::string, Spectrum> ParamSet::cachedSpectra;
 void ParamSet::AddString(const std::string &name,
                          std::unique_ptr<std::string[]> values, int nValues) {
     EraseString(name);
     ADD_PARAM_TYPE(std::string, strings);
 }
+
+// Zheng Lyu added 10-03-2019
+std::map<std::string, PhotoLumi> ParamSet::cachedPhotoLumi;
 
 void ParamSet::AddTexture(const std::string &name, const std::string &value) {
     EraseTexture(name);

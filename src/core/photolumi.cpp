@@ -10,7 +10,7 @@
 
 namespace pbrt {
 
-Float AveragePhotoLumiSamples(const Float *lambda, const Float **vals, int n,
+Float AveragePhotoLumiSamples(const Float *lambda, Float **vals, int n,
                               Float lambdaStart, Float lambdaEnd, int j) {
     for (int i = 0; i < n - 1; ++i) CHECK_GT(lambda[i + 1], lambda[i]);
     CHECK_LT(lambdaStart, lambdaEnd);

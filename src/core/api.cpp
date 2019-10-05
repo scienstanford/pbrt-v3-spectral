@@ -40,6 +40,7 @@
 #include "parallel.h"
 #include "paramset.h"
 #include "spectrum.h"
+#include "photolumi.h"
 #include "scene.h"
 #include "film.h"
 #include "medium.h"
@@ -910,6 +911,7 @@ void pbrtInit(const Options &opt) {
 
     // General \pbrt Initialization
     SampledSpectrum::Init();
+    SampledPhotoLumi::Init();
     ParallelInit();  // Threads must be launched before the profiler is
                      // initialized.
     InitProfiler();
@@ -1159,7 +1161,7 @@ void pbrtAttributeBegin() {
     VERIFY_WORLD("AttributeBegin");
     pushedGraphicsStates.push_back(graphicsState);
     graphicsState.floatTexturesShared = graphicsState.spectrumTexturesShared =
-        graphicsState.namedMaterialsShared = true;
+    graphicsState.photolumiTexturesShared = graphicsState.namedMaterialsShared = true;
     pushedTransforms.push_back(curTransform);
     pushedActiveTransformBits.push_back(activeTransformBits);
     if (PbrtOptions.cat || PbrtOptions.toPly) {

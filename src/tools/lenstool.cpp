@@ -17,6 +17,7 @@
 #include "imageio.h"
 #include "pbrt.h"
 #include "spectrum.h"
+#include "photolumi.h"
 #include "parallel.h"
 #include "transform.h"
 #include "ext/json.hpp"

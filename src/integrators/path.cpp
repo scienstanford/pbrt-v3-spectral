@@ -207,6 +207,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             p.ToSpectrum();
             if (p.getSpectrum().IsBlack() || pdf == 0) break;
             PhotoLumi tmpP = p * AbsDot(wi, isect.shading.n) / pdf;
+            tmpP.Transpose();
             beta *= tmpP;
             beta.ToSpectrum();
         }

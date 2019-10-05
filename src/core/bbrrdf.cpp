@@ -15,6 +15,7 @@
 #include "stats.h"
 #include <stdarg.h>
 #include "photolumi.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -27,20 +28,19 @@ namespace pbrt {
 //    return reRadMatrix * tmpSp;
 //}
 
-PhotoLumi SurfaceBBRRDF::f(const Vector3f &wo, const Vector &wi) const {
+PhotoLumi SurfaceBBRRDF::f(const Vector3f &wo, const Vector3f &wi) const {
     Spectrum tmpSp = Spectrum(1.f);
     return reRadMatrix * tmpSp;
 }
 
-PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f &wi,
-                                  const Point2f &u, Float *pdf, BxDFType type = BSDF_ALL,
+PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f *wi,
+                                  const Point2f &u, Float *pdf, BxDFType type,
                                   BxDFType *sampledType) const {
     // Cosine-sample the hemisphere, flipping the direction if necessary
     *wi = CosineSampleHemisphere(u);
     if (wo.z < 0) wi->z *= -1;
     *pdf = Pdf(wo, *wi);
-    Spectrum tmpSp = f(wo, *wi);
-    return reRadMatrix * tmpSp;
+    return f(wo, *wi);
 }
 
 Float SurfaceBBRRDF::Pdf(const Vector3f &wo, const Vector3f &wi) const {

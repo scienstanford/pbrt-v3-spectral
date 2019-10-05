@@ -13,6 +13,7 @@
 #include "imageio.h"
 #include "pbrt.h"
 #include "spectrum.h"
+#include "photolumi.h"
 #include "parallel.h"
 extern "C" {
 #include "ext/ArHosekSkyModel.h"

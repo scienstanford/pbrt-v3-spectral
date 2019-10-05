@@ -31,10 +31,11 @@ extern bool PhotoLumiSamplesSorted(const Float *lambda, Float **vals,
                                    int n);
 extern void SortPhotoLumiSamples(Float *lambda, Float **vals, int n);
 extern Float AveragePhotoLumiSamples(const Float *lambda, Float **vals,
-                                     int n, Float lambdaStart, Float lambdaEnd, int j);
+                                     int n, Float lambdaStart, Float lambdaEnd,
+                                     int j);
 enum class PhotoLumiType { Reflectance, Illuminant, Display };
-extern Float InterpolateSpectrumSamples(const Float *lambda, const Float *vals,
-                                        int n, Float l);
+//extern Float InterpolateSpectrumSamples(const Float *lambda, const Float *vals,
+//                                        int n, Float l);
 extern void Blackbody(const Float *lambda, int n, Float T, Float *Le);
 extern void BlackBodyNormalized(const Float *lambda, int n, Float T, Float *vals);
 // Spectrum Declarations
@@ -44,7 +45,11 @@ class CoefficientPhotoLumi {
     public:
       // CoefficientPhotoLumi Public Methods
         CoefficientPhotoLumi(Float v = 0.f) {
-            for (int i = 0; i < nSpectrumSamples; ++i) m(i, i) = v;
+            for (int i = 0; i < nSpectrumSamples; ++i)
+                for (int j = 0; j < nSpectrumSamples; ++j) {
+                    if (i == j) m(i, j) = v;
+                    else m(i, j) = 0.f;
+                }
             DCHECK(!HasNaNs());
         }
     #ifdef DEBUG
@@ -190,8 +195,10 @@ class CoefficientPhotoLumi {
         }
         bool HasNaNs() const {
             for (int i = 0; i < nSpectrumSamples; ++i)
-                for (int j = 0; j < nSpectrumSamples; ++j)
+                for (int j = 0; j < nSpectrumSamples; ++j) {
                     if (std::isnan(m(i, j))) return true;
+                }
+
             return false;
         }
         bool Write(FILE *f) const {
@@ -266,7 +273,7 @@ class CoefficientPhotoLumi {
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(i);
+                    ret.m(i, j) *= s.GetValueAtIndex(j);
                 }
             }
             
@@ -275,10 +282,10 @@ class CoefficientPhotoLumi {
     
         CoefficientPhotoLumi &operator*=(Spectrum &s) {
             DCHECK(!s.HasNaNs());
-            CoefficientPhotoLumi ret = *this;
+            CoefficientPhotoLumi &ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(i);
+                    ret.m(i, j) *= s.GetValueAtIndex(j);
                 }
             }
             return ret;
@@ -308,28 +315,32 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
             : CoefficientPhotoLumi<nSpectralSamples>(v) {}
         static SampledPhotoLumi FromSampled(const Float *lambda, Float **v,
                                            int n) {
-            // Sort samples if unordered, use sorted for returned photolumi
-            if (!PhotoLumiSamplesSorted(lambda, v, n)) {
-                std::vector<Float> slambda(&lambda[0], &lambda[n]);
-//                std::vector<Float*> sv;
-//                for (int i = 0; i < n; ++i)
-//                    sv.push_back(new Float[n]);
-//                for (int i = 0; i < n; ++i)
-//                    sv[i] = v[i];
-                std::vector<Float*> sv(&v[0], &v[n]);
-                SortPhotoLumiSamples(&slambda[0], &sv[0], n);
-                return FromSampled(&slambda[0], &sv[0], n);
-            }
-            SampledPhotoLumi p;
-            for (int i = 0; i < nSpectralSamples; ++i) {
-                Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
-                                     sampledLambdaStart, sampledLambdaEnd);
-                Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
-                                     sampledLambdaStart, sampledLambdaEnd);
-                for (int j = 0; j < nSpectralSamples; ++j)
-                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, j);
-            }
-            return p;
+//            // Sort samples if unordered, use sorted for returned photolumi
+//            if (!PhotoLumiSamplesSorted(lambda, v, n)) {
+//                std::vector<Float> slambda(&lambda[0], &lambda[n]);
+////                std::vector<Float*> sv;
+////                for (int i = 0; i < n; ++i)
+////                    sv.push_back(new Float[n]);
+////                for (int i = 0; i < n; ++i)
+////                    sv[i] = v[i];
+////                std::vector<Float*> sv(&v[0], &v[n]);
+////                SortPhotoLumiSamples(&slambda[0], &sv[0], n);
+//                SortPhotoLumiSamples(&slambda[0], v, n);
+////                return FromSampled(&slambda[0], &sv[0], n);
+//                return FromSampled(&slambda[0], v, n);
+//
+//            }
+//            SampledPhotoLumi p;
+//            for (int i = 0; i < nSpectralSamples; ++i) {
+//                Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
+//                                     sampledLambdaStart, sampledLambdaEnd);
+//                Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+//                                     sampledLambdaStart, sampledLambdaEnd);
+//                for (int j = 0; j < nSpectralSamples; ++j)
+//                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, j);
+//            }
+//            return p;
+            return PhotoLumi(0.);
         }
         const Spectrum getSpectrum() const { return s; }
         void ToSpectrum() {
@@ -344,6 +355,9 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
     
         void Transpose() const {
             m.transpose();
+        }
+        static void Init() {
+            
         }
     
     private:
@@ -398,6 +412,10 @@ class RGBPhotoLumi : public CoefficientPhotoLumi<3> {
             s.AssignValueAtIndex(i, sum);
         }
     }
+    
+    void Transpose() const {
+        m.transpose();
+    }
     private:
     // RGBSpectrum Private Data
         Spectrum s;
@@ -433,9 +451,9 @@ inline RGBPhotoLumi Lerp(Float t, const RGBPhotoLumi &s1, const RGBPhotoLumi &s2
 inline SampledPhotoLumi Lerp(Float t, const SampledPhotoLumi &s1, const SampledPhotoLumi &s2) {
     return (1 - t) * s1 + t * s2;
 }
-void ResampleLinearSpectrum(const Float *lamdaIn, const Float *vIn, int nIn,
-                            Float lambdaMin, Float lambdaMax, int nOut,
-                            Float *vOut);
+//void ResampleLinearPhotoLumi(const Float *lamdaIn, const Float *vIn, int nIn,
+//                            Float lambdaMin, Float lambdaMax, int nOut,
+//                            Float *vOut);
 }  // namespace pbrt
 
 #endif // PBRT_CORE_PHOTOLUMI_H
