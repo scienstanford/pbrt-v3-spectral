@@ -70,7 +70,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
     // Zheng Lyu Changed the place for fluorescence (09-20-2019)
     Spectrum L(0.f);
     PhotoLumi beta(1.f);
-    
+
     RayDifferential ray(r);
     bool specularBounce = false;
     int bounces;
@@ -180,7 +180,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             if (S.IsBlack() || pdf == 0) break;
             Spectrum tmpSp = S / pdf;
             beta *= tmpSp;
-
+            beta.ToSpectrum();
             // Account for the direct subsurface scattering component
             Spectrum tmpLe = UniformSampleOneLight(pi, scene, arena, sampler, false,
                                                    lightDistribution->Lookup(pi.p));
@@ -195,14 +195,14 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             if (f.IsBlack() || pdf == 0) break;
             Spectrum betaTerm = f * AbsDot(wi, pi.shading.n) / pdf;
             beta *= betaTerm;
+            beta.ToSpectrum();
             DCHECK(!std::isinf(beta.getSpectrum().y()));
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
         }
-        
+
         // Account for fluorescent scattering, if applicable
         if (isect.bbrrdf) {
-            SurfaceInteraction pi;
             PhotoLumi p = isect.bbrrdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
             p.ToSpectrum();
             if (p.getSpectrum().IsBlack() || pdf == 0) break;
@@ -210,17 +210,26 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             tmpP.Transpose();
             beta *= tmpP;
             beta.ToSpectrum();
+            
+            // Account for the direct subsurface scattering component
+            Spectrum tmpLe = UniformSampleOneLight(isect, scene, arena, sampler, false,
+                                                   lightDistribution->Lookup(isect.p));
+            PhotoLumi tmpMul = beta * tmpLe;
+            tmpMul.Transpose();
+            tmpMul.ToSpectrum();
+            L += tmpMul.getSpectrum();
         }
 
         // Possibly terminate the path with Russian roulette.
         // Factor out radiance scaling due to refraction in rrBeta.
-        beta *= etaScale;
-        beta.ToSpectrum();
-        Spectrum rrBeta = beta.getSpectrum();
+        PhotoLumi tmpP = beta * etaScale;
+        tmpP.ToSpectrum();
+        Spectrum rrBeta = tmpP.getSpectrum();
         if (rrBeta.MaxComponentValue() < rrThreshold && bounces > 3) {
             Float q = std::max((Float).05, 1 - rrBeta.MaxComponentValue());
             if (sampler.Get1D() < q) break;
             beta /= 1 - q;
+            beta.ToSpectrum();
             DCHECK(!std::isinf(beta.getSpectrum().y()));
         }
     }

@@ -79,6 +79,7 @@
 #include "lights/spot.h"
 #include "materials/disney.h"
 #include "materials/fourier.h"
+#include "materials/fluorescent.h"
 #include "materials/glass.h"
 #include "materials/hair.h"
 #include "materials/kdsubsurface.h"
@@ -610,6 +611,8 @@ std::shared_ptr<Material> MakeMaterial(const std::string &name,
         material = CreateKdSubsurfaceMaterial(mp);
     else if (name == "fourier")
         material = CreateFourierMaterial(mp);
+    else if (name == "fluorescent")
+        material = CreateFluorescentMaterial(mp);
     else {
         Warning("Material \"%s\" unknown. Using \"matte\".", name.c_str());
         material = CreateMatteMaterial(mp);

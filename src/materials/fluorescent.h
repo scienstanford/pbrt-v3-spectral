@@ -26,9 +26,13 @@ class FluorescentMaterial : public Material {
     public:
         // FluorescentMaterial Public Methods
         FluorescentMaterial(const std::shared_ptr<Texture<PhotoLumi>> &reRadMatrix,
-                            const std::shared_ptr<Texture<Float>> &bumpMap)
+                            const std::shared_ptr<Texture<Float>> &bumpMap,
+                            const std::shared_ptr<Texture<Spectrum>> &Kd,
+                            const std::shared_ptr<Texture<Float>> &sigma)
             : reRadMatrix(reRadMatrix),
-              bumpMap(bumpMap){}
+              bumpMap(bumpMap),
+              Kd(Kd),
+              sigma(sigma){}
         void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                         TransportMode mode,
                                         bool allowMultipleLobes) const;
@@ -37,7 +41,8 @@ class FluorescentMaterial : public Material {
         // FluorescentMaterial Private Data
         std::shared_ptr<Texture<PhotoLumi>> reRadMatrix;
         std::shared_ptr<Texture<Float>> bumpMap;
- 
+        std::shared_ptr<Texture<Spectrum>> Kd;
+    std::shared_ptr<Texture<Float>> sigma;
 };
     
 

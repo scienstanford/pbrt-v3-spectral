@@ -124,9 +124,11 @@ class CoefficientPhotoLumi {
     
         CoefficientPhotoLumi &operator*=(const CoefficientPhotoLumi &s2) {
             DCHECK(!s2.HasNaNs());
-            CoefficientPhotoLumi ret = *this;
-            ret.m *= s2.m;
-            return ret;
+//            CoefficientPhotoLumi ret = *this;
+//            ret.m *= s2.m;
+//            return ret;
+            m *= s2.m;
+            return *this;
         }
     
         CoefficientPhotoLumi operator*(Float a) const {
@@ -137,9 +139,11 @@ class CoefficientPhotoLumi {
         }
     
         CoefficientPhotoLumi &operator*=(Float a) {
-            CoefficientPhotoLumi ret = *this;
-            ret.m /= a;
-            return ret;
+//            CoefficientPhotoLumi ret = *this;
+//            ret.m /= a;
+//            return ret;
+            m *= a;
+            return *this;
         }
     
         friend inline CoefficientPhotoLumi operator*(Float a, const CoefficientPhotoLumi &s) {
@@ -158,9 +162,11 @@ class CoefficientPhotoLumi {
         CoefficientPhotoLumi &operator/=(Float a) {
             CHECK_NE(a, 0);
             DCHECK(!std::isnan(a));
-            CoefficientPhotoLumi ret = *this;
-            ret.m /= a;
-            return ret;
+//            CoefficientPhotoLumi ret = *this;
+//            ret.m /= a;
+//            return ret;
+            m /= a;
+            return *this;
         }
     
         friend std::ostream &operator<<(std::ostream &os, const CoefficientPhotoLumi &s) {
@@ -219,12 +225,12 @@ class CoefficientPhotoLumi {
             return true;
         }
 
-        Float &operator()(int i, int j) {
-            DCHECK(i >=0 && i < nSpectrumSamples);
-            DCHECK(j >=0 && j < nSpectrumSamples);
-            return m(i, j);
-        }
-        Float operator()(int i, int j) const {
+//        Float &operator()(int i, int j) {
+//            DCHECK(i >=0 && i < nSpectrumSamples);
+//            DCHECK(j >=0 && j < nSpectrumSamples);
+//            return m(i, j);
+//        }
+        Float operator()(int i, int j) {
             DCHECK(i >=0 && i < nSpectrumSamples);
             DCHECK(j >=0 && j < nSpectrumSamples);
             return m(i, j);
@@ -273,7 +279,7 @@ class CoefficientPhotoLumi {
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(j);
+                    ret.m(i, j) *= s.GetValueAtIndex(i);
                 }
             }
             
@@ -285,7 +291,7 @@ class CoefficientPhotoLumi {
             CoefficientPhotoLumi &ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(j);
+                    ret.m(i, j) *= s.GetValueAtIndex(i);
                 }
             }
             return ret;
@@ -293,6 +299,7 @@ class CoefficientPhotoLumi {
         Eigen::Matrix<Float, nSpectrumSamples, nSpectrumSamples> getMatrix() {
             return m;
         }
+        
         // CoefficientSpectrum Public Data
         static const int nSamples = nSpectrumSamples;
     protected:
@@ -340,14 +347,14 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
 //                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, j);
 //            }
 //            return p;
-            return PhotoLumi(0.);
+            return PhotoLumi(1.);
         }
         const Spectrum getSpectrum() const { return s; }
         void ToSpectrum() {
             for (int i = 0; i < nSpectralSamples; ++i) {
                 Float sum = 0.f;
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    sum += m(i, j);
+                    sum += m(j, i);
                 }
                 s.AssignValueAtIndex(i, sum);
             }
@@ -356,6 +363,15 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
         void Transpose() const {
             m.transpose();
         }
+    
+        int Size() const {
+            return m.rows();
+        }
+    
+        void SetValue(int i, int j, Float value) {
+            m(i, j) = value;
+        }
+
         static void Init() {
             
         }
@@ -415,6 +431,14 @@ class RGBPhotoLumi : public CoefficientPhotoLumi<3> {
     
     void Transpose() const {
         m.transpose();
+    }
+    
+    int Size() const {
+        return m.rows();
+    }
+    
+    void SetValue(int i, int j, Float value) {
+        m(i, j) = value;
     }
     private:
     // RGBSpectrum Private Data

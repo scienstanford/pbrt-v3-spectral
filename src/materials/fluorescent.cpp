@@ -12,6 +12,7 @@
 #include "texture.h"
 #include "paramset.h"
 #include "interaction.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -19,16 +20,35 @@ namespace pbrt {
 void FluorescentMaterial::ComputeScatteringFunctions(
     SurfaceInteraction *si, MemoryArena &arena, TransportMode mode,
     bool allowMultipleLobes) const {
+    
     // Perform bump mapping with _bumpMap_, if present
     if (bumpMap) Bump(bumpMap, si);
+    
+    // From matte material (To be removed)
+    si->bsdf = ARENA_ALLOC(arena, BSDF)(*si);
+    Spectrum r = Kd->Evaluate(*si).Clamp();
+    Float sig = Clamp(sigma->Evaluate(*si), 0, 90);
+    if (!r.IsBlack()) {
+        if (sig == 0)
+            si->bsdf->Add(ARENA_ALLOC(arena, LambertianReflection)(r));
+        else
+            si->bsdf->Add(ARENA_ALLOC(arena, OrenNayar)(r, sig));
+    }
+    //
     PhotoLumi reRadMtx = reRadMatrix->Evaluate(*si);
+    int size = reRadMtx.Size();
+    for (int i = 0; i < size; ++i)
+        reRadMtx.SetValue(i, (size - 1) / 2, 100);
     si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(reRadMtx);
 }
 
-FluorescentMaterial *CreateFluorescentmaterial(const TextureParams &mp) {
+FluorescentMaterial *CreateFluorescentMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<PhotoLumi>> reRadMatrix = mp.GetPhotoLumiTexture("photolumi", PhotoLumi(1.f));
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new FluorescentMaterial(reRadMatrix, bumpMap);
+    std::shared_ptr<Texture<Spectrum>> Kd =
+        mp.GetSpectrumTexture("Kd", Spectrum(0.5f));
+    std::shared_ptr<Texture<Float>> sigma = mp.GetFloatTexture("sigma", 0.f);
+    return new FluorescentMaterial(reRadMatrix, bumpMap, Kd, sigma);
 }
 }
