@@ -242,7 +242,7 @@ void ParamSet::AddSampledPhotoLumiFiles(const std::string &name,
             Warning(
                 "Unable to read PhotoLumi file \"%s\".  Using black distribution.",
                 fn.c_str());
-            p[i] = PhotoLumi(0.);
+            p[i] = PhotoLumi::Zero();
         } else {
             int k = 1;
 //            std::vector<Float> wls, v;
@@ -871,9 +871,9 @@ std::shared_ptr<Texture<PhotoLumi>> TextureParams::GetPhotoLumiTextureOrNull(
             const PhotoLumi *s = materialParams.FindPhotoLumi(n, &count);
             if (s) {
                 if (count > 1)
-                        Warning("Ignoring excess values provided with parameter \"%s\"",
-                                n.c_str());
-                    return std::make_shared<ConstantTexture<PhotoLumi>>(*s);
+                    Warning("Ignoring excess values provided with parameter \"%s\"",
+                        n.c_str());
+                return std::make_shared<ConstantTexture<PhotoLumi>>(*s);
             }
         }
         

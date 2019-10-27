@@ -56,7 +56,7 @@ class WrinkledTexture : public Texture<T> {
     T Evaluate(const SurfaceInteraction &si) const {
         Vector3f dpdx, dpdy;
         Point3f p = mapping->Map(si, &dpdx, &dpdy);
-        return Turbulence(p, dpdx, dpdy, omega, octaves);
+        return T(Turbulence(p, dpdx, dpdy, omega, octaves));
     }
 
   private:

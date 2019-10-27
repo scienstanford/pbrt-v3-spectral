@@ -1074,7 +1074,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     wavelengths[i] = (Float)jiors[0][i];
                     iors[i] = (Float)jiors[1][i];
                 }
-                SampledSpectrum s = SampledSpectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
+                Spectrum s = Spectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
                 for (int i = 0; i < numSamples-1; ++i) {
                     if (std::abs(s[i] - s[i + 1]) > 0.001) {
                         Error("Invalid ior in lens specification file \"%s\","

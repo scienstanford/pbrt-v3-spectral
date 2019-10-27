@@ -46,8 +46,8 @@ MixTexture<Float> *CreateMixFloatTexture(const Transform &tex2world,
 
 MixTexture<Spectrum> *CreateMixSpectrumTexture(const Transform &tex2world,
                                                const TextureParams &tp) {
-    return new MixTexture<Spectrum>(tp.GetSpectrumTexture("tex1", 0.f),
-                                    tp.GetSpectrumTexture("tex2", 1.f),
+    return new MixTexture<Spectrum>(tp.GetSpectrumTexture("tex1", Spectrum::Zero()),
+                                    tp.GetSpectrumTexture("tex2", Spectrum::Ones()),
                                     tp.GetFloatTexture("amount", 0.5f));
 }
 

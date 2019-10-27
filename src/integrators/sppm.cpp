@@ -156,8 +156,8 @@ void SPPMIntegrator::Render(const Scene &scene) {
                     CameraSample cameraSample =
                         tileSampler->GetCameraSample(pPixel);
                     RayDifferential ray;
-                    Spectrum beta =
-                        camera->GenerateRayDifferential(cameraSample, &ray);
+                    Spectrum beta = Spectrum(
+                        camera->GenerateRayDifferential(cameraSample, &ray));
                     if (beta.IsBlack())
                         continue;
                     ray.ScaleDifferentials(invSqrtSPP);
@@ -437,7 +437,7 @@ void SPPMIntegrator::Render(const Scene &scene) {
                         p.Phi[j] = (Float)0;
                 }
                 // Reset _VisiblePoint_ in pixel
-                p.vp.beta = 0.;
+                p.vp.beta = Spectrum::Zero();
                 p.vp.bsdf = nullptr;
             }, nPixels, 4096);
         }

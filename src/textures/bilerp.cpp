@@ -91,9 +91,10 @@ BilerpTexture<Spectrum> *CreateBilerpSpectrumTexture(const Transform &tex2world,
         map.reset(new UVMapping2D);
     }
     return new BilerpTexture<Spectrum>(
-        std::move(map), tp.FindSpectrum("v00", 0.f),
-        tp.FindSpectrum("v01", 1.f), tp.FindSpectrum("v10", 0.f),
-        tp.FindSpectrum("v11", 1.f));
+        std::move(map), tp.FindSpectrum("v00", Spectrum::Zero()),
+        tp.FindSpectrum("v01", Spectrum::Ones()),
+        tp.FindSpectrum("v10", Spectrum::Zero()),
+        tp.FindSpectrum("v11", Spectrum::Ones()));
 }
 
 }  // namespace pbrt

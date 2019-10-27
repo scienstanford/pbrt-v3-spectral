@@ -29,8 +29,7 @@ namespace pbrt {
 //}
 
 PhotoLumi SurfaceBBRRDF::f(const Vector3f &wo, const Vector3f &wi) const {
-    Spectrum tmpSp = Spectrum(1.f);
-    return reRadMatrix * tmpSp;
+    return reRadMatrix;
 }
 
 PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f *wi,

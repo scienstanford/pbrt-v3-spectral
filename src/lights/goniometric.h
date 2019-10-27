@@ -72,7 +72,7 @@ class GonioPhotometricLight : public Light {
         Float theta = SphericalTheta(wp);
         Float phi = SphericalPhi(wp);
         Point2f st(phi * Inv2Pi, theta * InvPi);
-        return !mipmap ? RGBSpectrum(1.f)
+        return !mipmap ? Spectrum(RGBSpectrum(1.f))
                        : Spectrum(mipmap->Lookup(st), SpectrumType::Illuminant);
     }
     Spectrum Power() const;

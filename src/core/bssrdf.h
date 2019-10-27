@@ -81,21 +81,21 @@ class SeparableBSSRDF : public BSSRDF {
           ts(Cross(ns, ss)),
           material(material),
           mode(mode) {}
-    Spectrum S(const SurfaceInteraction &pi, const Vector3f &wi) {
+    Spectrum S(const SurfaceInteraction &pi, const Vector3f &wi) override {
         ProfilePhase pp(Prof::BSSRDFEvaluation);
         Float Ft = FrDielectric(CosTheta(po.wo), 1, eta);
         return (1 - Ft) * Sp(pi) * Sw(wi);
     }
     Spectrum Sw(const Vector3f &w) const {
         Float c = 1 - 2 * FresnelMoment1(1 / eta);
-        return (1 - FrDielectric(CosTheta(w), 1, eta)) / (c * Pi);
+        return Spectrum((1 - FrDielectric(CosTheta(w), 1, eta)) / (c * Pi));
     }
     Spectrum Sp(const SurfaceInteraction &pi) const {
         return Sr(Distance(po.p, pi.p));
     }
     Spectrum Sample_S(const Scene &scene, Float u1, const Point2f &u2,
                       MemoryArena &arena, SurfaceInteraction *si,
-                      Float *pdf) const;
+                      Float *pdf) const override;
     Spectrum Sample_Sp(const Scene &scene, Float u1, const Point2f &u2,
                        MemoryArena &arena, SurfaceInteraction *si,
                        Float *pdf) const;
@@ -122,7 +122,7 @@ class TabulatedBSSRDF : public SeparableBSSRDF {
                     const Spectrum &sigma_s, const BSSRDFTable &table)
         : SeparableBSSRDF(po, eta, material, mode), table(table) {
         sigma_t = sigma_a + sigma_s;
-        for (int c = 0; c < Spectrum::nSamples; ++c)
+        for (int c = 0; c < nSpectralSamples; ++c)
             rho[c] = sigma_t[c] != 0 ? (sigma_s[c] / sigma_t[c]) : 0;
     }
     Spectrum Sr(Float distance) const;

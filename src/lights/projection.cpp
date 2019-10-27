@@ -87,12 +87,12 @@ Spectrum ProjectionLight::Sample_Li(const Interaction &ref, const Point2f &u,
 Spectrum ProjectionLight::Projection(const Vector3f &w) const {
     Vector3f wl = WorldToLight(w);
     // Discard directions behind projection light
-    if (wl.z < hither) return 0;
+    if (wl.z < hither) return Spectrum::Zero();
 
     // Project point onto projection plane and compute light
     Point3f p = lightProjection(Point3f(wl.x, wl.y, wl.z));
-    if (!Inside(Point2f(p.x, p.y), screenBounds)) return 0.f;
-    if (!projectionMap) return 1;
+    if (!Inside(Point2f(p.x, p.y), screenBounds)) return Spectrum::Zero();
+    if (!projectionMap) return Spectrum::Ones();
     Point2f st = Point2f(screenBounds.Offset(Point2f(p.x, p.y)));
     return Spectrum(projectionMap->Lookup(st), SpectrumType::Illuminant);
 }

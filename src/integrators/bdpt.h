@@ -224,14 +224,14 @@ struct Vertex {
     bool IsOnSurface() const { return ng() != Normal3f(); }
     Spectrum f(const Vertex &next, TransportMode mode) const {
         Vector3f wi = next.p() - p();
-        if (wi.LengthSquared() == 0) return 0.;
+        if (wi.LengthSquared() == 0) return Spectrum::Zero();
         wi = Normalize(wi);
         switch (type) {
         case VertexType::Surface:
             return si.bsdf->f(si.wo, wi) *
                 CorrectShadingNormal(si, si.wo, wi, mode);
         case VertexType::Medium:
-            return mi.phase->p(mi.wo, wi);
+            return Spectrum::Constant(mi.phase->p(mi.wo, wi));
         default:
             LOG(FATAL) << "Vertex::f(): Unimplemented";
             return Spectrum(0.f);
@@ -269,7 +269,7 @@ struct Vertex {
     Spectrum Le(const Scene &scene, const Vertex &v) const {
         if (!IsLight()) return Spectrum(0.f);
         Vector3f w = v.p() - p();
-        if (w.LengthSquared() == 0) return 0.;
+        if (w.LengthSquared() == 0) return Spectrum::Zero();
         w = Normalize(w);
         if (IsInfiniteLight()) {
             // Return emitted radiance for infinite light sources

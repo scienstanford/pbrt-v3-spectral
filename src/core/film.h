@@ -50,7 +50,7 @@ namespace pbrt {
 
 // FilmTilePixel Declarations
 struct FilmTilePixel {
-    Spectrum contribSum = 0.f;
+    Spectrum contribSum = Spectrum::Zero();
     Float filterWeightSum = 0.f;
 };
 

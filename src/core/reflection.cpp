@@ -80,9 +80,9 @@ Spectrum FrConductor(Float cosThetaI, const Spectrum &etai,
     Spectrum etak2 = etak * etak;
 
     Spectrum t0 = eta2 - etak2 - sinThetaI2;
-    Spectrum a2plusb2 = Sqrt(t0 * t0 + 4 * eta2 * etak2);
+    Spectrum a2plusb2 = (t0 * t0 + 4 * eta2 * etak2).sqrt();
     Spectrum t1 = a2plusb2 + cosThetaI2;
-    Spectrum a = Sqrt(0.5f * (a2plusb2 + t0));
+    Spectrum a = (0.5f * (a2plusb2 + t0)).sqrt();
     Spectrum t2 = (Float)2 * cosThetaI * a;
     Spectrum Rs = (t1 - t2) / (t1 + t2);
 
@@ -126,7 +126,7 @@ std::string FresnelConductor::ToString() const {
 }
 
 Spectrum FresnelDielectric::Evaluate(Float cosThetaI) const {
-    return FrDielectric(cosThetaI, etaI, etaT);
+    return Spectrum(FrDielectric(cosThetaI, etaI, etaT));
 }
 
 std::string FresnelDielectric::ToString() const {
@@ -157,7 +157,7 @@ Spectrum SpecularTransmission::Sample_f(const Vector3f &wo, Vector3f *wi,
 
     // Compute ray direction for specular transmission
     if (!Refract(wo, Faceforward(Normal3f(0, 0, 1), wo), etaI / etaT, wi))
-        return 0;
+        return Spectrum::Zero();
     *pdf = 1;
     Spectrum ft = T * (Spectrum(1.) - fresnel.Evaluate(CosTheta(*wi)));
     // Account for non-symmetry with transmission to different medium
@@ -243,7 +243,7 @@ std::string MicrofacetReflection::ToString() const {
 
 Spectrum MicrofacetTransmission::f(const Vector3f &wo,
                                    const Vector3f &wi) const {
-    if (SameHemisphere(wo, wi)) return 0;  // transmission only
+    if (SameHemisphere(wo, wi)) return Spectrum::Zero();  // transmission only
 
     Float cosThetaO = CosTheta(wo);
     Float cosThetaI = CosTheta(wi);
@@ -406,7 +406,7 @@ Spectrum MicrofacetReflection::Sample_f(const Vector3f &wo, Vector3f *wi,
                                         const Point2f &u, Float *pdf,
                                         BxDFType *sampledType) const {
     // Sample microfacet orientation $\wh$ and reflected direction $\wi$
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) return Spectrum::Zero();
     Vector3f wh = distribution->Sample_wh(wo, u);
     *wi = Reflect(wo, wh);
     if (!SameHemisphere(wo, *wi)) return Spectrum(0.f);
@@ -425,10 +425,10 @@ Float MicrofacetReflection::Pdf(const Vector3f &wo, const Vector3f &wi) const {
 Spectrum MicrofacetTransmission::Sample_f(const Vector3f &wo, Vector3f *wi,
                                           const Point2f &u, Float *pdf,
                                           BxDFType *sampledType) const {
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) return Spectrum::Zero();
     Vector3f wh = distribution->Sample_wh(wo, u);
     Float eta = CosTheta(wo) > 0 ? (etaA / etaB) : (etaB / etaA);
-    if (!Refract(wo, (Normal3f)wh, eta, wi)) return 0;
+    if (!Refract(wo, (Normal3f)wh, eta, wi)) return Spectrum::Zero();
     *pdf = Pdf(wo, *wi);
     return f(wo, *wi);
 }
@@ -497,7 +497,7 @@ Spectrum FresnelSpecular::Sample_f(const Vector3f &wo, Vector3f *wi,
 
         // Compute ray direction for specular transmission
         if (!Refract(wo, Faceforward(Normal3f(0, 0, 1), wo), etaI / etaT, wi))
-            return 0;
+            return Spectrum::Zero();
         Spectrum ft = T * (1 - F);
 
         // Account for non-symmetry with transmission to different medium
@@ -671,7 +671,7 @@ Spectrum BSDF::f(const Vector3f &woW, const Vector3f &wiW,
                  BxDFType flags) const {
     ProfilePhase pp(Prof::BSDFEvaluation);
     Vector3f wi = WorldToLocal(wiW), wo = WorldToLocal(woW);
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) return Spectrum::Zero();
     bool reflect = Dot(wiW, ng) * Dot(woW, ng) > 0;
     Spectrum f(0.f);
     for (int i = 0; i < nBxDFs; ++i)
@@ -732,7 +732,7 @@ Spectrum BSDF::Sample_f(const Vector3f &woWorld, Vector3f *wiWorld,
 
     // Sample chosen _BxDF_
     Vector3f wi, wo = WorldToLocal(woWorld);
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) return Spectrum::Zero();
     *pdf = 0;
     if (sampledType) *sampledType = bxdf->type;
     Spectrum f = bxdf->Sample_f(wo, &wi, uRemapped, pdf, sampledType);VLOG(2) << "For wo = " << wo << ", sampled f = " << f << ", pdf = "
@@ -740,7 +740,7 @@ Spectrum BSDF::Sample_f(const Vector3f &woWorld, Vector3f *wiWorld,
             << ", wi = " << wi;
     if (*pdf == 0) {
         if (sampledType) *sampledType = BxDFType(0);
-        return 0;
+        return Spectrum::Zero();
     }
     *wiWorld = LocalToWorld(wi);
 
@@ -754,7 +754,7 @@ Spectrum BSDF::Sample_f(const Vector3f &woWorld, Vector3f *wiWorld,
     // Compute value of BSDF for sampled direction
     if (!(bxdf->type & BSDF_SPECULAR)) {
         bool reflect = Dot(*wiWorld, ng) * Dot(woWorld, ng) > 0;
-        f = 0.;
+        f = Spectrum::Zero();
         for (int i = 0; i < nBxDFs; ++i)
             if (bxdfs[i]->MatchesFlags(type) &&
                 ((reflect && (bxdfs[i]->type & BSDF_REFLECTION)) ||

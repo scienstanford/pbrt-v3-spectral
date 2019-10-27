@@ -66,7 +66,7 @@ class GridDensityMedium : public Medium {
         memcpy((Float *)density.get(), d, sizeof(Float) * nx * ny * nz);
         // Precompute values for Monte Carlo sampling of _GridDensityMedium_
         sigma_t = (sigma_a + sigma_s)[0];
-        if (Spectrum(sigma_t) != sigma_a + sigma_s)
+        if ((sigma_t - (sigma_a + sigma_s)).abs().maxCoeff() > 1e-8)
             Error(
                 "GridDensityMedium requires a spectrally uniform attenuation "
                 "coefficient!");

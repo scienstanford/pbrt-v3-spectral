@@ -96,8 +96,8 @@ class MIPMap {
     }
     Float clamp(Float v) { return Clamp(v, 0.f, Infinity); }
     RGBSpectrum clamp(const RGBSpectrum &v) { return v.Clamp(0.f, Infinity); }
-    SampledSpectrum clamp(const SampledSpectrum &v) {
-        return v.Clamp(0.f, Infinity);
+    Spectrum clamp(const Spectrum &v) {
+        return v.min(0.f);
     }
     T triangle(int level, const Point2f &st) const;
     T EWA(int level, Point2f st, Vector2f dst0, Vector2f dst1) const;

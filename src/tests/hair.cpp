@@ -98,11 +98,11 @@ TEST(Hair, WhiteFurnace) {
     for (Float beta_m = .1; beta_m < 1; beta_m += .2) {
         for (Float beta_n = .1; beta_n < 1; beta_n += .2) {
             // Estimate reflected uniform incident radiance from hair
-            Spectrum sum = 0.f;
+            Spectrum sum = Spectrum::Zero();
             int count = 300000;
             for (int i = 0; i < count; ++i) {
                 Float h = -1 + 2. * rng.UniformFloat();
-                Spectrum sigma_a = 0.f;
+                Spectrum sigma_a = Spectrum::Zero();
                 HairBSDF hair(h, 1.55, sigma_a, beta_m, beta_n, 0.f);
                 Vector3f wi = UniformSampleSphere(
                     {rng.UniformFloat(), rng.UniformFloat()});
@@ -119,11 +119,11 @@ TEST(Hair, WhiteFurnaceSampled) {
     Vector3f wo = UniformSampleSphere({rng.UniformFloat(), rng.UniformFloat()});
     for (Float beta_m = .1; beta_m < 1; beta_m += .2) {
         for (Float beta_n = .1; beta_n < 1; beta_n += .2) {
-            Spectrum sum = 0.f;
+            Spectrum sum = Spectrum::Zero();
             int count = 300000;
             for (int i = 0; i < count; ++i) {
                 Float h = -1 + 2. * rng.UniformFloat();
-                Spectrum sigma_a = 0.f;
+                Spectrum sigma_a = Spectrum::Zero();
                 HairBSDF hair(h, 1.55, sigma_a, beta_m, beta_n, 0.f);
 
                 Vector3f wi;
@@ -146,7 +146,7 @@ TEST(Hair, SamplingWeights) {
             for (int i = 0; i < count; ++i) {
                 // Check _HairBSDF::Sample\_f()_ sample weight
                 Float h = -1 + 2 * rng.UniformFloat();
-                Spectrum sigma_a = 0;
+                Spectrum sigma_a = Spectrum::Zero();
                 HairBSDF hair(h, 1.55, sigma_a, beta_m, beta_n, 0.f);
                 Vector3f wo = UniformSampleSphere(
                     {rng.UniformFloat(), rng.UniformFloat()});
@@ -170,11 +170,11 @@ TEST(Hair, SamplingConsistency) {
         for (Float beta_n = .4; beta_n < 1; beta_n += .2) {
             // Declare variables for hair sampling test
             const int count = 64 * 1024;
-            Spectrum sigma_a = .25;
+            Spectrum sigma_a = Spectrum(.25);
             Vector3f wo =
                 UniformSampleSphere({rng.UniformFloat(), rng.UniformFloat()});
-            auto Li = [](const Vector3f &w) -> Spectrum { return w.z * w.z; };
-            Spectrum fImportance = 0, fUniform = 0;
+            auto Li = [](const Vector3f &w) -> Spectrum { return Spectrum(w.z * w.z); };
+            Spectrum fImportance = Spectrum::Zero(), fUniform = Spectrum::Zero();
             for (int i = 0; i < count; ++i) {
                 // Compute estimates of scattered radiance for hair sampling
                 // test

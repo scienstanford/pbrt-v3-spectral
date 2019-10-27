@@ -56,7 +56,7 @@ class FBmTexture : public Texture<T> {
     T Evaluate(const SurfaceInteraction &si) const {
         Vector3f dpdx, dpdy;
         Point3f P = mapping->Map(si, &dpdx, &dpdy);
-        return FBm(P, dpdx, dpdy, omega, octaves);
+        return T(FBm(P, dpdx, dpdy, omega, octaves));
     }
 
   private:

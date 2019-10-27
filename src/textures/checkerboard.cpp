@@ -101,9 +101,9 @@ Texture<Spectrum> *CreateCheckerboardSpectrumTexture(const Transform &tex2world,
         return nullptr;
     }
     std::shared_ptr<Texture<Spectrum>> tex1 =
-        tp.GetSpectrumTexture("tex1", 1.f);
+        tp.GetSpectrumTexture("tex1", Spectrum::Ones());
     std::shared_ptr<Texture<Spectrum>> tex2 =
-        tp.GetSpectrumTexture("tex2", 0.f);
+        tp.GetSpectrumTexture("tex2", Spectrum::Zero());
     if (dim == 2) {
         // Initialize 2D texture mapping _map_ from _tp_
         std::unique_ptr<TextureMapping2D> map;

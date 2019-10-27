@@ -117,7 +117,7 @@ void Film::Clear() {
         for (int c = 0; c < 3; ++c)
             pixel.splatXYZ[c] = pixel.xyz[c] = 0;
         pixel.filterWeightSum = 0;
-        pixel.L = 0;
+        pixel.L = Spectrum::Zero();
     }
 }
     

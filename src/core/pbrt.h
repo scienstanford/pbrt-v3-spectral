@@ -92,8 +92,10 @@
 #define ALLOCA(TYPE, COUNT) (TYPE *) alloca((COUNT) * sizeof(TYPE))
 
 namespace pbrt {
-    
 
+static const int sampledLambdaStart = 395;
+static const int sampledLambdaEnd = 715;
+static const int nSpectralSamples = 32;
 
 // Global Forward Declarations
 class Scene;
@@ -127,18 +129,12 @@ class TransformedPrimitive;
 #else
     typedef float Float;
 #endif  // PBRT_FLOAT_AS_DOUBLE
-template <int nSpectrumSamples>
-class CoefficientSpectrum;
 class RGBSpectrum;
-class SampledSpectrum;
+class Spectrum;
 #ifndef PBRT_SAMPLED_SPECTRUM
 #define PBRT_SAMPLED_SPECTRUM
 #endif
-#ifdef PBRT_SAMPLED_SPECTRUM
-  typedef SampledSpectrum Spectrum;
-#else
-  typedef RGBSpectrum Spectrum;
-#endif
+
 // ZhengLyu Added the photolumi spectrum
 template <int nSpectrumSamples>
 class CoefficientPhotoLumi;
@@ -147,11 +143,7 @@ class SampledPhotoLumi;
 #ifndef PBRT_SAMPLED_PHOTOLUMI
 #define PBRT_SAMPLED_PHOTOLUMI
 #endif
-#ifdef PBRT_SAMPLED_PHOTOLUMI
-    typedef SampledPhotoLumi PhotoLumi;
-#else
-    typedef RGBPhotoLumi PhotoLumi;
-#endif
+class PhotoLumi;
 class Camera;
 struct CameraSample;
 class ProjectiveCamera;

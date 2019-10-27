@@ -54,9 +54,9 @@ class PathIntegrator : public SamplerIntegrator {
                    const Bounds2i &pixelBounds, Float rrThreshold = 1,
                    const std::string &lightSampleStrategy = "spatial");
 
-    void Preprocess(const Scene &scene, Sampler &sampler);
+    void Preprocess(const Scene &scene, Sampler &sampler) override;
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
-                Sampler &sampler, MemoryArena &arena, int depth) const;
+                Sampler &sampler, MemoryArena &arena, int depth) const override;
 
   private:
     // PathIntegrator Private Data

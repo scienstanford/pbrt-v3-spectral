@@ -913,7 +913,7 @@ void pbrtInit(const Options &opt) {
     catIndentCount = 0;
 
     // General \pbrt Initialization
-    SampledSpectrum::Init();
+    Spectrum::Init();
     SampledPhotoLumi::Init();
     ParallelInit();  // Threads must be launched before the profiler is
                      // initialized.

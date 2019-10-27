@@ -123,12 +123,12 @@ namespace pbrt {
         Float retinaSemiDiam = params.FindOneFloat("retinaSemiDiam",4); //mm
         
         // Check for IORspectra slots
-        Spectrum ior1 = params.FindOneSpectrum("ior1", 0);
-        Spectrum ior2 = params.FindOneSpectrum("ior2", 0);
-        Spectrum ior3 = params.FindOneSpectrum("ior3", 0);
-        Spectrum ior4 = params.FindOneSpectrum("ior4", 0);
-        Spectrum ior5 = params.FindOneSpectrum("ior5", 0);
-        Spectrum ior6 = params.FindOneSpectrum("ior6", 0);
+        Spectrum ior1 = params.FindOneSpectrum("ior1", Spectrum::Zero());
+        Spectrum ior2 = params.FindOneSpectrum("ior2", Spectrum::Zero());
+        Spectrum ior3 = params.FindOneSpectrum("ior3", Spectrum::Zero());
+        Spectrum ior4 = params.FindOneSpectrum("ior4", Spectrum::Zero());
+        Spectrum ior5 = params.FindOneSpectrum("ior5", Spectrum::Zero());
+        Spectrum ior6 = params.FindOneSpectrum("ior6", Spectrum::Zero());
         
         // Put all the spectra into a single vector.
         std::vector<Spectrum> iorSpectra;

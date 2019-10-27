@@ -72,11 +72,12 @@ void MetalMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         uRough = TrowbridgeReitzDistribution::RoughnessToAlpha(uRough);
         vRough = TrowbridgeReitzDistribution::RoughnessToAlpha(vRough);
     }
-    Fresnel *frMf = ARENA_ALLOC(arena, FresnelConductor)(1., eta->Evaluate(*si),
-                                                         k->Evaluate(*si));
+    Fresnel *frMf = ARENA_ALLOC(arena, FresnelConductor)(
+        Spectrum::Ones(), eta->Evaluate(*si), k->Evaluate(*si));
     MicrofacetDistribution *distrib =
         ARENA_ALLOC(arena, TrowbridgeReitzDistribution)(uRough, vRough);
-    si->bsdf->Add(ARENA_ALLOC(arena, MicrofacetReflection)(1., distrib, frMf));
+    si->bsdf->Add(ARENA_ALLOC(arena, MicrofacetReflection)(
+        Spectrum::Ones(), distrib, frMf));
 }
 
 const int CopperSamples = 56;

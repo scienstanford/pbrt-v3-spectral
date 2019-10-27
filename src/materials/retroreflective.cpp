@@ -149,14 +149,14 @@ Spectrum RetroReflection::f(const Vector3f &wo, const Vector3f &wi) const {
 //        wh = Normalize(wh);
         Spectrum Fi = fresnel->Evaluate(CosTheta(wi));
         Spectrum Fo = fresnel->Evaluate(CosTheta(wo));
-        Spectrum unit = 1;
+        Spectrum unit = Spectrum::Ones();
         //  (1 / (1 + Lambda(wo) + Lambda(wi)));
     Vector3f n = Vector3f(0, 0, 1);
     Float sin2ThetaI = std::max(Float(0), Float(1 - cosThetaI * cosThetaI));
     Float sin2ThetaT = 0.5 * 0.5 * sin2ThetaI;
     
     // Handle total internal reflection for transmission
-    if (sin2ThetaT >= 1) return false;
+    if (sin2ThetaT >= 1) return Spectrum::Zero();
     Float cosThetaT = std::sqrt(1 - sin2ThetaT);
     Vector3f wt = 0.5 * -wo + (0.5 * cosThetaI - cosThetaT) * (n);
     Float incidentAngle = AbsCosTheta(wt);
@@ -175,7 +175,7 @@ Spectrum RetroReflection::Sample_f(const Vector3f &wo, Vector3f *wi,
                                                  const Point2f &u, Float *pdf,
                                                  BxDFType *sampledType) const {
         // Sample microfacet orientation $\wh$ and reflected direction $\wi$
-        if (wo.z == 0) return 0.;
+        if (wo.z == 0) return Spectrum::Zero();
        // Vector3f wh = distribution->Sample_wh(wo, u);
         *wi = wo;
         //if (!SameHemisphere(wo, *wi)) return Spectrum(0.f);
@@ -211,7 +211,7 @@ void retroreflectiveMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
             kd, ARENA_ALLOC(arena, FresnelNoOp))); // FresnelNoOp // Change R to kd
     si->bsdf->Add(ARENA_ALLOC(arena, RetroReflection)(kd, frMf)); // Change ks to kd
 //    // subsurface diffuse
-    Spectrum mfree = 1;
+    Spectrum mfree = Spectrum::Ones();
     
 //
     Spectrum sig_a, sig_s;

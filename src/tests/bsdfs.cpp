@@ -184,7 +184,7 @@ void FrequencyTable(const BSDF* bsdf, const Vector3f& wo, RNG& rng,
         Point2f sample {rng.UniformFloat(), rng.UniformFloat()};
         Spectrum f = bsdf->Sample_f(wo, &wi, sample, &pdf, BSDF_ALL, &flags);
 
-        if (f == Spectrum() || (flags & BSDF_SPECULAR)) continue;
+        if (f.IsBlack() || (flags & BSDF_SPECULAR)) continue;
 
         Vector3f wiL = bsdf->WorldToLocal(wi);
 

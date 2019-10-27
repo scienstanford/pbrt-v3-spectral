@@ -89,7 +89,7 @@ static std::array<Spectrum, pMax + 1> Ap(Float cosThetaO, Float eta, Float h,
     Float cosGammaO = SafeSqrt(1 - h * h);
     Float cosTheta = cosThetaO * cosGammaO;
     Float f = FrDielectric(cosTheta, 1.f, eta);
-    ap[0] = f;
+    ap[0] = Spectrum(f);
 
     // Compute $p=1$ attenuation term
     ap[1] = Sqr(1 - f) * T;
@@ -283,7 +283,7 @@ Spectrum HairBSDF::f(const Vector3f &wo, const Vector3f &wi) const {
     Float gammaT = SafeASin(sinGammaT);
 
     // Compute the transmittance _T_ of a single path through the cylinder
-    Spectrum T = Exp(-sigma_a * (2 * cosGammaT / cosThetaT));
+    Spectrum T = exp(-sigma_a * (2 * cosGammaT / cosThetaT));
 
     // Evaluate hair BSDF
     Float phi = phiI - phiO;
@@ -337,7 +337,7 @@ std::array<Float, pMax + 1> HairBSDF::ComputeApPdf(Float cosThetaO) const {
     Float cosGammaT = SafeSqrt(1 - Sqr(sinGammaT));
 
     // Compute the transmittance _T_ of a single path through the cylinder
-    Spectrum T = Exp(-sigma_a * (2 * cosGammaT / cosThetaT));
+    Spectrum T = exp(-sigma_a * (2 * cosGammaT / cosThetaT));
     std::array<Spectrum, pMax + 1> ap = Ap(cosThetaO, eta, h, T);
 
     // Compute $A_p$ PDF from individual $A_p$ terms

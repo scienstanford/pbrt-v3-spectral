@@ -194,7 +194,7 @@ Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     CameraToWorld.Interpolate(ray.time, &c2w);
     Float cosTheta = Dot(ray.d, c2w(Vector3f(0, 0, 1)));
     if (cosTheta <= 0)
-        return 0;
+        return Spectrum::Zero();
     // Point ray into lens system
     Ray negRay = Transform(c2w.GetInverseMatrix())(ray);
     negRay.d *= -1.0f;
@@ -204,7 +204,7 @@ Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     Ray toFilmRay;
     bool isValid = TraceLensesFromScene(negRay, &toFilmRay);
     if (!isValid || toFilmRay.d.z >= 0) // If ray cannot possibly hit film, return 0
-        return 0;
+        return Spectrum::Zero();
     // Get sample point on film.
     Point3f pFilm = toFilmRay(-toFilmRay.d.z);
 
@@ -214,7 +214,7 @@ Spectrum RealisticCamera::We(const Ray &ray, Point2f *pRaster2) const {
     // Return zero importance for out of bounds points
     if (pFilm2.x < fBounds.pMin.x || pFilm2.x >= fBounds.pMax.x ||
         pFilm2.y < fBounds.pMin.y || pFilm2.y >= fBounds.pMax.y)
-        return 0;
+        return Spectrum::Zero();
     // Fill out raster position if requested
     if (pRaster2) {
         *pRaster2 = Point2f(pFilm2.x, pFilm2.y);

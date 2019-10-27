@@ -110,7 +110,7 @@ Spectrum GridDensityMedium::Tr(const Ray &rWorld, Sampler &sampler) const {
         const Float rrThreshold = .1;
         if (Tr < rrThreshold) {
             Float q = std::max((Float).05, 1 - Tr);
-            if (sampler.Get1D() < q) return 0;
+            if (sampler.Get1D() < q) return Spectrum::Zero();
             Tr /= 1 - q;
         }
     }

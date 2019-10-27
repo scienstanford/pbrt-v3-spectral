@@ -17298,6 +17298,7 @@ TEST(BSDFs, Fourier) {
     // Write the serialized data to a temporary file
     // TODO: improve FourierBSDFTable to also be able to deserialize from a
     // given array.
+    Spectrum::Init();
     std::string filename = inTestDir("fourier.out");
     FILE *f = fopen(filename.c_str(), "wb");
     ASSERT_TRUE(f);

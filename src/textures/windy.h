@@ -57,7 +57,7 @@ class WindyTexture : public Texture<T> {
         Point3f P = mapping->Map(si, &dpdx, &dpdy);
         Float windStrength = FBm(.1f * P, .1f * dpdx, .1f * dpdy, .5, 3);
         Float waveHeight = FBm(P, dpdx, dpdy, .5, 6);
-        return std::abs(windStrength) * waveHeight;
+        return T(std::abs(windStrength) * waveHeight);
     }
 
   private:

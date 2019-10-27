@@ -91,8 +91,8 @@ DotsTexture<Spectrum> *CreateDotsSpectrumTexture(const Transform &tex2world,
         map.reset(new UVMapping2D);
     }
     return new DotsTexture<Spectrum>(std::move(map),
-                                     tp.GetSpectrumTexture("inside", 1.f),
-                                     tp.GetSpectrumTexture("outside", 0.f));
+                                     tp.GetSpectrumTexture("inside", Spectrum::Ones()),
+                                     tp.GetSpectrumTexture("outside", Spectrum::Zero()));
 }
 
 }  // namespace pbrt

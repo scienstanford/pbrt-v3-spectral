@@ -272,7 +272,7 @@ Spectrum DisneyClearcoat::f(const Vector3f &wo, const Vector3f &wi) const {
     Float Gr =
         smithG_GGX(AbsCosTheta(wo), .25) * smithG_GGX(AbsCosTheta(wi), .25);
 
-    return weight * Gr * Fr * Dr / 4;
+    return Spectrum(weight * Gr * Fr * Dr / 4);
 }
 
 Spectrum DisneyClearcoat::Sample_f(const Vector3f &wo, Vector3f *wi,
@@ -281,7 +281,7 @@ Spectrum DisneyClearcoat::Sample_f(const Vector3f &wo, Vector3f *wi,
     // TODO: double check all this: there still seem to be some very
     // occasional fireflies with clearcoat; presumably there is a bug
     // somewhere.
-    if (wo.z == 0) return 0.;
+    if (wo.z == 0) return Spectrum::Zero();
 
     Float alpha2 = gloss * gloss;
     Float cosTheta = std::sqrt(
@@ -412,7 +412,7 @@ Spectrum DisneyBSSRDF::S(const SurfaceInteraction &pi, const Vector3f &wi) {
 Spectrum DisneyBSSRDF::Sr(Float r) const {
     ProfilePhase pp(Prof::BSSRDFEvaluation);
     if (r < 1e-6f) r = 1e-6f;  // Avoid singularity at r == 0.
-    return R * (Exp(-Spectrum(r) / d) + Exp(-Spectrum(r) / (3 * d))) /
+    return R * (exp(-Spectrum(r) / d) + exp(-Spectrum(r) / (3 * d))) /
            (8 * Pi * d * r);
 }
 
@@ -520,7 +520,7 @@ void DisneyMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
             else {
                 // Use a BSSRDF instead.
                 si->bsdf->Add(ARENA_ALLOC(arena, SpecularTransmission)(
-                    1.f, 1.f, e, mode));
+                    Spectrum::Ones(), 1.f, e, mode));
                 si->bssrdf = ARENA_ALLOC(arena, DisneyBSSRDF)(
                     c * diffuseWeight, sd, *si, e, this, mode);
             }
@@ -566,7 +566,7 @@ void DisneyMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         // Walter et al's model, with the provided transmissive term scaled
         // by sqrt(color), so that after two refractions, we're back to the
         // provided color.
-        Spectrum T = strans * Sqrt(c);
+        Spectrum T = strans * sqrt(c);
         if (thin) {
             // Scale roughness based on IOR (Burley 2015, Figure 15).
             Float rscaled = (0.65f * e - 0.35f) * rough;

@@ -73,7 +73,7 @@ Spectrum DiffuseAreaLight::Sample_Li(const Interaction &ref, const Point2f &u,
     pShape.mediumInterface = mediumInterface;
     if (*pdf == 0 || (pShape.p - ref.p).LengthSquared() == 0) {
         *pdf = 0;
-        return 0.f;
+        return Spectrum::Zero();
     }
     *wi = Normalize(pShape.p - ref.p);
     *vis = VisibilityTester(ref, pShape);

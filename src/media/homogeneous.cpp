@@ -43,7 +43,7 @@ namespace pbrt {
 // HomogeneousMedium Method Definitions
 Spectrum HomogeneousMedium::Tr(const Ray &ray, Sampler &sampler) const {
     ProfilePhase _(Prof::MediumTr);
-    return Exp(-sigma_t * std::min(ray.tMax * ray.d.Length(), MaxFloat));
+    return exp(-sigma_t * std::min(ray.tMax * ray.d.Length(), MaxFloat));
 }
 
 Spectrum HomogeneousMedium::Sample(const Ray &ray, Sampler &sampler,
@@ -61,7 +61,7 @@ Spectrum HomogeneousMedium::Sample(const Ray &ray, Sampler &sampler,
                                 ARENA_ALLOC(arena, HenyeyGreenstein)(g));
 
     // Compute the transmittance and sampling density
-    Spectrum Tr = Exp(-sigma_t * std::min(t, MaxFloat) * ray.d.Length());
+    Spectrum Tr = exp(-sigma_t * std::min(t, MaxFloat) * ray.d.Length());
 
     // Return weighting factor for scattering from homogeneous medium
     Spectrum density = sampledMedium ? (sigma_t * Tr) : Tr;
@@ -72,7 +72,7 @@ Spectrum HomogeneousMedium::Sample(const Ray &ray, Sampler &sampler,
         CHECK(Tr.IsBlack());
         pdf = 1;
     }
-    return sampledMedium ? (Tr * sigma_s / pdf) : (Tr / pdf);
+    return sampledMedium ? Spectrum(Tr * sigma_s / pdf) : (Tr / pdf);
 }
 
 }  // namespace pbrt

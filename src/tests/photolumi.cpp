@@ -8,7 +8,6 @@ using namespace pbrt;
 
 TEST(PhotoLumi, Operator) {
     PhotoLumi test;
-    test(0, 0) = 0.f;
-    
+    // test(0, 0) = 0.f;
 }
 

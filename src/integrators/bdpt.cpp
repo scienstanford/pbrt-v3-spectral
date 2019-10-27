@@ -78,7 +78,7 @@ int GenerateCameraSubpath(const Scene &scene, Sampler &sampler,
     cameraSample.time = sampler.Get1D();
     cameraSample.pLens = sampler.Get2D();
     RayDifferential ray;
-    Spectrum beta = camera.GenerateRayDifferential(cameraSample, &ray);
+    Spectrum beta = Spectrum(camera.GenerateRayDifferential(cameraSample, &ray));
 	if (beta.IsBlack()) return 0; //MMara: RealisticCamera sometimes returns 0-weighted rays that should not be traced 
     ray.ScaleDifferentials(1 / std::sqrt(sampler.samplesPerPixel));
 
@@ -409,7 +409,7 @@ void BDPTIntegrator::Render(const Scene &scene) {
                                 Spectrum value;
                                 if (visualizeStrategies)
                                     value =
-                                        misWeight == 0 ? 0 : Lpath / misWeight;
+                                        misWeight == 0 ? Spectrum::Zero() : Spectrum(Lpath / misWeight);
                                 if (visualizeWeights) value = Lpath;
                                 weightFilms[BufferIndex(s, t)]->AddSplat(
                                     pFilmNew, value);

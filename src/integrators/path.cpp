@@ -52,7 +52,7 @@ PathIntegrator::PathIntegrator(int maxDepth,
                                std::shared_ptr<Sampler> sampler,
                                const Bounds2i &pixelBounds, Float rrThreshold,
                                const std::string &lightSampleStrategy)
-    : SamplerIntegrator(camera, sampler, pixelBounds),
+    : SamplerIntegrator(std::move(camera), std::move(sampler), pixelBounds),
       maxDepth(maxDepth),
       rrThreshold(rrThreshold),
       lightSampleStrategy(lightSampleStrategy) {}
@@ -69,7 +69,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
     //Spectrum L(0.f), beta(1.f);
     // Zheng Lyu Changed the place for fluorescence (09-20-2019)
     Spectrum L(0.f);
-    PhotoLumi beta(1.f);
+    PhotoLumi beta = PhotoLumi::Identity();
 
     RayDifferential ray(r);
     bool specularBounce = false;
@@ -96,21 +96,12 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (bounces == 0 || specularBounce) {
             // Add emitted light at path vertex or from the environment
             if (foundIntersection) {
-                Spectrum tmpLe = isect.Le(-ray.d);
-                PhotoLumi tmpMul = beta * tmpLe;
-                tmpMul.Transpose();
-                tmpMul.ToSpectrum();
-                L += tmpMul.getSpectrum();
+                L += (beta * isect.Le(-ray.d).matrix()).array();
                 VLOG(2) << "Added Le -> L = " << L;
             } else {
                 for (const auto &light : scene.infiniteLights) {
-                    Spectrum tmpLe = Spectrum(light->Le(ray));
-                    PhotoLumi tmpMul = beta * tmpLe;
-                    tmpMul.Transpose();
-                    tmpMul.ToSpectrum();
-                    L += tmpMul.getSpectrum();
+                    L += (beta * light->Le(ray).matrix()).array();
                 }
-
                 VLOG(2) << "Added infinite area lights -> L = " << L;
             }
         }
@@ -136,10 +127,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             ++totalPaths;
             Spectrum tmpLe = UniformSampleOneLight(isect, scene, arena,
                                                    sampler, false, distrib);
-            PhotoLumi tmpMul = beta * tmpLe;
-            tmpMul.Transpose();
-            tmpMul.ToSpectrum();
-            Spectrum Ld = tmpMul.getSpectrum();
+            Spectrum Ld = (beta * tmpLe.matrix()).array();
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -154,12 +142,8 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
-        Spectrum tmpSp = f * AbsDot(wi, isect.shading.n) / pdf;
-        beta *= tmpSp;
-        beta.ToSpectrum();
+        beta = (beta.array().rowwise() * f.transpose() * AbsDot(wi, isect.shading.n) / pdf).matrix();
         VLOG(2) << "Updated beta = " << beta;
-        CHECK_GE(beta.getSpectrum().y(), 0.f);
-        DCHECK(!std::isinf(beta.getSpectrum().y()));
         specularBounce = (flags & BSDF_SPECULAR) != 0;
         if ((flags & BSDF_SPECULAR) && (flags & BSDF_TRANSMISSION)) {
             Float eta = isect.bsdf->eta;
@@ -176,27 +160,19 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             SurfaceInteraction pi;
             Spectrum S = isect.bssrdf->Sample_S(
                 scene, sampler.Get1D(), sampler.Get2D(), arena, &pi, &pdf);
-            DCHECK(!std::isinf(beta.getSpectrum().y()));
             if (S.IsBlack() || pdf == 0) break;
-            Spectrum tmpSp = S / pdf;
-            beta *= tmpSp;
-            beta.ToSpectrum();
+            beta = (beta.array().rowwise() * S.transpose() / pdf).matrix();
             // Account for the direct subsurface scattering component
-            Spectrum tmpLe = UniformSampleOneLight(pi, scene, arena, sampler, false,
-                                                   lightDistribution->Lookup(pi.p));
-            PhotoLumi tmpMul = beta * tmpLe;
-            tmpMul.Transpose();
-            tmpMul.ToSpectrum();
-            L += tmpMul.getSpectrum();
+            L += (beta * UniformSampleOneLight(
+                pi, scene, arena, sampler, false,
+                lightDistribution->Lookup(pi.p)).matrix()).array();
 
             // Account for the indirect subsurface scattering component
             Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
-            Spectrum betaTerm = f * AbsDot(wi, pi.shading.n) / pdf;
-            beta *= betaTerm;
-            beta.ToSpectrum();
-            DCHECK(!std::isinf(beta.getSpectrum().y()));
+            beta = (beta.array().rowwise() * f.transpose() * AbsDot(
+                wi, pi.shading.n) / pdf).matrix();
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
         }
@@ -204,33 +180,24 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         // Account for fluorescent scattering, if applicable
         if (isect.bbrrdf) {
             PhotoLumi p = isect.bbrrdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
-            p.ToSpectrum();
-            if (p.getSpectrum().IsBlack() || pdf == 0) break;
-            PhotoLumi tmpP = p * AbsDot(wi, isect.shading.n) / pdf;
-            tmpP.Transpose();
-            beta *= tmpP;
-            beta.ToSpectrum();
+            if (p.IsBlack() || pdf == 0) break;
+            beta *= p * AbsDot(wi, isect.shading.n) / pdf;
             
             // Account for the direct subsurface scattering component
-            Spectrum tmpLe = UniformSampleOneLight(isect, scene, arena, sampler, false,
-                                                   lightDistribution->Lookup(isect.p));
-            PhotoLumi tmpMul = beta * tmpLe;
-            tmpMul.Transpose();
-            tmpMul.ToSpectrum();
-            L += tmpMul.getSpectrum();
+            L += (beta * UniformSampleOneLight(
+                isect, scene, arena, sampler, false,
+                lightDistribution->Lookup(isect.p)).matrix()).array();
         }
 
         // Possibly terminate the path with Russian roulette.
         // Factor out radiance scaling due to refraction in rrBeta.
-        PhotoLumi tmpP = beta * etaScale;
-        tmpP.ToSpectrum();
-        Spectrum rrBeta = tmpP.getSpectrum();
-        if (rrBeta.MaxComponentValue() < rrThreshold && bounces > 3) {
-            Float q = std::max((Float).05, 1 - rrBeta.MaxComponentValue());
+        if (bounces > 3) {
+          Spectrum rrBeta = beta.colwise().sum().array() * etaScale;
+          if (rrBeta.maxCoeff() < rrThreshold) {
+            Float q = std::max((Float) .05, 1 - rrBeta.maxCoeff());
             if (sampler.Get1D() < q) break;
             beta /= 1 - q;
-            beta.ToSpectrum();
-            DCHECK(!std::isinf(beta.getSpectrum().y()));
+          }
         }
     }
     ReportValue(pathLength, bounces);

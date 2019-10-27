@@ -176,9 +176,9 @@ std::vector<TestScene> GetScenes() {
         std::shared_ptr<Texture<Spectrum>> Kr =
             std::make_shared<ConstantTexture<Spectrum>>(Spectrum(0.5));
         std::shared_ptr<Texture<Spectrum>> black =
-            std::make_shared<ConstantTexture<Spectrum>>(0.);
+            std::make_shared<ConstantTexture<Spectrum>>(Spectrum::Zero());
         std::shared_ptr<Texture<Spectrum>> white =
-            std::make_shared<ConstantTexture<Spectrum>>(1.);
+            std::make_shared<ConstantTexture<Spectrum>>(Spectrum::Ones());
         std::shared_ptr<Texture<Float>> zero =
             std::make_shared<ConstantTexture<Float>>(0.);
         std::shared_ptr<Texture<Float>> one =

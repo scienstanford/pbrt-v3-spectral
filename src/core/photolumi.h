@@ -238,48 +238,43 @@ class CoefficientPhotoLumi {
     
         // Maths with Spectrum
         CoefficientPhotoLumi operator+(Spectrum &s) const {
-            DCHECK(!s.HasNaNs());
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
-                ret.m(i, i) += s.GetValueAtIndex(i);
+                ret.m(i, i) += s(i);
             }
             return ret;
         }
     
         CoefficientPhotoLumi &operator+=(Spectrum &s) {
-            DCHECK(!s.HasNaNs());
             for (int i = 0; i < nSpectralSamples; ++i) {
-                m(i, i) = m(i, i) + s.GetValueAtIndex(i);
+                m(i, i) = m(i, i) + s(i);
             }
             return *this;
         }
     
         CoefficientPhotoLumi operator-(Spectrum &s) const {
-            DCHECK(!s.HasNaNs());
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
-                ret.m(i, i) -= s.GetValueAtIndex(i);
+                ret.m(i, i) -= s(i);
             }
             
             return ret;
         }
     
         CoefficientPhotoLumi &operator-=(Spectrum &s) {
-            DCHECK(!s.HasNaNs());
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
-                ret.m(i, i) -= s.GetValueAtIndex(i);
+                ret.m(i, i) -= s(i);
             }
             
             return ret;
         }
     
         CoefficientPhotoLumi operator*(Spectrum &s) const {
-            DCHECK(!s.HasNaNs());
             CoefficientPhotoLumi ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(i);
+                    ret.m(i, j) *= s(i);
                 }
             }
             
@@ -287,11 +282,10 @@ class CoefficientPhotoLumi {
         }
     
         CoefficientPhotoLumi &operator*=(Spectrum &s) {
-            DCHECK(!s.HasNaNs());
             CoefficientPhotoLumi &ret = *this;
             for (int i = 0; i < nSpectralSamples; ++i) {
                 for (int j = 0; j < nSpectralSamples; ++j) {
-                    ret.m(i, j) *= s.GetValueAtIndex(i);
+                    ret.m(i, j) *= s(i);
                 }
             }
             return ret;
@@ -306,6 +300,35 @@ class CoefficientPhotoLumi {
         // CoefficientPhotoLumi Protected Data
         Eigen::Matrix<Float, nSpectrumSamples, nSpectrumSamples> m;
 
+};
+
+class PhotoLumi : public Eigen::Matrix<
+    Float, nSpectralSamples, nSpectralSamples> {
+ public:
+  static constexpr int nSamples = nSpectralSamples;
+  PhotoLumi() : Eigen::Matrix<Float, nSpectralSamples, nSpectralSamples>(
+      PhotoLumi::Zero()) { }
+
+  template<typename OtherDerived>
+  PhotoLumi(const Eigen::MatrixBase<OtherDerived>& other) :
+      Eigen::Matrix<Float, nSpectralSamples, nSpectralSamples>(other) {
+  }
+
+  template<typename OtherDerived>
+  PhotoLumi& operator=(const Eigen::MatrixBase<OtherDerived>& other) {
+    this->Eigen::Matrix<
+        Float, nSpectralSamples, nSpectralSamples>::operator=(other);
+    return *this;
+  }
+
+  static PhotoLumi FromSampled(const Float *lambda, Float **v,
+      int n) {
+    return PhotoLumi::Identity();
+  }
+
+  bool IsBlack() const {
+    return this->cwiseAbs().maxCoeff() == 0.0;
+  }
 };
     
 class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
@@ -347,7 +370,7 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
 //                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, j);
 //            }
 //            return p;
-            return PhotoLumi(1.);
+            return SampledPhotoLumi(1.);
         }
         const Spectrum getSpectrum() const { return s; }
         void ToSpectrum() {
@@ -356,7 +379,7 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
                 for (int j = 0; j < nSpectralSamples; ++j) {
                     sum += m(j, i);
                 }
-                s.AssignValueAtIndex(i, sum);
+                s(i) = sum;
             }
         }
     
@@ -425,7 +448,7 @@ class RGBPhotoLumi : public CoefficientPhotoLumi<3> {
             for (int j = 0; j < 2; ++j) {
                 sum += m(i, j);
             }
-            s.AssignValueAtIndex(i, sum);
+            s(i) = sum;
         }
     }
     

@@ -36,14 +36,14 @@ void FluorescentMaterial::ComputeScatteringFunctions(
     }
     //
     PhotoLumi reRadMtx = reRadMatrix->Evaluate(*si);
-    int size = reRadMtx.Size();
-    for (int i = 0; i < size; ++i)
-        reRadMtx.SetValue(i, (size - 1) / 2, 100);
+    for (int i = 0; i < reRadMtx.nSamples; ++i)
+        reRadMtx(i, (reRadMtx.nSamples - 1) / 2) = 100;
     si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(reRadMtx);
 }
 
 FluorescentMaterial *CreateFluorescentMaterial(const TextureParams &mp) {
-    std::shared_ptr<Texture<PhotoLumi>> reRadMatrix = mp.GetPhotoLumiTexture("photolumi", PhotoLumi(1.f));
+    std::shared_ptr<Texture<PhotoLumi>> reRadMatrix = mp.GetPhotoLumiTexture(
+        "photolumi", PhotoLumi::Identity());
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     std::shared_ptr<Texture<Spectrum>> Kd =
