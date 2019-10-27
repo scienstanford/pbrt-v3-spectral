@@ -62,8 +62,9 @@ class PhotoLumi : public Eigen::Matrix<
 
     PhotoLumi result;
     for (int j = 0; j < nSpectralSamples; j++) {
-      Eigen::Matrix<Float, nSpectralSamples, 1> v_column =
+      auto v_column =
           intermediate_result.col(j);
+
       for (int i = 0; i < nSpectralSamples; i++) {
         Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
                              sampledLambdaStart, sampledLambdaEnd);

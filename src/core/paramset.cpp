@@ -174,16 +174,20 @@ void ParamSet::AddSampledPhotoLumi(const std::string &name,
     ErasePhotoLumi(name);
     // We expect values contains wavelength and the corresponding excitation
     // for that given wavelength. Thus, the total number of values should be
-    // n_wavelength^2 + n_wavelength.
+    // Note: the total number of values are changed to n_wavelength^2 + 3,
+    // following the format of:
+    // [ startWavelength incrementStep endWavelength (nWavelength)^2 ]
+    // as suggested by Brian
     int nWavelength = static_cast<int>(std::sqrt(nValues));
-    DCHECK(nWavelength * (nWavelength + 1) == nValues);
+    DCHECK(nWavelength * nWavelength + 3 == nValues);
+    int startWavelength = values[0], increment = values[1];
     std::vector<Float> wl(nWavelength);
     std::vector<std::vector<Float>> v(nWavelength);
     for (int i = 0; i < nWavelength; ++i) {
-        wl[i] = values[i * (nWavelength + 1)];
+        wl[i] = startWavelength + i * increment;
         v[i].resize(nWavelength);
         for (int j = 0; j < nWavelength; ++j) {
-            v[i][j] = values[i * (nWavelength + 1) + j + 1];
+            v[i][j] = values[i * nWavelength + j + 3];
         }
     }
     std::unique_ptr<PhotoLumi[]> p(new PhotoLumi[1]);
