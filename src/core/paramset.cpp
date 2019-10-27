@@ -172,19 +172,22 @@ void ParamSet::AddSampledPhotoLumi(const std::string &name,
                                    std::unique_ptr<Float[]> values,
                                    int nValues) {
     ErasePhotoLumi(name);
-    // x^2 + x - nValues = 0; Solve the equation
-    nValues = int((std::sqrt(Float(nValues * 4) + 1) - 1) / 2);
-    std::unique_ptr<Float[]> wl(new Float[nValues]);
-    std::unique_ptr<Float*[]> v(new Float*[nValues]);
-    for (int i = 0; i < nValues; ++i) {
-        wl[i] = values[i * (nValues + 1)];
-        v[i] = new Float[nValues];
-        for (int j = 0; j < nValues; ++j) {
-            v[i][j] = values[i * (nValues + 1) + j + 1];
+    // We expect values contains wavelength and the corresponding excitation
+    // for that given wavelength. Thus, the total number of values should be
+    // n_wavelength^2 + n_wavelength.
+    int nWavelength = static_cast<int>(std::sqrt(nValues));
+    DCHECK(nWavelength * (nWavelength + 1) == nValues);
+    std::vector<Float> wl(nWavelength);
+    std::vector<std::vector<Float>> v(nWavelength);
+    for (int i = 0; i < nWavelength; ++i) {
+        wl[i] = values[i * (nWavelength + 1)];
+        v[i].resize(nWavelength);
+        for (int j = 0; j < nWavelength; ++j) {
+            v[i][j] = values[i * (nWavelength + 1) + j + 1];
         }
     }
     std::unique_ptr<PhotoLumi[]> p(new PhotoLumi[1]);
-    p[0] = PhotoLumi::FromSampled(wl.get(), v.get(), nValues);
+    p[0] = PhotoLumi::FromSampled(wl, v);
     std::shared_ptr<ParamSetItem<PhotoLumi>> psi(
         new ParamSetItem<PhotoLumi>(name, std::move(p), 1));
     photolumis.push_back(psi);

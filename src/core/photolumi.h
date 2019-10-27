@@ -14,16 +14,11 @@
 #include "pbrt.h"
 #include "stringprint.h"
 #include <Eigen/Dense>
+#include <unsupported/Eigen/Splines>
 #include "spectrum.h"
 
 namespace pbrt {
 
-extern bool PhotoLumiSamplesSorted(const Float *lambda, Float **vals,
-                                   int n);
-extern void SortPhotoLumiSamples(Float *lambda, Float **vals, int n);
-extern Float AveragePhotoLumiSamples(const Float *lambda, Float **vals,
-                                     int n, Float lambdaStart, Float lambdaEnd,
-                                     int j);
 enum class PhotoLumiType { Reflectance, Illuminant, Display };
 extern void Blackbody(const Float *lambda, int n, Float T, Float *Le);
 extern void BlackBodyNormalized(const Float *lambda, int n, Float T, Float *vals);
@@ -47,25 +42,38 @@ class PhotoLumi : public Eigen::Matrix<
     return *this;
   }
 
-  static PhotoLumi FromSampled(const Float *lambda, Float **v,
-      int n) {
-    // Sort samples if unordered, use sorted for returned photolumi.
-    // This part might need to be changed as we assume wavelength is sorted.
-    if (!PhotoLumiSamplesSorted(lambda, v, n)) {
-      std::vector<Float> slambda(&lambda[0], &lambda[n]);
-      SortPhotoLumiSamples(&slambda[0], v, n);
-      return FromSampled(&slambda[0], v, n);
+  static PhotoLumi FromSampled(const std::vector<Float>& lambda,
+      const std::vector<std::vector<Float>> &v) {
+    DCHECK(lambda.size() == v.size());
+
+    // Perform average interpolation along each direction independently.
+    Eigen::Array<Float, Eigen::Dynamic, nSpectralSamples> intermediate_result(
+        lambda.size(), nSpectralSamples);
+    for (int i = 0; i < lambda.size(); ++i) {
+      for (int j = 0; j < nSpectralSamples; ++j) {
+        Float lambda0 = Lerp(Float(j) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+        Float lambda1 = Lerp(Float(j + 1) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+        intermediate_result(i, j) = AverageSpectrumSamples(
+            lambda.data(), v[i].data(), lambda.size(), lambda0, lambda1);
+      }
     }
-    PhotoLumi p;
-    for (int i = 0; i < nSpectralSamples; ++i) {
-      Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
-                           sampledLambdaStart, sampledLambdaEnd);
-      Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
-                           sampledLambdaStart, sampledLambdaEnd);
-      for (int j = 0; j < nSpectralSamples; ++j)
-        p(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, i);
+
+    PhotoLumi result;
+    for (int j = 0; j < nSpectralSamples; j++) {
+      Eigen::Matrix<Float, nSpectralSamples, 1> v_column =
+          intermediate_result.col(j);
+      for (int i = 0; i < nSpectralSamples; i++) {
+        Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+        Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                             sampledLambdaStart, sampledLambdaEnd);
+        result(i, j) = AverageSpectrumSamples(
+            lambda.data(), v_column.data(), lambda.size(), lambda0, lambda1);
+      }
     }
-    return p;
+    return result;
   }
 
   static void Init() {
