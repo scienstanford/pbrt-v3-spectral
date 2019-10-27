@@ -36,8 +36,9 @@ void FluorescentMaterial::ComputeScatteringFunctions(
     }
     //
     PhotoLumi reRadMtx = reRadMatrix->Evaluate(*si);
-    for (int i = 0; i < reRadMtx.nSamples; ++i)
-        reRadMtx(i, (reRadMtx.nSamples - 1) / 2) = 100;
+    int size = PhotoLumi::nSamples;
+    for (int i = 0; i < size; ++i)
+        reRadMtx(i, (size - 1) * 9 / 10) = 0.5;
     si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(reRadMtx);
 }
 
