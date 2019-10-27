@@ -406,6 +406,7 @@ enum {
     PARAM_TYPE_XYZ,
     PARAM_TYPE_BLACKBODY,
     PARAM_TYPE_SPECTRUM,
+    PARAM_TYPE_PHOTOLIMI,
     PARAM_TYPE_STRING,
     PARAM_TYPE_TEXTURE
 };
@@ -468,6 +469,8 @@ static bool lookupType(const std::string &decl, int *type, std::string &sname) {
         *type = PARAM_TYPE_BLACKBODY;
     else if (typeStr == "spectrum")
         *type = PARAM_TYPE_SPECTRUM;
+    else if (typeStr == "photolumi")
+        *type = PARAM_TYPE_PHOTOLIMI;
     else {
         Error("Unable to decode type from \"%s\"", decl.c_str());
         return false;
@@ -510,6 +513,8 @@ static const char *paramTypeToName(int type) {
         return "blackbody";
     case PARAM_TYPE_SPECTRUM:
         return "spectrum";
+    case PARAM_TYPE_PHOTOLIMI:
+        return "photolumi";
     case PARAM_TYPE_STRING:
         return "string";
     case PARAM_TYPE_TEXTURE:
@@ -688,6 +693,15 @@ static void AddParam(ParamSet &ps, const ParamListItem &item,
                 for (int j = 0; j < nItems; ++j)
                     floats[j] = item.doubleValues[j];
                 ps.AddSampledSpectrum(name, std::move(floats), nItems);
+            }
+        } else if (type == PARAM_TYPE_PHOTOLIMI) {
+            if (item.stringValues) {
+                ps.AddSampledPhotoLumiFiles(name, item.stringValues, nItems);
+            } else {
+                std::unique_ptr<Float[]> floats(new Float[nItems]);
+                for (int j = 0; j < nItems; ++j)
+                    floats[j] = item.doubleValues[j];
+                ps.AddSampledPhotoLumi(name, std::move(floats), nItems);
             }
         } else if (type == PARAM_TYPE_STRING) {
             std::unique_ptr<std::string[]> strings(new std::string[nItems]);

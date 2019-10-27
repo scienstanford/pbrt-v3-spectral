@@ -177,7 +177,11 @@ void ParamSet::AddSampledPhotoLumi(const std::string &name,
     std::unique_ptr<Float[]> wl(new Float[nValues]);
     std::unique_ptr<Float*[]> v(new Float*[nValues]);
     for (int i = 0; i < nValues; ++i) {
+        wl[i] = values[i * (nValues + 1)];
         v[i] = new Float[nValues];
+        for (int j = 0; j < nValues; ++j) {
+            v[i][j] = values[i * (nValues + 1) + j + 1];
+        }
     }
     std::unique_ptr<PhotoLumi[]> p(new PhotoLumi[1]);
     p[0] = PhotoLumi::FromSampled(wl.get(), v.get(), nValues);
@@ -529,6 +533,7 @@ void ParamSet::ReportUnused() const {
     CHECK_UNUSED(vector3fs);
     CHECK_UNUSED(normals);
     CHECK_UNUSED(spectra);
+    CHECK_UNUSED(photolumis);
     CHECK_UNUSED(strings);
     CHECK_UNUSED(textures);
 }
@@ -544,6 +549,7 @@ void ParamSet::Clear() {
     DEL_PARAMS(vector3fs);
     DEL_PARAMS(normals);
     DEL_PARAMS(spectra);
+    DEL_PARAMS(photolumis);
     DEL_PARAMS(strings);
     DEL_PARAMS(textures);
 #undef DEL_PARAMS
