@@ -345,32 +345,30 @@ class SampledPhotoLumi : public CoefficientPhotoLumi<nSpectralSamples> {
             : CoefficientPhotoLumi<nSpectralSamples>(v) {}
         static SampledPhotoLumi FromSampled(const Float *lambda, Float **v,
                                            int n) {
-//            // Sort samples if unordered, use sorted for returned photolumi
-//            if (!PhotoLumiSamplesSorted(lambda, v, n)) {
-//                std::vector<Float> slambda(&lambda[0], &lambda[n]);
-////                std::vector<Float*> sv;
-////                for (int i = 0; i < n; ++i)
-////                    sv.push_back(new Float[n]);
-////                for (int i = 0; i < n; ++i)
-////                    sv[i] = v[i];
-////                std::vector<Float*> sv(&v[0], &v[n]);
-////                SortPhotoLumiSamples(&slambda[0], &sv[0], n);
-//                SortPhotoLumiSamples(&slambda[0], v, n);
-////                return FromSampled(&slambda[0], &sv[0], n);
-//                return FromSampled(&slambda[0], v, n);
-//
-//            }
+            // Sort samples if unordered, use sorted for returned photolumi
+            // This part might need to be changed as we are assuming the wavelength is in order
+            if (!PhotoLumiSamplesSorted(lambda, v, n)) {
+                std::vector<Float> slambda(&lambda[0], &lambda[n]);
+                SortPhotoLumiSamples(&slambda[0], v, n);
+                return FromSampled(&slambda[0], v, n);
+            }
+            SampledPhotoLumi p;
+            for (int i = 0; i < nSpectralSamples; ++i) {
+                Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
+                                     sampledLambdaStart, sampledLambdaEnd);
+                Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                                     sampledLambdaStart, sampledLambdaEnd);
+                for (int j = 0; j < nSpectralSamples; ++j)
+                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, i);
+            }
+            return p;
 //            SampledPhotoLumi p;
 //            for (int i = 0; i < nSpectralSamples; ++i) {
-//                Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
-//                                     sampledLambdaStart, sampledLambdaEnd);
-//                Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
-//                                     sampledLambdaStart, sampledLambdaEnd);
-//                for (int j = 0; j < nSpectralSamples; ++j)
-//                    p.m(i, j) = AveragePhotoLumiSamples(lambda, v, n, lambda0, lambda1, j);
+//                for (int j = 0; j < nSpectralSamples; ++j){
+//                    p.m(i, j) = v[i][j];
+//                }
 //            }
 //            return p;
-            return SampledPhotoLumi(1.);
         }
         const Spectrum getSpectrum() const { return s; }
         void ToSpectrum() {

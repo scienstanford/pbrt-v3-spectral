@@ -1,4 +1,3 @@
-
 #include "tests/gtest/gtest.h"
 #include "photolumi.h"
 #include "spectrum.h"
@@ -10,4 +9,3 @@ TEST(PhotoLumi, Operator) {
     PhotoLumi test;
     // test(0, 0) = 0.f;
 }
-
