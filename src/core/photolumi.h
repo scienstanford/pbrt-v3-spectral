@@ -47,6 +47,12 @@ class PhotoLumi : public Eigen::Matrix<
     DCHECK(lambda.size() == v.size());
 
     // Perform average interpolation along each direction independently.
+    // TODO: This averaging logic is incorrect because the numbers in the
+    // lambda matrix is not the spectrum range energy. Instead, it only
+    // represents a ratio between in and out light. Thus, the wavelength
+    // interpolation should be similar to the a normal interpolation, with
+    // fluorescent and normal reflection (i.e. the diagonal) interpolated
+    // independently.
     Eigen::Array<Float, Eigen::Dynamic, nSpectralSamples> intermediate_result(
         lambda.size(), nSpectralSamples);
     for (int i = 0; i < lambda.size(); ++i) {
