@@ -914,7 +914,7 @@ void pbrtInit(const Options &opt) {
 
     // General \pbrt Initialization
     Spectrum::Init();
-    SampledPhotoLumi::Init();
+    PhotoLumi::Init();
     ParallelInit();  // Threads must be launched before the profiler is
                      // initialized.
     InitProfiler();
