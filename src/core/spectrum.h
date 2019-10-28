@@ -148,7 +148,7 @@ class RGBSpectrum: public Eigen::Array<Float, 3, 1> {
   }
 
   bool HasNaNs() const {
-    for (int i = 0; i < nSpectralSamples; ++i)
+    for (int i = 0; i < 3; ++i)
       if (std::isnan((*this)[i])) return true;
     return false;
   }

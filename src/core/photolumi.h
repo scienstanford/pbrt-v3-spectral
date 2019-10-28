@@ -68,7 +68,7 @@ class PhotoLumi : public Eigen::Matrix<
                 lambda.back() - lambda[0]);
     Eigen::Array<Float, 1, nSpectralSamples> scaled_output_lambda = (
         Eigen::Array<Float, 1, nSpectralSamples>::LinSpaced(
-            sampledLambdaStart, sampledLambdaEnd, nSpectralSamples) -
+            nSpectralSamples, sampledLambdaStart, sampledLambdaEnd) -
             lambda[0]) / (lambda.back() - lambda[0]);
     scaled_output_lambda = scaled_output_lambda.max(0.0f).min(1.0f);
 
