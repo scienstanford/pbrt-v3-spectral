@@ -38,6 +38,7 @@
 #include "interaction.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -59,15 +60,22 @@ void MatteMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         else
             si->bsdf->Add(ARENA_ALLOC(arena, OrenNayar)(r, sig));
     }
+
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 MatteMaterial *CreateMatteMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<Spectrum>> Kd =
         mp.GetSpectrumTexture("Kd", Spectrum(0.5f));
     std::shared_ptr<Texture<Float>> sigma = mp.GetFloatTexture("sigma", 0.f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new MatteMaterial(Kd, sigma, bumpMap);
+    return new MatteMaterial(Kd, sigma, fluorescence, bumpMap);
 }
 
 }  // namespace pbrt

@@ -80,7 +80,7 @@ std::vector<TestScene> GetScenes() {
         std::shared_ptr<Texture<Float>> sigma =
             std::make_shared<ConstantTexture<Float>>(0.);
         std::shared_ptr<Material> material =
-            std::make_shared<MatteMaterial>(Kd, sigma, nullptr);
+            std::make_shared<MatteMaterial>(Kd, sigma, nullptr, nullptr);
 
         MediumInterface mediumInterface;
         std::vector<std::shared_ptr<Primitive>> prims;
@@ -109,7 +109,7 @@ std::vector<TestScene> GetScenes() {
         std::shared_ptr<Texture<Float>> sigma =
             std::make_shared<ConstantTexture<Float>>(0.);
         std::shared_ptr<Material> material =
-            std::make_shared<MatteMaterial>(Kd, sigma, nullptr);
+            std::make_shared<MatteMaterial>(Kd, sigma, nullptr, nullptr);
 
         MediumInterface mediumInterface;
         std::vector<std::shared_ptr<Primitive>> prims;
@@ -144,7 +144,7 @@ std::vector<TestScene> GetScenes() {
         std::shared_ptr<Texture<Float>> sigma =
             std::make_shared<ConstantTexture<Float>>(0.);
         std::shared_ptr<Material> material =
-            std::make_shared<MatteMaterial>(Kd, sigma, nullptr);
+            std::make_shared<MatteMaterial>(Kd, sigma, nullptr, nullptr);
 
         std::shared_ptr<AreaLight> areaLight =
             std::make_shared<DiffuseAreaLight>(Transform(), nullptr,

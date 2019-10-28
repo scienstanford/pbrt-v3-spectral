@@ -42,6 +42,7 @@
 #include "pbrt.h"
 #include "material.h"
 #include "spectrum.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -54,6 +55,7 @@ class MetalMaterial : public Material {
                   const std::shared_ptr<Texture<Float>> &rough,
                   const std::shared_ptr<Texture<Float>> &urough,
                   const std::shared_ptr<Texture<Float>> &vrough,
+                  const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                   const std::shared_ptr<Texture<Float>> &bump,
                   bool remapRoughness);
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -64,6 +66,7 @@ class MetalMaterial : public Material {
     // MetalMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> eta, k;
     std::shared_ptr<Texture<Float>> roughness, uRoughness, vRoughness;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;
 };
