@@ -92,6 +92,15 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
 
+        // Account for fluorescent scattering, if applicable
+        if (foundIntersection && isect.bbrrdf) {
+          Vector3f wo = -ray.d, wi;
+          Float pdf;
+          BxDFType flags;
+          beta *= isect.bbrrdf->Sample_f(
+              wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
+        }
+
         // Possibly add emitted light at intersection
         if (bounces == 0 || specularBounce) {
             // Add emitted light at path vertex or from the environment
@@ -175,18 +184,6 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                 wi, pi.shading.n) / pdf).matrix();
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
-        }
-
-        // Account for fluorescent scattering, if applicable
-        if (isect.bbrrdf) {
-            PhotoLumi p = isect.bbrrdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
-            if (p.IsBlack() || pdf == 0) break;
-            beta *= p * AbsDot(wi, isect.shading.n) / pdf;
-            
-            // Account for the direct subsurface scattering component
-            L += (beta * UniformSampleOneLight(
-                isect, scene, arena, sampler, false,
-                lightDistribution->Lookup(isect.p)).matrix()).array();
         }
 
         // Possibly terminate the path with Russian roulette.
