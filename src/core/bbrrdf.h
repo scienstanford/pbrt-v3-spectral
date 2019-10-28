@@ -26,8 +26,8 @@ namespace pbrt {
 class BBRRDF {
     public:
         // BBRRDF Public Methods
-        BBRRDF(PhotoLumi reRadMatrix) : reRadMatrix(reRadMatrix) {}
-        virtual ~BBRRDF() {}
+        explicit BBRRDF(PhotoLumi reRadMatrix) : reRadMatrix(std::move(reRadMatrix)) {}
+        virtual ~BBRRDF() = default;
         virtual PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const = 0;
         virtual PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
                            const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
@@ -64,15 +64,15 @@ class BBRRDF {
 class SurfaceBBRRDF : public BBRRDF {
     public:
         // SurfaceBBRRDF Public Methods
-        SurfaceBBRRDF(PhotoLumi reRadMatrix)
-            : BBRRDF(reRadMatrix) {}
+        explicit SurfaceBBRRDF(PhotoLumi reRadMatrix)
+            : BBRRDF(std::move(reRadMatrix)) {}
     
         // The functions below are temporarily used for demo, which are not true
-        PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const;
+        PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const override;
         PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
                            const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
-                           BxDFType *sampledType = nullptr) const;
-        Float Pdf(const Vector3f &wo, const Vector3f &wi) const;
+                           BxDFType *sampledType = nullptr) const override;
+        Float Pdf(const Vector3f &wo, const Vector3f &wi) const override;
 };
 
 } // pbrt namespace

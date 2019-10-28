@@ -34,6 +34,7 @@
 // materials/metal.cpp*
 #include "materials/metal.h"
 #include "reflection.h"
+#include "bbrrdf.h"
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
@@ -46,6 +47,7 @@ MetalMaterial::MetalMaterial(const std::shared_ptr<Texture<Spectrum>> &eta,
                              const std::shared_ptr<Texture<Float>> &roughness,
                              const std::shared_ptr<Texture<Float>> &uRoughness,
                              const std::shared_ptr<Texture<Float>> &vRoughness,
+                             const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                              const std::shared_ptr<Texture<Float>> &bumpMap,
                              bool remapRoughness)
     : eta(eta),
@@ -53,6 +55,7 @@ MetalMaterial::MetalMaterial(const std::shared_ptr<Texture<Spectrum>> &eta,
       roughness(roughness),
       uRoughness(uRoughness),
       vRoughness(vRoughness),
+      fluorescence(fluorescence),
       bumpMap(bumpMap),
       remapRoughness(remapRoughness) {}
 
@@ -78,6 +81,11 @@ void MetalMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         ARENA_ALLOC(arena, TrowbridgeReitzDistribution)(uRough, vRough);
     si->bsdf->Add(ARENA_ALLOC(arena, MicrofacetReflection)(
         Spectrum::Ones(), distrib, frMf));
+
+    if (fluorescence) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 const int CopperSamples = 56;
@@ -127,11 +135,13 @@ MetalMaterial *CreateMetalMaterial(const TextureParams &mp) {
         mp.GetFloatTextureOrNull("uroughness");
     std::shared_ptr<Texture<Float>> vRoughness =
         mp.GetFloatTextureOrNull("vroughness");
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new MetalMaterial(eta, k, roughness, uRoughness, vRoughness, bumpMap,
-                             remapRoughness);
+    return new MetalMaterial(eta, k, roughness, uRoughness, vRoughness,
+        fluorescence, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt
