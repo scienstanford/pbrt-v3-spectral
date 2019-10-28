@@ -116,7 +116,7 @@ extern const Float RGBIllum2SpectBlue[nRGB2SpectSamples];
 
 class RGBSpectrum: public Eigen::Array<Float, 3, 1> {
  public:
-  static constexpr int nSamples = nSpectralSamples;
+  static constexpr int nSamples = 3;
   RGBSpectrum() : Eigen::Array<Float, 3, 1>(RGBSpectrum::Zero()) { }
 
   RGBSpectrum(Float v) : Eigen::Array<Float, 3, 1>(
