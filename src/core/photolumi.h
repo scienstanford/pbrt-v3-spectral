@@ -41,7 +41,20 @@ class PhotoLumi : public Eigen::Matrix<
 
   static PhotoLumi FromSampled(const std::vector<Float>& lambda,
       const std::vector<std::vector<Float>> &v) {
+
     DCHECK(lambda.size() == v.size() && lambda.size() > 1);
+      
+    // Temporarily use the data without need of interpolation. Will delete
+    // this part in the future.
+    if (lambda.size() == nSpectralSamples) {
+    PhotoLumi result;
+    for (int i = 0; i < nSpectralSamples; ++i) {
+        for (int j = 0; j < nSpectralSamples; ++j) {
+            result(i, j) = v[i][j];
+        }
+    }
+    return result;
+    }
 
     // The values in the input matrix represents a ratio between in and out
     // light. Thus, the wavelength interpolation should be similar to the a
