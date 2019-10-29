@@ -91,6 +91,9 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         // Intersect _ray_ with scene and store intersection in _isect_
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
+        if (foundIntersection && bounces < maxDepth) {
+          isect.ComputeScatteringFunctions(ray, arena, true);
+        }
 
         // Account for fluorescent scattering, if applicable
         if (foundIntersection && isect.bbrrdf) {
@@ -119,7 +122,6 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (!foundIntersection || bounces >= maxDepth) break;
 
         // Compute scattering functions and skip over medium boundaries
-        isect.ComputeScatteringFunctions(ray, arena, true);
         if (!isect.bsdf) {
             VLOG(2) << "Skipping intersection due to null bsdf";
             ray = isect.SpawnRay(ray.d);
