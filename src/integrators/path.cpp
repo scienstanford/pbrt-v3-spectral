@@ -92,15 +92,6 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         SurfaceInteraction isect;
         bool foundIntersection = scene.Intersect(ray, &isect);
 
-        // Account for fluorescent scattering, if applicable
-        if (foundIntersection && isect.bbrrdf) {
-          Vector3f wo = -ray.d, wi;
-          Float pdf;
-          BxDFType flags;
-          beta *= isect.bbrrdf->Sample_f(
-              wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
-        }
-
         // Possibly add emitted light at intersection
         if (bounces == 0 || specularBounce) {
             // Add emitted light at path vertex or from the environment
@@ -128,6 +119,23 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         }
 
         const Distribution1D *distrib = lightDistribution->Lookup(isect.p);
+        
+        // Sample BSDF to get new path direction
+        Vector3f wo = -ray.d, wi;
+        Float pdf;
+        BxDFType flags;
+        
+        // Account for fluorescent scattering, if applicable
+        // ZhengLyu: I think it should be here, if we put it on the very top
+        // of the for loop, when we initialize the isect, there's no bbrrdf
+        // being added yet. It is added in ComputeScatteringFunctions(). Since
+        // We're assuming the bbrrdf only multiplies a Donaldson matrix
+        // to beta, it will be safe to multiply it here, right before the
+        // normal scattering (bsdf).
+        if (isect.bbrrdf) {
+          beta *= isect.bbrrdf->Sample_f(
+              wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
+        }
 
         // Sample illumination from lights to find path contribution.
         // (But skip this for perfectly specular BSDFs.)
@@ -143,14 +151,11 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             L += Ld;
         }
 
-        // Sample BSDF to get new path direction
-        Vector3f wo = -ray.d, wi;
-        Float pdf;
-        BxDFType flags;
         Spectrum f = isect.bsdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
+        
         beta = (beta.array().rowwise() * f.transpose() * AbsDot(wi, isect.shading.n) / pdf).matrix();
         VLOG(2) << "Updated beta = " << beta;
         specularBounce = (flags & BSDF_SPECULAR) != 0;
