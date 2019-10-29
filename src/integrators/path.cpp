@@ -128,12 +128,6 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         BxDFType flags;
         
         // Account for fluorescent scattering, if applicable
-        // ZhengLyu: I think it should be here, if we put it on the very top
-        // of the for loop, when we initialize the isect, there's no bbrrdf
-        // being added yet. It is added in ComputeScatteringFunctions(). Since
-        // We're assuming the bbrrdf only multiplies a Donaldson matrix
-        // to beta, it will be safe to multiply it here, right before the
-        // normal scattering (bsdf).
         if (isect.bbrrdf) {
           beta *= isect.bbrrdf->Sample_f(
               wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
