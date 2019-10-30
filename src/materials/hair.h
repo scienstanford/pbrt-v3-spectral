@@ -50,6 +50,7 @@ http://pbrt.org/hair.pdf for a description of the implementation here.
 #include "pbrt.h"
 #include "reflection.h"
 #include <array>
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -62,6 +63,7 @@ class HairMaterial : public Material {
                  const std::shared_ptr<Texture<Float>> &eumelanin,
                  const std::shared_ptr<Texture<Float>> &pheomelanin,
                  const std::shared_ptr<Texture<Float>> &eta,
+                 const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                  const std::shared_ptr<Texture<Float>> &beta_m,
                  const std::shared_ptr<Texture<Float>> &beta_n,
                  const std::shared_ptr<Texture<Float>> &alpha)
@@ -70,6 +72,7 @@ class HairMaterial : public Material {
           eumelanin(eumelanin),
           pheomelanin(pheomelanin),
           eta(eta),
+          fluorescence(fluorescence),
           beta_m(beta_m),
           beta_n(beta_n),
           alpha(alpha) {}
@@ -82,6 +85,7 @@ class HairMaterial : public Material {
     std::shared_ptr<Texture<Spectrum>> sigma_a, color;
     std::shared_ptr<Texture<Float>> eumelanin, pheomelanin, eta;
     std::shared_ptr<Texture<Float>> beta_m, beta_n, alpha;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
 };
 
 HairMaterial *CreateHairMaterial(const TextureParams &mp);

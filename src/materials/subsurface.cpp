@@ -39,6 +39,7 @@
 #include "interpolation.h"
 #include "paramset.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -95,6 +96,10 @@ void SubsurfaceMaterial::ComputeScatteringFunctions(
     Spectrum sig_s = scale * sigma_s->Evaluate(*si).Clamp();
     si->bssrdf = ARENA_ALLOC(arena, TabulatedBSSRDF)(*si, this, mode, eta,
                                                      sig_a, sig_s, table);
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 SubsurfaceMaterial *CreateSubsurfaceMaterial(const TextureParams &mp) {
@@ -127,11 +132,13 @@ SubsurfaceMaterial *CreateSubsurfaceMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("uroughness", 0.f);
     std::shared_ptr<Texture<Float>> roughv =
         mp.GetFloatTexture("vroughness", 0.f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new SubsurfaceMaterial(scale, Kr, Kt, sigma_a, sigma_s, g, eta,
-                                  roughu, roughv, bumpMap, remapRoughness);
+                                  roughu, roughv, fluorescence, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

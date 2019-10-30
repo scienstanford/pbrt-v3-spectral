@@ -41,6 +41,7 @@
 // materials/plastic.h*
 #include "pbrt.h"
 #include "material.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -51,11 +52,13 @@ class PlasticMaterial : public Material {
     PlasticMaterial(const std::shared_ptr<Texture<Spectrum>> &Kd,
                     const std::shared_ptr<Texture<Spectrum>> &Ks,
                     const std::shared_ptr<Texture<Float>> &roughness,
+                    const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                     const std::shared_ptr<Texture<Float>> &bumpMap,
                     bool remapRoughness)
         : Kd(Kd),
           Ks(Ks),
           roughness(roughness),
+          fluorescence(fluorescence),
           bumpMap(bumpMap),
           remapRoughness(remapRoughness) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -65,6 +68,7 @@ class PlasticMaterial : public Material {
   private:
     // PlasticMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Ks;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> roughness, bumpMap;
     const bool remapRoughness;
 };

@@ -41,6 +41,7 @@
 #include "spectrum.h"
 #include "texture.h"
 #include "textures/constant.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -164,6 +165,11 @@ void HairMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     // Offset along width
     Float h = -1 + 2 * si->uv[1];
     si->bsdf->Add(ARENA_ALLOC(arena, HairBSDF)(h, e, sig_a, bm, bn, a));
+    
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 HairMaterial *CreateHairMaterial(const TextureParams &mp) {
@@ -175,6 +181,7 @@ HairMaterial *CreateHairMaterial(const TextureParams &mp) {
         mp.GetFloatTextureOrNull("eumelanin");
     std::shared_ptr<Texture<Float>> pheomelanin =
         mp.GetFloatTextureOrNull("pheomelanin");
+    
     if (sigma_a) {
         if (color)
             Warning(
@@ -215,12 +222,13 @@ HairMaterial *CreateHairMaterial(const TextureParams &mp) {
     }
 
     std::shared_ptr<Texture<Float>> eta = mp.GetFloatTexture("eta", 1.55f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> beta_m = mp.GetFloatTexture("beta_m", 0.3f);
     std::shared_ptr<Texture<Float>> beta_n = mp.GetFloatTexture("beta_n", 0.3f);
     std::shared_ptr<Texture<Float>> alpha = mp.GetFloatTexture("alpha", 2.f);
 
-    return new HairMaterial(sigma_a, color, eumelanin, pheomelanin, eta, beta_m,
-                            beta_n, alpha);
+    return new HairMaterial(sigma_a, color, eumelanin, pheomelanin, eta, fluorescence, beta_m, beta_n, alpha);
 }
 
 // HairBSDF Method Definitions

@@ -38,6 +38,7 @@
 #include "texture.h"
 #include "interaction.h"
 #include "paramset.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -99,6 +100,12 @@ void UberMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     if (!kt.IsBlack())
         si->bsdf->Add(
             ARENA_ALLOC(arena, SpecularTransmission)(kt, 1.f, e, mode));
+    
+//    if (fluorescence != nullptr) {
+//      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+//          fluorescence->Evaluate(*si));
+//    }
+
 }
 
 UberMaterial *CreateUberMaterial(const TextureParams &mp) {
@@ -120,11 +127,13 @@ UberMaterial *CreateUberMaterial(const TextureParams &mp) {
     if (!eta) eta = mp.GetFloatTexture("index", 1.5f);
     std::shared_ptr<Texture<Spectrum>> opacity =
         mp.GetSpectrumTexture("opacity", Spectrum::Ones());
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new UberMaterial(Kd, Ks, Kr, Kt, roughness, uroughness, vroughness,
-                            opacity, eta, bumpMap, remapRoughness);
+                            opacity, eta, fluorescence, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

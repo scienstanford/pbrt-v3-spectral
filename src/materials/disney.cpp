@@ -57,6 +57,7 @@ licensed under a slightly-modified Apache 2.0 license.
 #include "stringprint.h"
 #include "texture.h"
 #include "rng.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -584,6 +585,11 @@ void DisneyMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         // Lambertian, weighted by (1 - diffTrans)
         si->bsdf->Add(ARENA_ALLOC(arena, LambertianTransmission)(dt * c));
     }
+    
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 DisneyMaterial *CreateDisneyMaterial(const TextureParams &mp) {
@@ -614,12 +620,14 @@ DisneyMaterial *CreateDisneyMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("flatness", 0.f);
     std::shared_ptr<Texture<Float>> diffTrans =
         mp.GetFloatTexture("difftrans", 1.f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     return new DisneyMaterial(color, metallic, eta, roughness, specularTint,
                               anisotropic, sheen, sheenTint, clearcoat,
                               clearcoatGloss, specTrans, scatterDistance, thin,
-                              flatness, diffTrans, bumpMap);
+                              flatness, diffTrans, fluorescence, bumpMap);
 }
 
 }  // namespace pbrt

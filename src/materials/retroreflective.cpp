@@ -47,6 +47,7 @@
 #include "interpolation.h"
 #include "microfacet.h"
 #include "shape.h"
+#include "bbrrdf.h"
 
 
 namespace pbrt {
@@ -226,6 +227,10 @@ void retroreflectiveMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
 //        BxDF *diff = ARENA_ALLOC(arena, LambertianReflection)(kd);
 //        si->bsdf->Add(diff);
 //}
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 
 }
 
@@ -244,10 +249,12 @@ retroreflectiveMaterial *CreateRetroreflectiveMaterial(const TextureParams &mp) 
         mp.GetFloatTextureOrNull("uroughness");
     std::shared_ptr<Texture<Float>> vRoughness =
         mp.GetFloatTextureOrNull("vroughness");
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new retroreflectiveMaterial(Kd, Kr, Ks, sigma, roughness, uRoughness, vRoughness, bumpMap,remapRoughness);
+    return new retroreflectiveMaterial(Kd, Kr, Ks, sigma, roughness, uRoughness, vRoughness, fluorescence, bumpMap,remapRoughness);
 }
 
 }  // namespace pbrt

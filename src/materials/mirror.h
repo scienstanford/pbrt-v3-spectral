@@ -41,6 +41,7 @@
 // materials/mirror.h*
 #include "pbrt.h"
 #include "material.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -49,9 +50,11 @@ class MirrorMaterial : public Material {
   public:
     // MirrorMaterial Public Methods
     MirrorMaterial(const std::shared_ptr<Texture<Spectrum>> &r,
+                   const std::shared_ptr<Texture<PhotoLumi>> &fluores,
                    const std::shared_ptr<Texture<Float>> &bump) {
         Kr = r;
         bumpMap = bump;
+        fluorescence = fluores;
     }
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
@@ -60,6 +63,7 @@ class MirrorMaterial : public Material {
   private:
     // MirrorMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kr;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
 };
 

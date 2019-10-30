@@ -43,6 +43,7 @@
 #include "reflection.h"
 #include "material.h"
 #include "bssrdf.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -58,6 +59,7 @@ class KdSubsurfaceMaterial : public Material {
                          Float eta,
                          const std::shared_ptr<Texture<Float>> &uRoughness,
                          const std::shared_ptr<Texture<Float>> &vRoughness,
+                         const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                          const std::shared_ptr<Texture<Float>> &bumpMap,
                          bool remapRoughness)
         : scale(scale),
@@ -67,6 +69,7 @@ class KdSubsurfaceMaterial : public Material {
           mfp(mfp),
           uRoughness(uRoughness),
           vRoughness(vRoughness),
+          fluorescence(fluorescence),
           bumpMap(bumpMap),
           eta(eta),
           remapRoughness(remapRoughness),
@@ -82,6 +85,7 @@ class KdSubsurfaceMaterial : public Material {
     Float scale;
     std::shared_ptr<Texture<Spectrum>> Kd, Kr, Kt, mfp;
     std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     Float eta;
     bool remapRoughness;

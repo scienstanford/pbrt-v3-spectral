@@ -41,6 +41,7 @@
 // materials/glass.h*
 #include "pbrt.h"
 #include "material.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -53,6 +54,7 @@ class GlassMaterial : public Material {
                   const std::shared_ptr<Texture<Float>> &uRoughness,
                   const std::shared_ptr<Texture<Float>> &vRoughness,
                   const std::shared_ptr<Texture<Float>> &index,
+                  const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                   const std::shared_ptr<Texture<Float>> &bumpMap,
                   bool remapRoughness)
         : Kr(Kr),
@@ -60,6 +62,7 @@ class GlassMaterial : public Material {
           uRoughness(uRoughness),
           vRoughness(vRoughness),
           index(index),
+          fluorescence(fluorescence),
           bumpMap(bumpMap),
           remapRoughness(remapRoughness) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -71,6 +74,7 @@ class GlassMaterial : public Material {
     std::shared_ptr<Texture<Spectrum>> Kr, Kt;
     std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
     std::shared_ptr<Texture<Float>> index;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;
 };

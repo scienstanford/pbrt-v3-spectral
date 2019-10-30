@@ -38,6 +38,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -53,14 +54,21 @@ void MirrorMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     if (!R.IsBlack())
         si->bsdf->Add(ARENA_ALLOC(arena, SpecularReflection)(
             R, ARENA_ALLOC(arena, FresnelNoOp)()));
+    
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 MirrorMaterial *CreateMirrorMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<Spectrum>> Kr =
         mp.GetSpectrumTexture("Kr", Spectrum(0.9f));
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new MirrorMaterial(Kr, bumpMap);
+    return new MirrorMaterial(Kr, fluorescence, bumpMap);
 }
 
 }  // namespace pbrt

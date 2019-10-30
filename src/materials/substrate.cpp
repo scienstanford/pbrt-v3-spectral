@@ -38,6 +38,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -61,6 +62,11 @@ void SubstrateMaterial::ComputeScatteringFunctions(
         MicrofacetDistribution *distrib =
             ARENA_ALLOC(arena, TrowbridgeReitzDistribution)(roughu, roughv);
         si->bsdf->Add(ARENA_ALLOC(arena, FresnelBlend)(d, s, distrib));
+        
+    }
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
     }
 }
 
@@ -73,10 +79,12 @@ SubstrateMaterial *CreateSubstrateMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("uroughness", .1f);
     std::shared_ptr<Texture<Float>> vroughness =
         mp.GetFloatTexture("vroughness", .1f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new SubstrateMaterial(Kd, Ks, uroughness, vroughness, bumpMap,
+    return new SubstrateMaterial(Kd, Ks, uroughness, vroughness, fluorescence, bumpMap,
                                  remapRoughness);
 }
 

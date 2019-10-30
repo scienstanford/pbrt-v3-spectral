@@ -34,6 +34,7 @@
 #include "materials/fourier.h"
 #include "interaction.h"
 #include "paramset.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -199,8 +200,9 @@ fail:
 }
 
 FourierMaterial::FourierMaterial(const std::string &filename,
+                                 const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                                  const std::shared_ptr<Texture<Float>> &bumpMap)
-    : bumpMap(bumpMap) {
+    : bumpMap(bumpMap), fluorescence(fluorescence) {
     if (loadedBSDFs.find(filename) == loadedBSDFs.end()) {
         std::unique_ptr<FourierBSDFTable> table(new FourierBSDFTable);
         FourierBSDFTable::Read(filename, table.get());
@@ -219,12 +221,18 @@ void FourierMaterial::ComputeScatteringFunctions(
     // table was successfully read from the file.
     if (bsdfTable->nChannels > 0)
         si->bsdf->Add(ARENA_ALLOC(arena, FourierBSDF)(*bsdfTable, mode));
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 FourierMaterial *CreateFourierMaterial(const TextureParams &mp) {
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new FourierMaterial(mp.FindFilename("bsdffile"), bumpMap);
+    return new FourierMaterial(mp.FindFilename("bsdffile"), fluorescence, bumpMap);
 }
 
 }  // namespace pbrt

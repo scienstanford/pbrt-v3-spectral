@@ -38,6 +38,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -77,6 +78,11 @@ void TranslucentMaterial::ComputeScatteringFunctions(
             si->bsdf->Add(ARENA_ALLOC(arena, MicrofacetTransmission)(
                 t * ks, distrib, 1.f, eta, mode));
     }
+    
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 TranslucentMaterial *CreateTranslucentMaterial(const TextureParams &mp) {
@@ -90,10 +96,12 @@ TranslucentMaterial *CreateTranslucentMaterial(const TextureParams &mp) {
         mp.GetSpectrumTexture("transmit", Spectrum(0.5f));
     std::shared_ptr<Texture<Float>> roughness =
         mp.GetFloatTexture("roughness", .1f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new TranslucentMaterial(Kd, Ks, roughness, reflect, transmit,
+    return new TranslucentMaterial(Kd, Ks, roughness, reflect, transmit, fluorescence,
                                    bumpMap, remapRoughness);
 }
 

@@ -58,6 +58,7 @@ class SubsurfaceMaterial : public Material {
                        Float g, Float eta,
                        const std::shared_ptr<Texture<Float>> &uRoughness,
                        const std::shared_ptr<Texture<Float>> &vRoughness,
+                       const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                        const std::shared_ptr<Texture<Float>> &bumpMap,
                        bool remapRoughness)
         : scale(scale),
@@ -67,6 +68,7 @@ class SubsurfaceMaterial : public Material {
           sigma_s(sigma_s),
           uRoughness(uRoughness),
           vRoughness(vRoughness),
+          fluorescence(fluorescence),
           bumpMap(bumpMap),
           eta(eta),
           remapRoughness(remapRoughness),
@@ -83,6 +85,7 @@ class SubsurfaceMaterial : public Material {
     std::shared_ptr<Texture<Spectrum>> Kr, Kt, sigma_a, sigma_s;
     std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
     std::shared_ptr<Texture<Float>> bumpMap;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     const Float eta;
     const bool remapRoughness;
     BSSRDFTable table;

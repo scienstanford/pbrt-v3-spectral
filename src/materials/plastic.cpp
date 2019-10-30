@@ -38,6 +38,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -67,6 +68,11 @@ void PlasticMaterial::ComputeScatteringFunctions(
             ARENA_ALLOC(arena, MicrofacetReflection)(ks, distrib, fresnel);
         si->bsdf->Add(spec);
     }
+    
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 PlasticMaterial *CreatePlasticMaterial(const TextureParams &mp) {
@@ -76,10 +82,12 @@ PlasticMaterial *CreatePlasticMaterial(const TextureParams &mp) {
         mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     std::shared_ptr<Texture<Float>> roughness =
         mp.GetFloatTexture("roughness", .1f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new PlasticMaterial(Kd, Ks, roughness, bumpMap, remapRoughness);
+    return new PlasticMaterial(Kd, Ks, roughness, fluorescence, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

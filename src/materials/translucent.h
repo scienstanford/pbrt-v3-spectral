@@ -41,6 +41,7 @@
 // materials/translucent.h*
 #include "pbrt.h"
 #include "material.h"
+#include "photolumi.h"
 
 namespace pbrt {
 
@@ -53,16 +54,17 @@ class TranslucentMaterial : public Material {
                         const std::shared_ptr<Texture<Float>> &rough,
                         const std::shared_ptr<Texture<Spectrum>> &refl,
                         const std::shared_ptr<Texture<Spectrum>> &trans,
+                        const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                         const std::shared_ptr<Texture<Float>> &bump,
-                        bool remap) {
-        Kd = kd;
-        Ks = ks;
-        roughness = rough;
-        reflect = refl;
-        transmit = trans;
-        bumpMap = bump;
-        remapRoughness = remap;
-    }
+                        bool remap) : Kd(kd),
+                                    Ks(ks),
+                                    roughness(rough),
+                                    reflect(refl),
+                                    transmit(trans),
+                                    fluorescence(fluorescence),
+                                    bumpMap(bump),
+                                    remapRoughness(remap) {}
+    
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
                                     bool allowMultipleLobes) const;
@@ -72,6 +74,7 @@ class TranslucentMaterial : public Material {
     std::shared_ptr<Texture<Spectrum>> Kd, Ks;
     std::shared_ptr<Texture<Float>> roughness;
     std::shared_ptr<Texture<Spectrum>> reflect, transmit;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;
 };

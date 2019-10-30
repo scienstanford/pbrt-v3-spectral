@@ -38,6 +38,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -89,6 +90,10 @@ void GlassMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
                     T, distrib, 1.f, eta, mode));
         }
     }
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 }
 
 GlassMaterial *CreateGlassMaterial(const TextureParams &mp) {
@@ -102,10 +107,12 @@ GlassMaterial *CreateGlassMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("uroughness", 0.f);
     std::shared_ptr<Texture<Float>> roughv =
         mp.GetFloatTexture("vroughness", 0.f);
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence =
+        mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new GlassMaterial(Kr, Kt, roughu, roughv, eta, bumpMap,
+    return new GlassMaterial(Kr, Kt, roughu, roughv, eta, fluorescence, bumpMap,
                              remapRoughness);
 }
 

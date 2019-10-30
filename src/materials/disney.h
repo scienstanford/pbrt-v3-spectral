@@ -63,6 +63,7 @@ class DisneyMaterial : public Material {
                    bool thin,
                    const std::shared_ptr<Texture<Float>> &flatness,
                    const std::shared_ptr<Texture<Float>> &diffTrans,
+                   const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                    const std::shared_ptr<Texture<Float>> &bumpMap)
         : color(color),
           metallic(metallic),
@@ -79,6 +80,7 @@ class DisneyMaterial : public Material {
           thin(thin),
           flatness(flatness),
           diffTrans(diffTrans),
+          fluorescence(fluorescence),
           bumpMap(bumpMap) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
@@ -94,6 +96,7 @@ class DisneyMaterial : public Material {
     std::shared_ptr<Texture<Spectrum>> scatterDistance;
     bool thin;
     std::shared_ptr<Texture<Float>> flatness, diffTrans, bumpMap;
+    std::shared_ptr<Texture<PhotoLumi>> fluorescence;
 };
 
 DisneyMaterial *CreateDisneyMaterial(const TextureParams &mp);
