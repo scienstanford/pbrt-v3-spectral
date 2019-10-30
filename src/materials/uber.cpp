@@ -101,10 +101,10 @@ void UberMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
         si->bsdf->Add(
             ARENA_ALLOC(arena, SpecularTransmission)(kt, 1.f, e, mode));
     
-//    if (fluorescence != nullptr) {
-//      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-//          fluorescence->Evaluate(*si));
-//    }
+    if (fluorescence != nullptr) {
+      si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si));
+    }
 
 }
 
