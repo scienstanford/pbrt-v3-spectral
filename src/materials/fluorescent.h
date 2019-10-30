@@ -25,11 +25,11 @@ namespace pbrt {
 class FluorescentMaterial : public Material {
     public:
         // FluorescentMaterial Public Methods
-        FluorescentMaterial(const std::shared_ptr<Texture<PhotoLumi>> &reRadMatrix,
+        FluorescentMaterial(const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
                             const std::shared_ptr<Texture<Float>> &bumpMap,
                             const std::shared_ptr<Texture<Spectrum>> &Kd,
                             const std::shared_ptr<Texture<Float>> &sigma)
-            : reRadMatrix(reRadMatrix),
+            : fluorescence(fluorescence),
               bumpMap(bumpMap),
               Kd(Kd),
               sigma(sigma){}
@@ -39,7 +39,7 @@ class FluorescentMaterial : public Material {
     
     private:
         // FluorescentMaterial Private Data
-        std::shared_ptr<Texture<PhotoLumi>> reRadMatrix;
+        std::shared_ptr<Texture<PhotoLumi>> fluorescence;
         std::shared_ptr<Texture<Float>> bumpMap;
         std::shared_ptr<Texture<Spectrum>> Kd;
     std::shared_ptr<Texture<Float>> sigma;

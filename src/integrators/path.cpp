@@ -128,8 +128,17 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         BxDFType flags;
         
         // Account for fluorescent scattering, if applicable
+        // Create a beta for fluorescent material calculation.
+        // betaFluores stores the beta upto now, then if fluorescent
+        // scattering is applicable, make a copy of the current beta,
+        // multiply the current copy with the bbrrdf(donaldson matrix)
+        // Afterwards, we'll use the beta (without multiplication)
+        // to update the non-fluorescent part, and add the fluorescent beta
+        // and non-fluorescent beta together.
+        PhotoLumi betaFluores = PhotoLumi::Zero();
         if (isect.bbrrdf) {
-          beta *= isect.bbrrdf->Sample_f(
+          betaFluores = beta;
+          betaFluores *= isect.bbrrdf->Sample_f(
               wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
         }
 
@@ -140,7 +149,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             ++totalPaths;
             Spectrum tmpLe = UniformSampleOneLight(isect, scene, arena,
                                                    sampler, false, distrib);
-            Spectrum Ld = (beta * tmpLe.matrix()).array();
+            Spectrum Ld = ((beta + betaFluores) * tmpLe.matrix()).array();
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -152,7 +161,8 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
         
-        beta = (beta.array().rowwise() * f.transpose() * AbsDot(wi, isect.shading.n) / pdf).matrix();
+        // Here is the new expression of updating beta.
+        beta = (((beta.array().rowwise() * f.transpose()).matrix() + betaFluores) * AbsDot(wi, isect.shading.n) / pdf);
         VLOG(2) << "Updated beta = " << beta;
         specularBounce = (flags & BSDF_SPECULAR) != 0;
         if ((flags & BSDF_SPECULAR) && (flags & BSDF_TRANSMISSION)) {
