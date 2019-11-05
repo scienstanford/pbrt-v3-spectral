@@ -75,6 +75,26 @@ class SurfaceBBRRDF : public BBRRDF {
         Float Pdf(const Vector3f &wo, const Vector3f &wi) const override;
 };
 
+class ScaledSurfaceBBRRDF : public SurfaceBBRRDF {
+  public:
+    ScaledSurfaceBBRRDF(SurfaceBBRRDF *bbrrdf, const Spectrum &scale)
+        : SurfaceBBRRDF(reRadMatrix), scale(scale) {}
+    PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const {
+        return (bbrrdf->f(wo, wi).array().rowwise() * scale.transpose()).matrix();
+    }
+    PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
+                       const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
+                       BxDFType *sampledType = nullptr) const {
+        PhotoLumi f = bbrrdf->Sample_f(wo, wi, sample, pdf, type, sampledType);
+        return (f.array().rowwise() * scale.transpose()).matrix();
+    }
+    
+  
+  private:
+    BBRRDF *bbrrdf;
+    Spectrum scale;
+};
+
 } // pbrt namespace
 
 #endif // PBRT_CORE_BBRRDF_H
