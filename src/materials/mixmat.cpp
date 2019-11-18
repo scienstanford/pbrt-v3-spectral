@@ -39,6 +39,7 @@
 #include "paramset.h"
 #include "texture.h"
 #include "interaction.h"
+#include "bbrrdf.h"
 
 namespace pbrt {
 
@@ -62,6 +63,16 @@ void MixMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
             ARENA_ALLOC(arena, ScaledBxDF)(si->bsdf->bxdfs[i], s1);
     for (int i = 0; i < n2; ++i)
         si->bsdf->Add(ARENA_ALLOC(arena, ScaledBxDF)(si2.bsdf->bxdfs[i], s2));
+    
+    // Initialize _si->bbrrdf_ with weighted mixture of _BBRRDF_s
+    int f1 = si->bbrrdf->NumComponents(), f2 = si2.bbrrdf->NumComponents();
+    for (int i = 0; i < f1; ++i)
+        si->bbrrdf->bbrrdfs[i] =
+            ARENA_ALLOC(arena, ScaledSurfaceBBRRDF)(si->bbrrdf->bbrrdfs[i], s1);
+    
+    for (int i = 0; i < f2; ++i)
+        si->bbrrdf->Add(ARENA_ALLOC(arena, ScaledSurfaceBBRRDF)(si2.bbrrdf->bbrrdfs[i], s2));
+    
 }
 
 MixMaterial *CreateMixMaterial(const TextureParams &mp,

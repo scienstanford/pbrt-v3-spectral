@@ -41,6 +41,7 @@
 // materials/mixmat.h*
 #include "pbrt.h"
 #include "material.h"
+#include "photolumi.h"
 
 namespace pbrt {
 

@@ -147,7 +147,7 @@ class SurfaceInteraction : public Interaction {
     const Primitive *primitive = nullptr;
     BSDF *bsdf = nullptr;
     BSSRDF *bssrdf = nullptr;
-    BBRRDF *bbrrdf = nullptr;
+    SurfaceBBRRDF *bbrrdf = nullptr;
     mutable Vector3f dpdx, dpdy;
     mutable Float dudx = 0, dvdx = 0, dudy = 0, dvdy = 0;
     

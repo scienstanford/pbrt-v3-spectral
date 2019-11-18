@@ -64,6 +64,10 @@ void MatteMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
           fluorescence->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+        fluorescence->Evaluate(*si)));
+        
     }
 }
 

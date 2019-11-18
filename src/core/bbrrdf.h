@@ -33,13 +33,20 @@ class BBRRDF {
                            const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
                            BxDFType *sampledType = nullptr) const = 0;
         virtual Float Pdf(const Vector3f &wo, const Vector3f &wi) const = 0;
-    
+        int NumComponents() const;
+
     
     protected:
         // BBRRDF Protected Data
+        int nBBRRDFs = 0;
+        static PBRT_CONSTEXPR int MaxBBRRDFs = 8;
         PhotoLumi reRadMatrix;
-    
+
 };
+
+inline int BBRRDF::NumComponents() const {
+    return nBBRRDFs;
+}
 
 //class SubSurfaceBBRRDF : public BBRRDF {
 //    public:
@@ -67,20 +74,29 @@ class SurfaceBBRRDF : public BBRRDF {
         explicit SurfaceBBRRDF(PhotoLumi reRadMatrix)
             : BBRRDF(std::move(reRadMatrix)) {}
     
+        void Add(SurfaceBBRRDF *b) {
+            CHECK_LT(nBBRRDFs, MaxBBRRDFs);
+            bbrrdfs[nBBRRDFs++] = b;
+        }
         // The functions below are temporarily used for demo, which are not true
         PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const override;
         PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
                            const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
                            BxDFType *sampledType = nullptr) const override;
         Float Pdf(const Vector3f &wo, const Vector3f &wi) const override;
+    private:
+        SurfaceBBRRDF *bbrrdfs[MaxBBRRDFs];
+        friend class MixMaterial;
+
+
 };
 
 class ScaledSurfaceBBRRDF : public SurfaceBBRRDF {
   public:
     ScaledSurfaceBBRRDF(SurfaceBBRRDF *bbrrdf, const Spectrum &scale)
-        : SurfaceBBRRDF(reRadMatrix), scale(scale) {}
+        : SurfaceBBRRDF(reRadMatrix), bbrrdf(bbrrdf), scale(scale) {}
     PhotoLumi f(const Vector3f &wo, const Vector3f &wi) const {
-        return (bbrrdf->f(wo, wi).array().rowwise() * scale.transpose()).matrix();
+        return ((bbrrdf->f(wo, wi)).array().rowwise() * scale.transpose()).matrix();
     }
     PhotoLumi Sample_f(const Vector3f &wo, Vector3f *wi,
                        const Point2f &sample, Float *pdf, BxDFType type = BSDF_ALL,
