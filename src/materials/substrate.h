@@ -53,6 +53,7 @@ class SubstrateMaterial : public Material {
                       const std::shared_ptr<Texture<Float>> &nu,
                       const std::shared_ptr<Texture<Float>> &nv,
                       const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                      const std::shared_ptr<Texture<Float>> &concentration,
                       const std::shared_ptr<Texture<Float>> &bumpMap,
                       bool remapRoughness)
         : Kd(Kd),
@@ -60,6 +61,7 @@ class SubstrateMaterial : public Material {
           nu(nu),
           nv(nv),
           fluorescence(fluorescence),
+          concentration(concentration),
           bumpMap(bumpMap),
           remapRoughness(remapRoughness) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -69,7 +71,7 @@ class SubstrateMaterial : public Material {
   private:
     // SubstrateMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Ks;
-    std::shared_ptr<Texture<Float>> nu, nv;
+    std::shared_ptr<Texture<Float>> nu, nv, concentration;
     std::shared_ptr<Texture<Float>> bumpMap;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     bool remapRoughness;

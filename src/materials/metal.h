@@ -56,6 +56,7 @@ class MetalMaterial : public Material {
                   const std::shared_ptr<Texture<Float>> &urough,
                   const std::shared_ptr<Texture<Float>> &vrough,
                   const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                  const std::shared_ptr<Texture<Float>> &concentration,
                   const std::shared_ptr<Texture<Float>> &bump,
                   bool remapRoughness);
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -65,7 +66,7 @@ class MetalMaterial : public Material {
   private:
     // MetalMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> eta, k;
-    std::shared_ptr<Texture<Float>> roughness, uRoughness, vRoughness;
+    std::shared_ptr<Texture<Float>> roughness, uRoughness, vRoughness, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;

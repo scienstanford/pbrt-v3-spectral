@@ -92,7 +92,10 @@ void GlassMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     }
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -109,10 +112,12 @@ GlassMaterial *CreateGlassMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("vroughness", 0.f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new GlassMaterial(Kr, Kt, roughu, roughv, eta, fluorescence, bumpMap,
+    return new GlassMaterial(Kr, Kt, roughu, roughv, eta, fluorescence, concentration, bumpMap,
                              remapRoughness);
 }
 

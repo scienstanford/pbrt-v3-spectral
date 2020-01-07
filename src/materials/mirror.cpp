@@ -57,7 +57,10 @@ void MirrorMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -66,9 +69,11 @@ MirrorMaterial *CreateMirrorMaterial(const TextureParams &mp) {
         mp.GetSpectrumTexture("Kr", Spectrum(0.9f));
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new MirrorMaterial(Kr, fluorescence, bumpMap);
+    return new MirrorMaterial(Kr, fluorescence, concentration,bumpMap);
 }
 
 }  // namespace pbrt

@@ -59,6 +59,7 @@ class SubsurfaceMaterial : public Material {
                        const std::shared_ptr<Texture<Float>> &uRoughness,
                        const std::shared_ptr<Texture<Float>> &vRoughness,
                        const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                       const std::shared_ptr<Texture<Float>> &concentration,
                        const std::shared_ptr<Texture<Float>> &bumpMap,
                        bool remapRoughness)
         : scale(scale),
@@ -69,6 +70,7 @@ class SubsurfaceMaterial : public Material {
           uRoughness(uRoughness),
           vRoughness(vRoughness),
           fluorescence(fluorescence),
+          concentration(concentration),
           bumpMap(bumpMap),
           eta(eta),
           remapRoughness(remapRoughness),
@@ -83,7 +85,7 @@ class SubsurfaceMaterial : public Material {
     // SubsurfaceMaterial Private Data
     const Float scale;
     std::shared_ptr<Texture<Spectrum>> Kr, Kt, sigma_a, sigma_s;
-    std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
+    std::shared_ptr<Texture<Float>> uRoughness, vRoughness, concentration;
     std::shared_ptr<Texture<Float>> bumpMap;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     const Float eta;

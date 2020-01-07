@@ -71,7 +71,10 @@ void PlasticMaterial::ComputeScatteringFunctions(
     
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -84,10 +87,12 @@ PlasticMaterial *CreatePlasticMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("roughness", .1f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new PlasticMaterial(Kd, Ks, roughness, fluorescence, bumpMap, remapRoughness);
+    return new PlasticMaterial(Kd, Ks, roughness, fluorescence, concentration,bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

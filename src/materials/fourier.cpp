@@ -201,8 +201,9 @@ fail:
 
 FourierMaterial::FourierMaterial(const std::string &filename,
                                  const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                                 const std::shared_ptr<Texture<Float>> &concentration,
                                  const std::shared_ptr<Texture<Float>> &bumpMap)
-    : bumpMap(bumpMap), fluorescence(fluorescence) {
+    : bumpMap(bumpMap), fluorescence(fluorescence), concentration(concentration) {
     if (loadedBSDFs.find(filename) == loadedBSDFs.end()) {
         std::unique_ptr<FourierBSDFTable> table(new FourierBSDFTable);
         FourierBSDFTable::Read(filename, table.get());
@@ -223,16 +224,21 @@ void FourierMaterial::ComputeScatteringFunctions(
         si->bsdf->Add(ARENA_ALLOC(arena, FourierBSDF)(*bsdfTable, mode));
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
 FourierMaterial *CreateFourierMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new FourierMaterial(mp.FindFilename("bsdffile"), fluorescence, bumpMap);
+    return new FourierMaterial(mp.FindFilename("bsdffile"), fluorescence, concentration, bumpMap);
 }
 
 }  // namespace pbrt

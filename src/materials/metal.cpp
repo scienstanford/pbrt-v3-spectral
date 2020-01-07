@@ -48,6 +48,7 @@ MetalMaterial::MetalMaterial(const std::shared_ptr<Texture<Spectrum>> &eta,
                              const std::shared_ptr<Texture<Float>> &uRoughness,
                              const std::shared_ptr<Texture<Float>> &vRoughness,
                              const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                             const std::shared_ptr<Texture<Float>> &concentration,
                              const std::shared_ptr<Texture<Float>> &bumpMap,
                              bool remapRoughness)
     : eta(eta),
@@ -56,6 +57,7 @@ MetalMaterial::MetalMaterial(const std::shared_ptr<Texture<Spectrum>> &eta,
       uRoughness(uRoughness),
       vRoughness(vRoughness),
       fluorescence(fluorescence),
+      concentration(concentration),
       bumpMap(bumpMap),
       remapRoughness(remapRoughness) {}
 
@@ -82,9 +84,12 @@ void MetalMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     si->bsdf->Add(ARENA_ALLOC(arena, MicrofacetReflection)(
         Spectrum::Ones(), distrib, frMf));
 
-    if (fluorescence) {
+    if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -137,11 +142,13 @@ MetalMaterial *CreateMetalMaterial(const TextureParams &mp) {
         mp.GetFloatTextureOrNull("vroughness");
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new MetalMaterial(eta, k, roughness, uRoughness, vRoughness,
-        fluorescence, bumpMap, remapRoughness);
+        fluorescence, concentration,bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

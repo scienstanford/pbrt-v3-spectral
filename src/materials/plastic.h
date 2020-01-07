@@ -53,12 +53,14 @@ class PlasticMaterial : public Material {
                     const std::shared_ptr<Texture<Spectrum>> &Ks,
                     const std::shared_ptr<Texture<Float>> &roughness,
                     const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                    const std::shared_ptr<Texture<Float>> &concentration,
                     const std::shared_ptr<Texture<Float>> &bumpMap,
                     bool remapRoughness)
         : Kd(Kd),
           Ks(Ks),
           roughness(roughness),
           fluorescence(fluorescence),
+          concentration(concentration),
           bumpMap(bumpMap),
           remapRoughness(remapRoughness) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -69,7 +71,7 @@ class PlasticMaterial : public Material {
     // PlasticMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Ks;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
-    std::shared_ptr<Texture<Float>> roughness, bumpMap;
+    std::shared_ptr<Texture<Float>> roughness, bumpMap, concentration;
     const bool remapRoughness;
 };
 

@@ -57,6 +57,7 @@ class retroreflectiveMaterial : public Material {
                             const std::shared_ptr<Texture<Float>> &uRoughness,
                             const std::shared_ptr<Texture<Float>> &vRoughness,
                             const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                            const std::shared_ptr<Texture<Float>> &concentration,
                             const std::shared_ptr<Texture<Float>> &bumpMap,
                             bool remapRoughness)
    
@@ -68,6 +69,7 @@ class retroreflectiveMaterial : public Material {
         uRoughness(uRoughness),
         vRoughness(vRoughness),
         fluorescence(fluorescence),
+        concentration(concentration),
         bumpMap(bumpMap),
         remapRoughness(remapRoughness),
         table(100, 64) {
@@ -80,7 +82,7 @@ void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
   private:
     // RetroreflectiveMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Kr, Ks;
-    std::shared_ptr<Texture<Float>> sigma,roughness, uRoughness, vRoughness;
+    std::shared_ptr<Texture<Float>> sigma,roughness, uRoughness, vRoughness, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;

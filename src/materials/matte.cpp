@@ -63,11 +63,10 @@ void MatteMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
 
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
       // This need to be replaced by other scattering function at some time.
       si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
-        fluorescence->Evaluate(*si)));
-        
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -77,9 +76,11 @@ MatteMaterial *CreateMatteMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<Float>> sigma = mp.GetFloatTexture("sigma", 0.f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
-    return new MatteMaterial(Kd, sigma, fluorescence, bumpMap);
+    return new MatteMaterial(Kd, sigma, fluorescence, concentration,bumpMap);
 }
 
 }  // namespace pbrt

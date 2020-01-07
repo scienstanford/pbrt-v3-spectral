@@ -98,7 +98,10 @@ void SubsurfaceMaterial::ComputeScatteringFunctions(
                                                      sig_a, sig_s, table);
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -134,11 +137,13 @@ SubsurfaceMaterial *CreateSubsurfaceMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("vroughness", 0.f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new SubsurfaceMaterial(scale, Kr, Kt, sigma_a, sigma_s, g, eta,
-                                  roughu, roughv, fluorescence, bumpMap, remapRoughness);
+                                  roughu, roughv, fluorescence, concentration,bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

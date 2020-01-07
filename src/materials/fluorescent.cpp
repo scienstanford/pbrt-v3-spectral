@@ -37,18 +37,23 @@ void FluorescentMaterial::ComputeScatteringFunctions(
 
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
 FluorescentMaterial *CreateFluorescentMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     std::shared_ptr<Texture<Spectrum>> Kd =
         mp.GetSpectrumTexture("Kd", Spectrum(0.5f));
     std::shared_ptr<Texture<Float>> sigma = mp.GetFloatTexture("sigma", 0.f);
-    return new FluorescentMaterial(fluorescence, bumpMap, Kd, sigma);
+    return new FluorescentMaterial(fluorescence, concentration, bumpMap, Kd, sigma);
 }
 }

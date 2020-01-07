@@ -55,6 +55,7 @@ class GlassMaterial : public Material {
                   const std::shared_ptr<Texture<Float>> &vRoughness,
                   const std::shared_ptr<Texture<Float>> &index,
                   const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                  const std::shared_ptr<Texture<Float>> &concentration,
                   const std::shared_ptr<Texture<Float>> &bumpMap,
                   bool remapRoughness)
         : Kr(Kr),
@@ -63,6 +64,7 @@ class GlassMaterial : public Material {
           vRoughness(vRoughness),
           index(index),
           fluorescence(fluorescence),
+          concentration(concentration),
           bumpMap(bumpMap),
           remapRoughness(remapRoughness) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -73,7 +75,7 @@ class GlassMaterial : public Material {
     // GlassMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kr, Kt;
     std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
-    std::shared_ptr<Texture<Float>> index;
+    std::shared_ptr<Texture<Float>> index, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     bool remapRoughness;

@@ -60,6 +60,7 @@ class KdSubsurfaceMaterial : public Material {
                          const std::shared_ptr<Texture<Float>> &uRoughness,
                          const std::shared_ptr<Texture<Float>> &vRoughness,
                          const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                         const std::shared_ptr<Texture<Float>> &concentration,
                          const std::shared_ptr<Texture<Float>> &bumpMap,
                          bool remapRoughness)
         : scale(scale),
@@ -70,6 +71,7 @@ class KdSubsurfaceMaterial : public Material {
           uRoughness(uRoughness),
           vRoughness(vRoughness),
           fluorescence(fluorescence),
+          concentration(concentration),
           bumpMap(bumpMap),
           eta(eta),
           remapRoughness(remapRoughness),
@@ -84,7 +86,7 @@ class KdSubsurfaceMaterial : public Material {
     // KdSubsurfaceMaterial Private Data
     Float scale;
     std::shared_ptr<Texture<Spectrum>> Kd, Kr, Kt, mfp;
-    std::shared_ptr<Texture<Float>> uRoughness, vRoughness;
+    std::shared_ptr<Texture<Float>> uRoughness, vRoughness, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;
     Float eta;

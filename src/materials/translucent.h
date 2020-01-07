@@ -55,6 +55,7 @@ class TranslucentMaterial : public Material {
                         const std::shared_ptr<Texture<Spectrum>> &refl,
                         const std::shared_ptr<Texture<Spectrum>> &trans,
                         const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                        const std::shared_ptr<Texture<Float>> &concentration,
                         const std::shared_ptr<Texture<Float>> &bump,
                         bool remap) : Kd(kd),
                                     Ks(ks),
@@ -62,6 +63,7 @@ class TranslucentMaterial : public Material {
                                     reflect(refl),
                                     transmit(trans),
                                     fluorescence(fluorescence),
+                                    concentration(concentration),
                                     bumpMap(bump),
                                     remapRoughness(remap) {}
     
@@ -72,7 +74,7 @@ class TranslucentMaterial : public Material {
   private:
     // TranslucentMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Ks;
-    std::shared_ptr<Texture<Float>> roughness;
+    std::shared_ptr<Texture<Float>> roughness, concentration;
     std::shared_ptr<Texture<Spectrum>> reflect, transmit;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     std::shared_ptr<Texture<Float>> bumpMap;

@@ -168,7 +168,10 @@ void HairMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -224,11 +227,13 @@ HairMaterial *CreateHairMaterial(const TextureParams &mp) {
     std::shared_ptr<Texture<Float>> eta = mp.GetFloatTexture("eta", 1.55f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> beta_m = mp.GetFloatTexture("beta_m", 0.3f);
     std::shared_ptr<Texture<Float>> beta_n = mp.GetFloatTexture("beta_n", 0.3f);
     std::shared_ptr<Texture<Float>> alpha = mp.GetFloatTexture("alpha", 2.f);
 
-    return new HairMaterial(sigma_a, color, eumelanin, pheomelanin, eta, fluorescence, beta_m, beta_n, alpha);
+    return new HairMaterial(sigma_a, color, eumelanin, pheomelanin, eta, fluorescence, concentration, beta_m, beta_n, alpha);
 }
 
 // HairBSDF Method Definitions

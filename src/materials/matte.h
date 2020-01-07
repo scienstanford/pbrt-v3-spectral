@@ -52,8 +52,9 @@ class MatteMaterial : public Material {
     MatteMaterial(const std::shared_ptr<Texture<Spectrum>> &Kd,
                   const std::shared_ptr<Texture<Float>> &sigma,
                   const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                  const std::shared_ptr<Texture<Float>> &concentration,
                   const std::shared_ptr<Texture<Float>> &bumpMap)
-        : Kd(Kd), sigma(sigma), fluorescence(fluorescence), bumpMap(bumpMap) {}
+        : Kd(Kd), sigma(sigma), fluorescence(fluorescence), concentration(concentration),bumpMap(bumpMap) {}
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
                                     bool allowMultipleLobes) const;
@@ -61,7 +62,7 @@ class MatteMaterial : public Material {
   private:
     // MatteMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd;
-    std::shared_ptr<Texture<Float>> sigma, bumpMap;
+    std::shared_ptr<Texture<Float>> sigma, bumpMap, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
 };
 

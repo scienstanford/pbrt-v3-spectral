@@ -51,10 +51,12 @@ class MirrorMaterial : public Material {
     // MirrorMaterial Public Methods
     MirrorMaterial(const std::shared_ptr<Texture<Spectrum>> &r,
                    const std::shared_ptr<Texture<PhotoLumi>> &fluores,
+                   const std::shared_ptr<Texture<Float>> &concent,
                    const std::shared_ptr<Texture<Float>> &bump) {
         Kr = r;
         bumpMap = bump;
         fluorescence = fluores;
+        concentration = concent;
     }
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
@@ -64,7 +66,7 @@ class MirrorMaterial : public Material {
     // MirrorMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kr;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
-    std::shared_ptr<Texture<Float>> bumpMap;
+    std::shared_ptr<Texture<Float>> bumpMap, concentration;
 };
 
 MirrorMaterial *CreateMirrorMaterial(const TextureParams &mp);

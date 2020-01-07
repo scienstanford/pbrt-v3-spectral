@@ -64,6 +64,7 @@ class HairMaterial : public Material {
                  const std::shared_ptr<Texture<Float>> &pheomelanin,
                  const std::shared_ptr<Texture<Float>> &eta,
                  const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                 const std::shared_ptr<Texture<Float>> &concentration,
                  const std::shared_ptr<Texture<Float>> &beta_m,
                  const std::shared_ptr<Texture<Float>> &beta_n,
                  const std::shared_ptr<Texture<Float>> &alpha)
@@ -73,6 +74,7 @@ class HairMaterial : public Material {
           pheomelanin(pheomelanin),
           eta(eta),
           fluorescence(fluorescence),
+          concentration(concentration),
           beta_m(beta_m),
           beta_n(beta_n),
           alpha(alpha) {}
@@ -84,7 +86,7 @@ class HairMaterial : public Material {
     // HairMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> sigma_a, color;
     std::shared_ptr<Texture<Float>> eumelanin, pheomelanin, eta;
-    std::shared_ptr<Texture<Float>> beta_m, beta_n, alpha;
+    std::shared_ptr<Texture<Float>> beta_m, beta_n, alpha, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
 };
 

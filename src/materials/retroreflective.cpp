@@ -229,7 +229,10 @@ void retroreflectiveMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
 //}
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 
 }
@@ -251,10 +254,12 @@ retroreflectiveMaterial *CreateRetroreflectiveMaterial(const TextureParams &mp) 
         mp.GetFloatTextureOrNull("vroughness");
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     bool remapRoughness = mp.FindBool("remaproughness", true);
-    return new retroreflectiveMaterial(Kd, Kr, Ks, sigma, roughness, uRoughness, vRoughness, fluorescence, bumpMap,remapRoughness);
+    return new retroreflectiveMaterial(Kd, Kr, Ks, sigma, roughness, uRoughness, vRoughness, fluorescence, concentration, bumpMap,remapRoughness);
 }
 
 }  // namespace pbrt

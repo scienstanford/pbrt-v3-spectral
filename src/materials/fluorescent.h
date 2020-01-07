@@ -26,10 +26,12 @@ class FluorescentMaterial : public Material {
     public:
         // FluorescentMaterial Public Methods
         FluorescentMaterial(const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                            const std::shared_ptr<Texture<Float>> &concentration,
                             const std::shared_ptr<Texture<Float>> &bumpMap,
                             const std::shared_ptr<Texture<Spectrum>> &Kd,
                             const std::shared_ptr<Texture<Float>> &sigma)
             : fluorescence(fluorescence),
+              concentration(concentration),
               bumpMap(bumpMap),
               Kd(Kd),
               sigma(sigma){}
@@ -40,9 +42,9 @@ class FluorescentMaterial : public Material {
     private:
         // FluorescentMaterial Private Data
         std::shared_ptr<Texture<PhotoLumi>> fluorescence;
-        std::shared_ptr<Texture<Float>> bumpMap;
+        std::shared_ptr<Texture<Float>> bumpMap, concentration;
         std::shared_ptr<Texture<Spectrum>> Kd;
-    std::shared_ptr<Texture<Float>> sigma;
+        std::shared_ptr<Texture<Float>> sigma;
 };
     
 

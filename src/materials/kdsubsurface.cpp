@@ -98,7 +98,10 @@ void KdSubsurfaceMaterial::ComputeScatteringFunctions(
                                                      sig_a, sig_s, table);
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 }
 
@@ -118,6 +121,8 @@ KdSubsurfaceMaterial *CreateKdSubsurfaceMaterial(const TextureParams &mp) {
         mp.GetFloatTexture("vroughness", 0.f);
     std::shared_ptr<Texture<PhotoLumi>> fluorescence =
         mp.GetPhotoLumiTextureOrNull("fluorescence");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
     Float eta = mp.FindFloat("eta", 1.33f);
@@ -125,7 +130,7 @@ KdSubsurfaceMaterial *CreateKdSubsurfaceMaterial(const TextureParams &mp) {
     Float g = mp.FindFloat("g", 0.0f);
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new KdSubsurfaceMaterial(scale, kd, kr, kt, mfp, g, eta, roughu,
-                                    roughv, fluorescence, bumpMap, remapRoughness);
+                                    roughv, fluorescence, concentration, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

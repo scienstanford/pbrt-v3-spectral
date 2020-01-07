@@ -103,7 +103,10 @@ void UberMaterial::ComputeScatteringFunctions(SurfaceInteraction *si,
     
     if (fluorescence != nullptr) {
       si->bbrrdf = ARENA_ALLOC(arena, SurfaceBBRRDF)(
-          fluorescence->Evaluate(*si));
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si));
+      // This need to be replaced by other scattering function at some time.
+      si->bbrrdf->Add(ARENA_ALLOC(arena, SurfaceBBRRDF)(
+          fluorescence->Evaluate(*si) * concentration->Evaluate(*si)));
     }
 
 }
@@ -131,9 +134,11 @@ UberMaterial *CreateUberMaterial(const TextureParams &mp) {
         mp.GetPhotoLumiTextureOrNull("fluorescence");
     std::shared_ptr<Texture<Float>> bumpMap =
         mp.GetFloatTextureOrNull("bumpmap");
+    std::shared_ptr<Texture<Float>> concentration =
+        mp.GetFloatTexture("concentration", 1.f);
     bool remapRoughness = mp.FindBool("remaproughness", true);
     return new UberMaterial(Kd, Ks, Kr, Kt, roughness, uroughness, vroughness,
-                            opacity, eta, fluorescence, bumpMap, remapRoughness);
+                            opacity, eta, fluorescence, concentration, bumpMap, remapRoughness);
 }
 
 }  // namespace pbrt

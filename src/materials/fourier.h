@@ -54,6 +54,7 @@ class FourierMaterial : public Material {
     // FourierMaterial Public Methods
     FourierMaterial(const std::string &filename,
                     const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                    const std::shared_ptr<Texture<Float>> &concentration,
                     const std::shared_ptr<Texture<Float>> &bump);
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
                                     TransportMode mode,
@@ -62,7 +63,7 @@ class FourierMaterial : public Material {
   private:
     // FourierMaterial Private Data
     FourierBSDFTable *bsdfTable;
-    std::shared_ptr<Texture<Float>> bumpMap;
+    std::shared_ptr<Texture<Float>> bumpMap, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     static std::map<std::string, std::unique_ptr<FourierBSDFTable>> loadedBSDFs;
 };

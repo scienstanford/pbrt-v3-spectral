@@ -58,6 +58,7 @@ class UberMaterial : public Material {
                  const std::shared_ptr<Texture<Spectrum>> &opacity,
                  const std::shared_ptr<Texture<Float>> &eta,
                  const std::shared_ptr<Texture<PhotoLumi>> &fluorescence,
+                 const std::shared_ptr<Texture<Float>> &concentration,
                  const std::shared_ptr<Texture<Float>> &bumpMap,
                  bool remapRoughness)
         : Kd(Kd),
@@ -71,6 +72,7 @@ class UberMaterial : public Material {
           eta(eta),
           bumpMap(bumpMap),
           fluorescence(fluorescence),
+          concentration(concentration),
           remapRoughness(remapRoughness) {}
 
     void ComputeScatteringFunctions(SurfaceInteraction *si, MemoryArena &arena,
@@ -81,7 +83,7 @@ class UberMaterial : public Material {
     // UberMaterial Private Data
     std::shared_ptr<Texture<Spectrum>> Kd, Ks, Kr, Kt, opacity;
     std::shared_ptr<Texture<Float>> roughness, roughnessu, roughnessv, eta,
-        bumpMap;
+        bumpMap, concentration;
     std::shared_ptr<Texture<PhotoLumi>> fluorescence;
     bool remapRoughness;
 };
