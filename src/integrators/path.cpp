@@ -162,7 +162,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (f.IsBlack() || pdf == 0.f) break;
         
         // Here is the new expression of updating beta.
-        beta = ((beta.array().rowwise() * f.transpose()) * AbsDot(wi, isect.shading.n) / pdf).matrix() + betaFluores;
+        beta = ((beta.array().rowwise() * f.transpose()) * AbsDot(wi, isect.shading.n) / pdf).matrix() + betaFluores * AbsDot(wi, isect.shading.n) / pdf;
         VLOG(2) << "Updated beta = " << beta;
         specularBounce = (flags & BSDF_SPECULAR) != 0;
         if ((flags & BSDF_SPECULAR) && (flags & BSDF_TRANSMISSION)) {

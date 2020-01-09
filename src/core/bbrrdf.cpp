@@ -2,7 +2,11 @@
 //  bbrrdf.cpp
 //  bsdftest
 //
-//  Created by ZhengLyu on 7/5/19.
+//  We would for now assume Bidirectional Bispectral reflection and reradiation
+//  distribution function follows Lambertian distribution, as mentioned in multiple
+//  articles.
+//
+//  ZhengLyu & Haomiao, 2020
 //
 
 #include "reflection.h"
@@ -19,17 +23,8 @@
 
 namespace pbrt {
 
-//PhotoLumi SubSurfaceBBRRDF::S(const SurfaceInteraction &pi, const Vector3f &wi) const {
-////    // Adapted from Sw
-////    Float c = 1 - 2 * FresnelMoment1(1 / eta);
-////    Spectrum f = (1 - FrDielectric(CosTheta(w), 1, eta)) / (c * Pi);
-////    return reRadMatrix * f;
-//    Spectrum tmpSp = Spectrum(1.f);
-//    return reRadMatrix * tmpSp;
-//}
-
 PhotoLumi SurfaceBBRRDF::f(const Vector3f &wo, const Vector3f &wi) const {
-    return reRadMatrix;
+    return reRadMatrix * InvPi;
 }
 
 PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f *wi,
@@ -48,6 +43,7 @@ PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f *wi,
 }
 
 Float SurfaceBBRRDF::Pdf(const Vector3f &wo, const Vector3f &wi) const {
+    // Bought from BxDF
     return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * InvPi : 0;
 }
 
