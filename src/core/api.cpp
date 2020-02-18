@@ -64,6 +64,7 @@
 #include "integrators/mlt.h"
 #include "integrators/ao.h"
 #include "integrators/spectralpath.h" // Added by Trisha
+#include "integrators/spectralvolpath.h" // Added by Trisha
 #include "integrators/path.h"
 #include "integrators/sppm.h"
 #include "integrators/volpath.h"
@@ -124,6 +125,7 @@
 #include "textures/wrinkled.h"
 #include "media/grid.h"
 #include "media/homogeneous.h"
+#include "media/water.h"
 
 #include <map>
 #include <stdio.h>
@@ -715,6 +717,14 @@ std::shared_ptr<Medium> MakeMedium(const std::string &name,
     Medium *m = NULL;
     if (name == "homogeneous") {
         m = new HomogeneousMedium(sig_a, sig_s, g);
+    } else if (name == "water")
+    {
+        Float cPlankton = paramSet.FindOneFloat("cPlankton", 0.1f);
+        Float aCDOM440 = paramSet.FindOneFloat("aCDOM440", 0.12f);
+        Float aNAP400 = paramSet.FindOneFloat("aNAP400", 0.13f);
+        Float cSmall = paramSet.FindOneFloat("cSmall", 0.01f);
+        Float cLarge = paramSet.FindOneFloat("cLarge", 0.02f);
+        m = createWaterMedium(cPlankton, aCDOM440, aNAP400, cSmall, cLarge);
     } else if (name == "heterogeneous") {
         int nitems;
         const Float *data = paramSet.FindFloat("density", &nitems);
@@ -1773,6 +1783,8 @@ Integrator *RenderOptions::MakeIntegrator() const {
         integrator = CreateSpectralPathIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "volpath")
         integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "spectralvolpath")
+        integrator = CreateSpectralVolPathIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "bdpt") {
         integrator = CreateBDPTIntegrator(IntegratorParams, sampler, camera);
     } else if (IntegratorName == "mlt") {
@@ -1789,7 +1801,7 @@ Integrator *RenderOptions::MakeIntegrator() const {
     }
 
     if (renderOptions->haveScatteringMedia && IntegratorName != "volpath" &&
-        IntegratorName != "bdpt" && IntegratorName != "mlt") {
+        IntegratorName != "bdpt" && IntegratorName != "mlt" && IntegratorName != "spectralvolpath") {
         Warning(
             "Scene has scattering media but \"%s\" integrator doesn't support "
             "volume scattering. Consider using \"volpath\", \"bdpt\", or "

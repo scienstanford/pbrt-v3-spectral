@@ -122,7 +122,7 @@ bool GeometricPrimitive::Intersect(const Ray &r,
     if (!shape->Intersect(r, &tHit, isect)) return false;
     r.tMax = tHit;
     isect->primitive = this;
-    isect->materialId = material->materialId; // Added by Trisha
+    isect->materialId = (material != NULL) ? material->materialId : 0; // Added by Trisha
     CHECK_GE(Dot(isect->n, isect->shading.n), 0.);
     // Initialize _SurfaceInteraction::mediumInterface_ after _Shape_
     // intersection

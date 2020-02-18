@@ -30,8 +30,8 @@
 
  */
 
-// integrators/volpath.cpp*
-#include "integrators/volpath.h"
+// integrators/spectralvolpath.cpp*
+#include "integrators/spectralvolpath.h"
 #include "bssrdf.h"
 #include "camera.h"
 #include "film.h"
@@ -39,21 +39,24 @@
 #include "paramset.h"
 #include "scene.h"
 #include "stats.h"
+#include "progressreporter.h"
+
 
 namespace pbrt {
 
 STAT_INT_DISTRIBUTION("Integrator/Path length", pathLength);
 STAT_COUNTER("Integrator/Volume interactions", volumeInteractions);
 STAT_COUNTER("Integrator/Surface interactions", surfaceInteractions);
+STAT_COUNTER("Integrator/Camera rays traced", nCameraRays);
 
 
 // VolPathIntegrator Method Definitions
-void VolPathIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
+void SpectralVolPathIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
     lightDistribution =
         CreateLightSampleDistribution(lightSampleStrategy, scene);
 }
 
-Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
+Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                                Sampler &sampler, MemoryArena &arena,
                                int depth) const {
     ProfilePhase p(Prof::SamplerIntegratorLi);
@@ -195,7 +198,155 @@ Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
     return L;
 }
 
-VolPathIntegrator *CreateVolPathIntegrator(
+// Overwrite render method
+void SpectralVolPathIntegrator::Render(const Scene &scene) {
+    
+    Preprocess(scene, *sampler);
+    // Render image tiles in parallel
+    
+    // Compute number of tiles, _nTiles_, to use for parallel rendering
+    Bounds2i sampleBounds = camera->film->GetSampleBounds();
+    Vector2i sampleExtent = sampleBounds.Diagonal();
+    const int tileSize = 16;
+    Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
+                   (sampleExtent.y + tileSize - 1) / tileSize);
+    ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
+    {
+        ParallelFor2D([&](Point2i tile) {
+            // Render section of image corresponding to _tile_
+            
+            // Allocate _MemoryArena_ for tile
+            MemoryArena arena;
+            
+            // Get sampler instance for tile
+            int seed = tile.y * nTiles.x + tile.x;
+            std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed);
+            
+            // Compute sample bounds for tile
+            int x0 = sampleBounds.pMin.x + tile.x * tileSize;
+            int x1 = std::min(x0 + tileSize, sampleBounds.pMax.x);
+            int y0 = sampleBounds.pMin.y + tile.y * tileSize;
+            int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
+            Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
+            LOG(INFO) << "Starting image tile " << tileBounds;
+            
+            // Get _FilmTile_ for tile
+            std::unique_ptr<FilmTile> filmTile =
+            camera->film->GetFilmTile(tileBounds);
+            
+            // Calculate corresponding index positions on sampled spectrum (e.g. if nSpectralSamples = 32 and nCABands = 3, we want to divide the indices into (1 to 11), (12 to 22), and (23 to 32.) This delta index defines the spacing.)
+            int deltaIndex = round((float)nSpectralSamples/(float)numCABands);
+            float deltaWave = (sampledLambdaEnd-sampledLambdaStart)/nSpectralSamples;
+            float deltaWaveCA = deltaWave*deltaIndex;
+            
+            // Loop over pixels in tile to render them
+            for (Point2i pixel : tileBounds) {
+                {
+                    ProfilePhase pp(Prof::StartPixel);
+                    tileSampler->StartPixel(pixel);
+                }
+                
+                // Do this check after the StartPixel() call; this keeps
+                // the usage of RNG values from (most) Samplers that use
+                // RNGs consistent, which improves reproducability /
+                // debugging.
+                if (!InsideExclusive(pixel, pixelBounds))
+                    continue;
+                
+                do {
+                    // Initialize _CameraSample_ for current sample
+                    CameraSample cameraSample =
+                    tileSampler->GetCameraSample(pixel);
+                    
+                    Spectrum L(0.f); // This will be the final radiance for this bundle of rays of different wavelength.
+                    Float rayWeight;
+                    
+                    // For each sample, we loop through  all the CA bands and trace a new ray per wavelength. We then put all the returned values in a spectrum for the original sample.
+                    for(int s = 0; s < numCABands; s++){
+                        
+                        // Generate camera ray for current sample
+                        RayDifferential ray;
+                        
+                        // Attach a wavelength value
+                        ray.wavelength = sampledLambdaStart + deltaWaveCA * s + (deltaWaveCA/2); // Use middle wavelength of the spectrum band
+                        
+                        Spectrum Ls(0.f);
+                        
+                        rayWeight = camera->GenerateRayDifferential(cameraSample, &ray);
+                        ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->samplesPerPixel));
+                        ++nCameraRays;
+                        
+                        // Evaluate radiance along camera ray
+                
+                        // This specific ray (with an assigned wavelength band) will go through the rest of the rendering pipeline in "Li".
+                        // This includes going out through the lens (where it will be refracted according to its wavelength),
+                        // reflecting off objects, and finally hitting a light source. The radiance is returned here.
+                        // The radiance is returned as a full spectrum, but we only care about the value associated with the ray's assigned
+                        // wavelength. This is because the direction the ray exited the lens is dependent on the wavelength.
+                        if (rayWeight > 0) Ls = Li(ray, scene, *tileSampler, arena, 0);
+                        
+                        // Issue warning if unexpected radiance value returned
+                        if (Ls.HasNaNs()) {
+                            LOG(ERROR) << StringPrintf(
+                                                       "Not-a-number radiance value returned "
+                                                       "for pixel (%d, %d), sample %d. Setting to black.",
+                                                       pixel.x, pixel.y,
+                                                       (int)tileSampler->CurrentSampleNumber());
+                            Ls = Spectrum(0.f);
+                        } else if (Ls.y() < -1e-5) {
+                            LOG(ERROR) << StringPrintf(
+                                                       "Negative luminance value, %f, returned "
+                                                       "for pixel (%d, %d), sample %d. Setting to black.",
+                                                       Ls.y(), pixel.x, pixel.y,
+                                                       (int)tileSampler->CurrentSampleNumber());
+                            Ls = Spectrum(0.f);
+                        } else if (std::isinf(Ls.y())) {
+                            LOG(ERROR) << StringPrintf(
+                                                       "Infinite luminance value returned "
+                                                       "for pixel (%d, %d), sample %d. Setting to black.",
+                                                       pixel.x, pixel.y,
+                                                       (int)tileSampler->CurrentSampleNumber());
+                            Ls = Spectrum(0.f);
+                        }
+                        VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " <<
+                        ray << " -> L = " << Ls;
+                        
+                        // Assign the result to all wavelengths sampled around the target wavelength. For example, if nWaveBands = 3, then we would split the spectrum into three equal parts and assign the first third of the spectrum traced using the first wavelength, to the first third of the final spectrum, and so on.
+                        int bottomIndex = deltaIndex*s;
+                        int topIndex = std::min(deltaIndex*(s+1),nSpectralSamples);
+                        
+                        for(int waveIndex = bottomIndex; waveIndex < topIndex; waveIndex++){
+                            L[waveIndex] = Ls[waveIndex];
+                        }
+
+                    }
+                    
+                    // Add camera ray's contribution to image
+                    filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
+                    
+                    // Free _MemoryArena_ memory from computing image sample
+                    // value
+                    arena.Reset();
+                } while (tileSampler->StartNextSample());
+            }
+            LOG(INFO) << "Finished image tile " << tileBounds;
+            
+            // Merge image tile into _Film_
+            camera->film->MergeFilmTile(std::move(filmTile));
+            reporter.Update();
+        }, nTiles);
+        reporter.Done();
+    }
+    LOG(INFO) << "Rendering finished";
+    
+    // Save final image after rendering
+    camera->film->WriteImage();
+    
+    
+}
+
+
+SpectralVolPathIntegrator *CreateSpectralVolPathIntegrator(
     const ParamSet &params, std::shared_ptr<Sampler> sampler,
     std::shared_ptr<const Camera> camera) {
     int maxDepth = params.FindOneInt("maxdepth", 5);
@@ -216,7 +367,7 @@ VolPathIntegrator *CreateVolPathIntegrator(
     Float rrThreshold = params.FindOneFloat("rrthreshold", 1.);
     std::string lightStrategy =
         params.FindOneString("lightsamplestrategy", "spatial");
-    return new VolPathIntegrator(maxDepth, camera, sampler, pixelBounds,
+    return new SpectralVolPathIntegrator(maxDepth, camera, sampler, pixelBounds,
                                  rrThreshold, lightStrategy);
 }
 

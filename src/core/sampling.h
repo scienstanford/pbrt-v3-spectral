@@ -168,8 +168,9 @@ inline Float BalanceHeuristic(int nf, Float fPdf, int ng, Float gPdf) {
     return (nf * fPdf) / (nf * fPdf + ng * gPdf);
 }
 
-inline Float PowerHeuristic(int nf, Float fPdf, int ng, Float gPdf) {
-    Float f = nf * fPdf, g = ng * gPdf;
+template<typename T>
+inline T PowerHeuristic(int nf, T fPdf, int ng, T gPdf) {
+    T f = nf * fPdf, g = ng * gPdf;
     return (f * f) / (f * f + g * g);
 }
 

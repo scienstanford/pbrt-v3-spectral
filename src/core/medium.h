@@ -51,9 +51,9 @@ class PhaseFunction {
   public:
     // PhaseFunction Interface
     virtual ~PhaseFunction();
-    virtual Float p(const Vector3f &wo, const Vector3f &wi) const = 0;
+    virtual Spectrum p(const Vector3f &wo, const Vector3f &wi) const = 0;
     virtual Float Sample_p(const Vector3f &wo, Vector3f *wi,
-                           const Point2f &u) const = 0;
+                           const Point2f &u, Float wavelength = 550) const = 0;
     virtual std::string ToString() const = 0;
 };
 
@@ -87,9 +87,9 @@ class HenyeyGreenstein : public PhaseFunction {
   public:
     // HenyeyGreenstein Public Methods
     HenyeyGreenstein(Float g) : g(g) {}
-    Float p(const Vector3f &wo, const Vector3f &wi) const;
+    Spectrum p(const Vector3f &wo, const Vector3f &wi) const;
     Float Sample_p(const Vector3f &wo, Vector3f *wi,
-                   const Point2f &sample) const;
+                   const Point2f &sample, Float wavelength) const;
     std::string ToString() const {
         return StringPrintf("[ HenyeyGreenstein g: %f ]", g);
     }

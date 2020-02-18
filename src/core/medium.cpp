@@ -192,7 +192,7 @@ bool GetMediumScatteringProperties(const std::string &name, Spectrum *sigma_a,
 
 // HenyeyGreenstein Method Definitions
 Float HenyeyGreenstein::Sample_p(const Vector3f &wo, Vector3f *wi,
-                                 const Point2f &u) const {
+                                 const Point2f &u, Float wavelength) const {
     ProfilePhase _(Prof::PhaseFuncSampling);
     // Compute $\cos \theta$ for Henyey--Greenstein sample
     Float cosTheta;
@@ -212,9 +212,9 @@ Float HenyeyGreenstein::Sample_p(const Vector3f &wo, Vector3f *wi,
     return PhaseHG(-cosTheta, g);
 }
 
-Float HenyeyGreenstein::p(const Vector3f &wo, const Vector3f &wi) const {
+Spectrum HenyeyGreenstein::p(const Vector3f &wo, const Vector3f &wi) const {
     ProfilePhase _(Prof::PhaseFuncEvaluation);
-    return PhaseHG(Dot(wo, wi), g);
+    return Spectrum(PhaseHG(Dot(wo, wi), g));
 }
 
 }  // namespace pbrt

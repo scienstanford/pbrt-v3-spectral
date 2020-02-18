@@ -64,12 +64,13 @@ Spectrum UniformSampleAllLights(const Interaction &it, const Scene &scene,
 Spectrum UniformSampleOneLight(const Interaction &it, const Scene &scene,
                                MemoryArena &arena, Sampler &sampler,
                                bool handleMedia = false,
-                               const Distribution1D *lightDistrib = nullptr);
+                               const Distribution1D *lightDistrib = nullptr,
+                               Float wavelength = 550);
 Spectrum EstimateDirect(const Interaction &it, const Point2f &uShading,
                         const Light &light, const Point2f &uLight,
                         const Scene &scene, Sampler &sampler,
                         MemoryArena &arena, bool handleMedia = false,
-                        bool specular = false);
+                        bool specular = false, Float wavelength = 550);
 std::unique_ptr<Distribution1D> ComputeLightPowerDistribution(
     const Scene &scene);
 

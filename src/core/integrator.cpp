@@ -84,7 +84,8 @@ Spectrum UniformSampleAllLights(const Interaction &it, const Scene &scene,
 
 Spectrum UniformSampleOneLight(const Interaction &it, const Scene &scene,
                                MemoryArena &arena, Sampler &sampler,
-                               bool handleMedia, const Distribution1D *lightDistrib) {
+                               bool handleMedia, const Distribution1D *lightDistrib,
+                               Float wavelength) {
     ProfilePhase p(Prof::DirectLighting);
     // Randomly choose a single light to sample, _light_
     int nLights = int(scene.lights.size());
@@ -102,19 +103,21 @@ Spectrum UniformSampleOneLight(const Interaction &it, const Scene &scene,
     Point2f uLight = sampler.Get2D();
     Point2f uScattering = sampler.Get2D();
     return EstimateDirect(it, uScattering, *light, uLight,
-                          scene, sampler, arena, handleMedia) / lightPdf;
+                          scene, sampler, arena, handleMedia, wavelength) / lightPdf;
 }
 
 Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
                         const Light &light, const Point2f &uLight,
                         const Scene &scene, Sampler &sampler,
-                        MemoryArena &arena, bool handleMedia, bool specular) {
+                        MemoryArena &arena, bool handleMedia, bool specular,
+                        Float wavelength) {
     BxDFType bsdfFlags =
         specular ? BSDF_ALL : BxDFType(BSDF_ALL & ~BSDF_SPECULAR);
     Spectrum Ld(0.f);
     // Sample light source with multiple importance sampling
     Vector3f wi;
     Float lightPdf = 0, scatteringPdf = 0;
+    Spectrum mediumScatteringPdf(0.f);
     VisibilityTester visibility;
     Spectrum Li = light.Sample_Li(it, uLight, &wi, &lightPdf, &visibility);
     VLOG(2) << "EstimateDirect uLight:" << uLight << " -> Li: " << Li << ", wi: "
@@ -132,10 +135,9 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
         } else {
             // Evaluate phase function for light sampling strategy
             const MediumInteraction &mi = (const MediumInteraction &)it;
-            Float p = mi.phase->p(mi.wo, wi);
-            f = Spectrum(p);
-            scatteringPdf = p;
-            VLOG(2) << "  medium p: " << p;
+            f = mi.phase->p(mi.wo, wi);
+            mediumScatteringPdf = f;
+            VLOG(2) << "  medium p: " << mediumScatteringPdf;
         }
         if (!f.IsBlack()) {
             // Compute effect of visibility for light source sample
@@ -155,8 +157,8 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
                 if (IsDeltaLight(light.flags))
                     Ld += f * Li / lightPdf;
                 else {
-                    Float weight =
-                        PowerHeuristic(1, lightPdf, 1, scatteringPdf);
+                    Spectrum weight =
+                        PowerHeuristic<Spectrum>(1, Spectrum(lightPdf), 1, Spectrum(scatteringPdf) + mediumScatteringPdf);
                     Ld += f * Li * weight / lightPdf;
                 }
             }

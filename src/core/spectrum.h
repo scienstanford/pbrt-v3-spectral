@@ -211,6 +211,13 @@ class CoefficientSpectrum {
             if (c[i] != 0.) return false;
         return true;
     }
+    Float mean() const {
+        Float tmp = 0.0;
+        for (int i=0; i < nSpectrumSamples; ++i)
+            tmp += c[i];
+        return tmp/nSpectrumSamples;
+    }
+    
     friend CoefficientSpectrum Sqrt(const CoefficientSpectrum &s) {
         CoefficientSpectrum ret;
         for (int i = 0; i < nSpectrumSamples; ++i) ret.c[i] = std::sqrt(s.c[i]);
@@ -463,6 +470,34 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
         // I commented this out, because what if the spectrum is zero?
         //assert(*output != 0);
         return;
+    }
+    
+    Float GetValueAtWavelength(Float wavelength) const{
+        
+        Float w0; Float w1; Float t; Float res;
+        res = 0;
+        
+        // A rare case but let's catch it
+        if(wavelength == sampledLambdaEnd){
+            res = c[nSpectralSamples-1];
+        }
+        
+        for(int i = 0; i < nSpectralSamples; i++){
+            
+            w0 = Lerp(Float(i) / Float(nSpectralSamples),
+                                 sampledLambdaStart, sampledLambdaEnd);
+            w1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                                 sampledLambdaStart, sampledLambdaEnd);
+            
+            if ((wavelength >= w0) && (wavelength < w1)){
+                t = (wavelength - w0)/(w1-w0);
+                return Lerp(t, c[i], c[i+1]);
+            }
+        }
+        // Make sure we don't return 0. If we do, then we get NaN's!
+        // I commented this out, because what if the spectrum is zero?
+        //assert(*output != 0);
+        return res;
     }
     
     //

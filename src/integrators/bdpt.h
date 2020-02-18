@@ -357,7 +357,11 @@ struct Vertex {
         else if (type == VertexType::Surface)
             pdf = si.bsdf->Pdf(wp, wn);
         else if (type == VertexType::Medium)
-            pdf = mi.phase->p(wp, wn);
+        {
+            // Return an average over wavelengths,
+            // rather than a single number
+            pdf = mi.phase->p(wp, wn).mean();
+        }
         else
             LOG(FATAL) << "Vertex::Pdf(): Unimplemented";
 
