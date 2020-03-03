@@ -19,7 +19,7 @@ TEST(HenyeyGreenstein, SamplingMatch) {
             Float p0 = hg.Sample_p(wo, &wi, u);
             // Phase function is normalized, and the sampling method should be
             // exact.
-            EXPECT_NEAR(p0, hg.p(wo, wi), 1e-4f) << "Failure with g = " << g;
+            EXPECT_NEAR(p0, hg.p(wo, wi).mean(), 1e-4f) << "Failure with g = " << g;
         }
     }
 }
@@ -73,7 +73,7 @@ TEST(HenyeyGreenstein, Normalized) {
         for (int i = 0; i < nSamples; ++i) {
             Vector3f wi =
                 UniformSampleSphere({rng.UniformFloat(), rng.UniformFloat()});
-            sum += hg.p(wo, wi);
+            sum += hg.p(wo, wi).mean();
         }
         // Phase function should integrate to 1/4pi.
         EXPECT_NEAR(sum / nSamples, 1. / (4. * Pi), 1e-3f);

@@ -60,7 +60,7 @@ class Film {
     // Film Public Methods
     Film(const Point2i &resolution, const Bounds2f &cropWindow,
          std::unique_ptr<Filter> filter, Float diagonal,
-         const std::string &filename, Float scale, bool spectralFlag, std::string datatype,
+         const std::string &filename, Float scale, bool spectralFlag, std::string datatype = "spectral",
          Float maxSampleLuminance = Infinity);
     Bounds2i GetSampleBounds() const;
     Bounds2f GetPhysicalExtent() const;

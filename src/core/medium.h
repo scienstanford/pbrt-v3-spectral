@@ -89,7 +89,7 @@ class HenyeyGreenstein : public PhaseFunction {
     HenyeyGreenstein(Float g) : g(g) {}
     Spectrum p(const Vector3f &wo, const Vector3f &wi) const;
     Float Sample_p(const Vector3f &wo, Vector3f *wi,
-                   const Point2f &sample, Float wavelength) const;
+                   const Point2f &sample, Float wavelength = 550) const;
     std::string ToString() const {
         return StringPrintf("[ HenyeyGreenstein g: %f ]", g);
     }
