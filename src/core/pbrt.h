@@ -93,9 +93,9 @@
 
 namespace pbrt {
 
-static const int sampledLambdaStart = 385;
+static const int sampledLambdaStart = 365;
 static const int sampledLambdaEnd = 705;
-static const int nSpectralSamples = 65;
+static const int nSpectralSamples = 69;
 
 // Global Forward Declarations
 class Scene;
