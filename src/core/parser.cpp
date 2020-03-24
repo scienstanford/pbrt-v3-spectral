@@ -1080,7 +1080,7 @@ static void parse(std::unique_ptr<Tokenizer> t) {
                 std::string name = toString(n);
                 n = dequoteString(nextToken(TokenRequired));
                 std::string type = toString(n);
-
+                
                 basicParamListEntrypoint(
                     SpectrumType::Reflectance,
                     [&](const std::string &texName, const ParamSet &params) {

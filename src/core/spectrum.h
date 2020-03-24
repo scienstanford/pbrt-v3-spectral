@@ -70,7 +70,7 @@ inline void RGBToXYZ(const Float rgb[3], Float xyz[3]) {
 }
 
 enum class SpectrumType {
-  Reflectance, Illuminant, Display
+  Reflectance, Illuminant, Display, Mouth
 };
 
 extern Float InterpolateSpectrumSamples(
@@ -332,6 +332,21 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
       B[i] = AverageSpectrumSamples(
           lcdApple_lambda, lcdApple_b, nLCDSamples, wl0, wl1);
     }
+      
+    // Added by ZLY
+    // Prepared for using Mouth Basis function for _SampledSpectrum_
+    for (int i = 0; i < nSpectralSamples; ++i) {
+      Float wl0 = Lerp(Float(i) / Float(nSpectralSamples),
+                       sampledLambdaStart, sampledLambdaEnd);
+      Float wl1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                       sampledLambdaStart, sampledLambdaEnd);
+      MouthR[i] = AverageSpectrumSamples(
+          lcdApple_lambda, lcdApple_r, nLCDSamples, wl0, wl1);
+      MouthG[i] = AverageSpectrumSamples(
+          lcdApple_lambda, lcdApple_g, nLCDSamples, wl0, wl1);
+      MouthB[i] = AverageSpectrumSamples(
+          lcdApple_lambda, lcdApple_b, nLCDSamples, wl0, wl1);
+    }
   }
 
   Spectrum Clamp(Float low = 0, Float high = Infinity) const {
@@ -428,6 +443,7 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
   // SampledSpectrum Private Data
   static Spectrum X, Y, Z;
   static Spectrum R, G, B; //Added by TL
+  static Spectrum MouthR, MouthG, MouthB;
   static Spectrum rgbRefl2SpectWhite, rgbRefl2SpectCyan;
   static Spectrum rgbRefl2SpectMagenta, rgbRefl2SpectYellow;
   static Spectrum rgbRefl2SpectRed, rgbRefl2SpectGreen;

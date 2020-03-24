@@ -82,7 +82,7 @@ class ImageTexture : public Texture<Treturn> {
     // ImageTexture Public Methods
     ImageTexture(std::unique_ptr<TextureMapping2D> m,
                  const std::string &filename, bool doTri, bool noFilt, Float maxAniso,
-                 ImageWrap wm, Float scale, bool gamma, bool useSPD);
+                 ImageWrap wm, Float scale, bool gamma, std::string basisFunction);
     static void ClearCache() {
         textures.erase(textures.begin(), textures.end());
     }
@@ -91,9 +91,15 @@ class ImageTexture : public Texture<Treturn> {
         Point2f st = mapping->Map(si, &dstdx, &dstdy);
         Tmemory mem = mipmap->Lookup(st, dstdx, dstdy);
         Treturn ret;
-        if(spdFlag){
-            convertOutDisp(mem, &ret);
-        }else{
+        
+        // Changed by ZLY. Chech all possible basisFunctions to use
+        if (basisFunction == "Mouth") {
+            convertOutCustom(mem, &ret, SpectrumType::Mouth);
+        }
+        else if (basisFunction == "Display") {
+            convertOutCustom(mem, &ret, SpectrumType::Display);
+        }
+        else{
             convertOut(mem, &ret);
         }
         return ret;
@@ -119,21 +125,21 @@ class ImageTexture : public Texture<Treturn> {
         *to = Spectrum::FromRGB(rgb);
     }
     
-    // Added by TL. In the future, let's give it the option to load custom SPD's.
-    static void convertOutDisp(const RGBSpectrum &from, Spectrum *to) {
+    // Added by ZLY. In the future, let's give it the option to load custom SPD's.
+    static void convertOutCustom(const RGBSpectrum &from, Spectrum *to, SpectrumType type) {
         Float rgb[3];
         from.ToRGB(rgb);
-        *to = Spectrum::FromRGB(rgb,SpectrumType::Display);
+        *to = Spectrum::FromRGB(rgb, SpectrumType::Display);
     }
     
     static void convertOut(Float from, Float *to) { *to = from; }
-    static void convertOutDisp(Float from, Float *to) { *to = from; }
+    static void convertOutCustom(Float from, Float *to, SpectrumType type) { *to = from; }
     
     // ImageTexture Private Data
     std::unique_ptr<TextureMapping2D> mapping;
     MIPMap<Tmemory> *mipmap;
     static std::map<TexInfo, std::unique_ptr<MIPMap<Tmemory>>> textures;
-    bool spdFlag; // Added by TL
+    std::string basisFunction;
 };
 
 extern template class ImageTexture<Float, Float>;

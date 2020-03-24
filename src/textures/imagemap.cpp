@@ -43,8 +43,8 @@ template <typename Tmemory, typename Treturn>
 ImageTexture<Tmemory, Treturn>::ImageTexture(
     std::unique_ptr<TextureMapping2D> mapping, const std::string &filename,
     bool doTrilinear, bool noFiltering, Float maxAniso, ImageWrap wrapMode, Float scale,
-    bool gamma, bool useSPD)
-    : mapping(std::move(mapping)), spdFlag(useSPD) {
+    bool gamma, std::string whichBasis)
+    : mapping(std::move(mapping)), basisFunction(whichBasis) {
     mipmap =
         GetTexture(filename, doTrilinear, noFiltering, maxAniso, wrapMode, scale, gamma);
 }
@@ -140,10 +140,10 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
-    bool useSPD = tp.FindBool("useSPD",false);
+    std::string whichBasis = tp.FindString("basis", "pbrt");
     
     return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
-                                          maxAniso, wrapMode, scale, gamma,useSPD);
+                                          maxAniso, wrapMode, scale, gamma, whichBasis);
 }
 
 ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
@@ -185,9 +185,10 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
-    bool useSPD = tp.FindBool("useSPD",false);
+    std::string whichBasis = tp.FindString("basis", "pbrt");
+
     return new ImageTexture<RGBSpectrum, Spectrum>(
-        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma, useSPD);
+        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma, whichBasis);
 }
 
 template class ImageTexture<Float, Float>;
