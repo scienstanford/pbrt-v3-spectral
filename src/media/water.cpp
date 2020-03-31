@@ -74,7 +74,7 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(Float cSmall, Float cLarge) :
         
     for (int j=0; j<nAngularSamples; j++)
     {
-        phaseAngle[j] = (float) j / (float) nAngularSamples * Pi;
+        phaseAngle[j] = (float) j / (float) (nAngularSamples) * Pi;
         
         Spectrum cdf = 0.000093 * (1 + 0.835 * cos(phaseAngle[j]) * cos(phaseAngle[j])) * waterWaveWght;
         cdf += cSmall * CatmullRom(numKopelevichAngles, kopelevichAngles, kopelevichSmallParticles, phaseAngle[j]) * smallWaveWght;
@@ -122,7 +122,7 @@ Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
         tmp[i] = CDF[i].GetValueAtWavelength(wavelength);
     
     
-    Float sampledAngle = CatmullRom(nAngularSamples, tmp, phaseAngle, u[0]);
+    Float sampledAngle = CatmullRom(nAngularSamples, tmp, phaseAngle, u[0] * Pi);
     int angle0 = (int) (fmin(sampledAngle / Pi, 0.99999) * (nAngularSamples - 1));
     Float cosTheta = cos(sampledAngle);
     Float sinTheta = sin(sampledAngle);
@@ -164,22 +164,27 @@ Spectrum WaterMedium::Sample(const Ray &ray, Sampler &sampler,
                                    MediumInteraction *mi) const {
     ProfilePhase _(Prof::MediumSample);
     // Sample a channel and distance along the ray
-    int channel = std::min((int)(sampler.Get1D() * Spectrum::nSamples),
-                           Spectrum::nSamples - 1);
-    Float dist = -std::log(1 - sampler.Get1D()) / sigma_t[channel];
+    float sigma_t_wave = sigma_t.GetValueAtWavelength(ray.wavelength);
+    
+    Float dist = -std::log(1 - sampler.Get1D()) / sigma_t_wave;
     Float t = std::min(dist / ray.d.Length(), ray.tMax);
     bool sampledMedium = t < ray.tMax;
+    //sampledMedium = false;
     if (sampledMedium)
+    {
         *mi = MediumInteraction(ray(t), -ray.d, ray.time, this, this->ph);
-
+    }
+    //bool sampledMedium = false;
+        
     // Compute the transmittance and sampling density
     Spectrum Tr = Exp(-sigma_t * std::min(t, MaxFloat) * ray.d.Length());
 
     // Return weighting factor for scattering from homogeneous medium
     Spectrum density = sampledMedium ? (sigma_t * Tr) : Tr;
-    Float pdf = 0;
-    for (int i = 0; i < Spectrum::nSamples; ++i) pdf += density[i];
+    Float pdf = density.GetValueAtWavelength(ray.wavelength);
+    /*for (int i = 0; i < Spectrum::nSamples; ++i) pdf += density[i];
     pdf *= 1 / (Float)Spectrum::nSamples;
+     */
     if (pdf == 0) {
         CHECK(Tr.IsBlack());
         pdf = 1;

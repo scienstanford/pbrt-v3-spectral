@@ -180,7 +180,7 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uScattering,
         } else {
             // Sample scattered direction for medium interactions
             const MediumInteraction &mi = (const MediumInteraction &)it;
-            Float p = mi.phase->Sample_p(mi.wo, &wi, uScattering);
+            Float p = mi.phase->Sample_p(mi.wo, &wi, uScattering, wavelength);
             f = Spectrum(p);
             scatteringPdf = p;
         }
