@@ -51,6 +51,43 @@ const Float kopelevichAngles[] = {0.000000, 0.008727, 0.017453, 0.026180, 0.0349
 const Float kopelevichSmallParticles[] = {5.300000, 5.300000, 5.200000, 5.200000, 5.100000, 4.600000, 3.900000, 2.500000, 1.300000, 0.290000, 0.098000, 0.041000, 0.020000, 0.012000, 0.008600, 0.007400, 0.007400, 0.007500, 0.008100};
 const Float kopelevichLargeParticles[] = {140.000000, 98.000000, 46.000000, 26.000000, 15.000000, 3.600000, 1.100000, 0.200000, 0.050000, 0.002800, 0.000620, 0.000380, 0.000200, 0.000063, 0.000044, 0.000029, 0.000020, 0.000020, 0.000070};
 
+KopelevichPhaseFunction::KopelevichPhaseFunction(std::vector<float> &data) : cSmall(0), cLarge(0), sigma_s(0.0)
+{
+    int numWavelenghts = data[0];
+    //assert(data[1] == nAngularSamples, "VSF angular sampling mismatch");
+    
+    float *waves = (float *) malloc(sizeof(float) * numWavelenghts);
+    float *vals = (float *) malloc(sizeof(float) * numWavelenghts);
+    
+    for (int j=0; j<nAngularSamples; j++)
+    {
+        phaseAngle[j] = (float) j / (float) (nAngularSamples) * Pi;
+        
+        
+        for (int k=0; k<numWavelenghts; k++)
+        {
+            waves[k] = data[j*2*numWavelenghts + 2*k + 2];
+            vals[k] = data[j*2*numWavelenghts + 2*k + 3];
+        }
+        Spectrum cdf = SampledSpectrum::FromSampled(waves, vals, numWavelenghts);
+
+        CDF.push_back(cdf);
+        sigma_s += 2 * Pi * cdf * sin(phaseAngle[j]) * phaseAngle[1];
+    }
+    
+    // Normalize
+    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / sigma_s;
+    for (int j=1; j<nAngularSamples; j++)
+    {
+        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / sigma_s;
+    }
+    
+    free(waves);
+    free(vals);
+    
+    
+}
+
 KopelevichPhaseFunction::KopelevichPhaseFunction(Float cSmall, Float cLarge) :
     cSmall(cSmall), cLarge(cLarge), sigma_s(0.0) {
             
@@ -149,6 +186,34 @@ WaterMedium* createWaterMedium(Float cPlankton, Float aCDOM440, Float aNAP400, F
     sigma_a += SampledSpectrum::FromSampled(absWave, tmp, absSamples);
     
     KopelevichPhaseFunction * ph = new KopelevichPhaseFunction(cSmall, cLarge);
+        
+    return new WaterMedium(sigma_a, ph->getScatter(), ph);
+}
+
+WaterMedium* createWaterMedium(std::string absFile, std::string vsfFile) {
+    
+    std::string filename = AbsolutePath(ResolveFilename(absFile));
+    std::vector<Float> values;
+    pbrt::ReadFloatFile(filename.c_str(), &values);
+    
+    float *lambda = (float *) malloc(sizeof(float) * values.size() / 2);
+    float *vals   = (float *) malloc(sizeof(float) * values.size() / 2);
+    for (int i=0; i< values.size() / 2; i++)
+    {
+        lambda[i] = values[2*i];
+        vals[i+1] = values[2*i+1];
+    }
+    Spectrum sigma_a = SampledSpectrum::FromSampled(lambda, vals, values.size() / 2);
+    
+    free(lambda);
+    free(vals);
+    
+    
+    filename = AbsolutePath(ResolveFilename(vsfFile));
+    values.clear();
+    pbrt::ReadFloatFile(filename.c_str(), &values);
+    
+    KopelevichPhaseFunction * ph = new KopelevichPhaseFunction(values);
         
     return new WaterMedium(sigma_a, ph->getScatter(), ph);
 }

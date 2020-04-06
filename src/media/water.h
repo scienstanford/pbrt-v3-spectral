@@ -40,6 +40,7 @@
 
 // media/homogeneous.h*
 #include "medium.h"
+#include "floatfile.h"
 
 namespace pbrt {
 
@@ -48,6 +49,7 @@ class KopelevichPhaseFunction : public PhaseFunction {
     public:
     // PhaseFunction Interface
     KopelevichPhaseFunction(float cSmall, float cLarge);
+    KopelevichPhaseFunction(std::vector<float> &data);
     virtual ~KopelevichPhaseFunction();
     virtual Spectrum p(const Vector3f &wo, const Vector3f &wi) const;
     virtual Float Sample_p(const Vector3f &wo, Vector3f *wi,
@@ -93,6 +95,7 @@ class WaterMedium : public Medium {
 };
 
 WaterMedium* createWaterMedium(Float cPlankton, Float aCDOM440, Float aNAP400, Float cSmall, Float cLarge);
+WaterMedium* createWaterMedium(std::string absFile, std::string vsfFile);
 
 
 }  // namespace pbrt
