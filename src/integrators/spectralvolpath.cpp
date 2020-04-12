@@ -73,6 +73,7 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
     // avoid terminating refracted rays that are about to be refracted back
     // out of a medium and thus have their beta value increased.
     Float etaScale = 1;
+    printf("Li r %f, ray %f",r.wavelength, ray.wavelength);
 
     for (bounces = 0;; ++bounces) {
         // Intersect _ray_ with scene and store intersection in _isect_
@@ -367,8 +368,15 @@ SpectralVolPathIntegrator *CreateSpectralVolPathIntegrator(
     Float rrThreshold = params.FindOneFloat("rrthreshold", 1.);
     std::string lightStrategy =
         params.FindOneString("lightsamplestrategy", "spatial");
+    
+    // Get number of wavelength dependent waves to generate per single ray
+    int numCABands = params.FindOneInt("numCABands", 4);
+    if(numCABands != 1){
+        Warning("Using spectral rendering. For every pixel sample we will trace %dx more rays. Rendering will be %d times slower.",numCABands,numCABands);
+    }
+    
     return new SpectralVolPathIntegrator(maxDepth, camera, sampler, pixelBounds,
-                                 rrThreshold, lightStrategy);
+                                 rrThreshold, lightStrategy, numCABands);
 }
 
 }  // namespace pbrt
