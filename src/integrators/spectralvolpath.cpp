@@ -73,8 +73,6 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
     // avoid terminating refracted rays that are about to be refracted back
     // out of a medium and thus have their beta value increased.
     Float etaScale = 1;
-    printf("Li r %f, ray %f",r.wavelength, ray.wavelength);
-
     for (bounces = 0;; ++bounces) {
         // Intersect _ray_ with scene and store intersection in _isect_
         SurfaceInteraction isect;

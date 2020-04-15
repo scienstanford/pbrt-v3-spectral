@@ -61,7 +61,7 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(std::vector<float> &data) : cSm
     
     for (int j=0; j<nAngularSamples; j++)
     {
-        phaseAngle[j] = (float) j / (float) (nAngularSamples) * Pi;
+        phaseAngle[j] = (float) j / (float) (nAngularSamples - 1) * Pi;
         
         
         for (int k=0; k<numWavelenghts; k++)
@@ -75,11 +75,14 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(std::vector<float> &data) : cSm
         sigma_s += 2 * Pi * cdf * sin(phaseAngle[j]) * phaseAngle[1];
     }
     
+    Spectrum normFact = Spectrum(sigma_s);
+    for (int i=0; i<nSpectralSamples; i++) normFact[i] = normFact[i] == 0 ? 1.0f : normFact[i];
+    
     // Normalize
-    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / sigma_s;
+    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / normFact;
     for (int j=1; j<nAngularSamples; j++)
     {
-        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / sigma_s;
+        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / normFact;
     }
     
     free(waves);
@@ -111,7 +114,7 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(Float cSmall, Float cLarge) :
         
     for (int j=0; j<nAngularSamples; j++)
     {
-        phaseAngle[j] = (float) j / (float) (nAngularSamples) * Pi;
+        phaseAngle[j] = (float) j / (float) (nAngularSamples-1) * Pi;
         
         Spectrum cdf = 0.000093 * (1 + 0.835 * cos(phaseAngle[j]) * cos(phaseAngle[j])) * waterWaveWght;
         cdf += cSmall * CatmullRom(numKopelevichAngles, kopelevichAngles, kopelevichSmallParticles, phaseAngle[j]) * smallWaveWght;
@@ -120,12 +123,15 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(Float cSmall, Float cLarge) :
         CDF.push_back(cdf);
         sigma_s += 2 * Pi * cdf * sin(phaseAngle[j]) * phaseAngle[1];
     }
+        
+    Spectrum normFact = Spectrum(sigma_s);
+    for (int i=0; i<nSpectralSamples; i++) normFact[i] = normFact[i] == 0 ? 1.0f : normFact[i];
     
     // Normalize
-    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / sigma_s;
+    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / normFact;
     for (int j=1; j<nAngularSamples; j++)
     {
-        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / sigma_s;
+        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / normFact;
     }
         
 }
@@ -145,8 +151,9 @@ Spectrum KopelevichPhaseFunction::p(const Vector3f &wo, const Vector3f &wi) cons
     
     Float dot = Dot(wo,wi);
     Float angle = acos(fmin(fmax(dot, -1.0), 1.0)) / Pi;
-    int angle0 = (int) (fmin(angle, 0.99999) * (nAngularSamples - 1));
-    return (CDF[angle0 + 1] - CDF[angle0]) / (Pi * 2 * phaseAngle[1]);
+    int angleInteger = (int) (fmin(angle, 0.9999) * (nAngularSamples - 1));
+    float angleFloat = fmin(fmax(fmin(angle, 0.9999) * (nAngularSamples - 1) - angleInteger, 0.0f), 1.0f);
+    return (CDF[angleInteger + 1] * angleFloat - CDF[angleInteger] * (1-angleFloat)) / (Pi * 2 * phaseAngle[1]);
 };
 
 Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
@@ -160,7 +167,8 @@ Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
     
     
     Float sampledAngle = CatmullRom(nAngularSamples, tmp, phaseAngle, u[0] * Pi);
-    int angle0 = (int) (fmin(sampledAngle / Pi, 0.99999) * (nAngularSamples - 1));
+    int angleInt = (int) (fmin(sampledAngle / Pi, 0.99999) * (nAngularSamples - 1));
+    float angleFloat = fmin(fmax(fmin(sampledAngle, 0.9999) * (nAngularSamples - 1) - angleInt, 0.0f), 1.0f);
     Float cosTheta = cos(sampledAngle);
     Float sinTheta = sin(sampledAngle);
     
@@ -169,7 +177,7 @@ Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
     CoordinateSystem(wo, &v1, &v2);
     *wi = SphericalDirection(sinTheta, cosTheta, phi, v1, v2, -wo);
     
-    return (CDF[angle0 + 1].GetValueAtWavelength(wavelength) - CDF[angle0].GetValueAtWavelength(wavelength)) / (Pi * 2 * phaseAngle[1]);
+    return (CDF[angleInt + 1].GetValueAtWavelength(wavelength) * angleFloat - CDF[angleInt].GetValueAtWavelength(wavelength) * (1.0f - angleFloat)) / (Pi * 2 * phaseAngle[1]);
 };
 
 WaterMedium* createWaterMedium(Float cPlankton, Float aCDOM440, Float aNAP400, Float cSmall, Float cLarge) {
