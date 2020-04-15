@@ -209,7 +209,7 @@ WaterMedium* createWaterMedium(std::string absFile, std::string vsfFile) {
     for (int i=0; i< values.size() / 2; i++)
     {
         lambda[i] = values[2*i];
-        vals[i+1] = values[2*i+1];
+        vals[i] = values[2*i+1];
     }
     Spectrum sigma_a = SampledSpectrum::FromSampled(lambda, vals, values.size() / 2);
     
