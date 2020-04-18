@@ -72,17 +72,17 @@ KopelevichPhaseFunction::KopelevichPhaseFunction(std::vector<float> &data) : cSm
         Spectrum cdf = SampledSpectrum::FromSampled(waves, vals, numWavelenghts);
 
         CDF.push_back(cdf);
-        sigma_s += 2 * Pi * cdf * sin(phaseAngle[j]) * phaseAngle[1];
+        sigma_s += 2 * Pi * cdf * sin(Pi - phaseAngle[j]) * phaseAngle[1];
     }
     
     Spectrum normFact = Spectrum(sigma_s);
     for (int i=0; i<nSpectralSamples; i++) normFact[i] = normFact[i] == 0 ? 1.0f : normFact[i];
     
     // Normalize
-    CDF[0] = CDF[0] * Pi * 2 * sin(phaseAngle[0]) * phaseAngle[1] / normFact;
+    CDF[0] = CDF[0] * Pi * 2 * sin(Pi - phaseAngle[0]) * phaseAngle[1] / normFact;
     for (int j=1; j<nAngularSamples; j++)
     {
-        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(phaseAngle[j]) * phaseAngle[1] / normFact;
+        CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(Pi - phaseAngle[j]) * phaseAngle[1] / normFact;
     }
     
     free(waves);
