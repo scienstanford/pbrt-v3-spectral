@@ -158,7 +158,7 @@ Spectrum KopelevichPhaseFunction::p(const Vector3f &wo, const Vector3f &wi) cons
     Float angle = acos(fmin(fmax(dot, -1.0), 1.0)) / Pi;
     int angleInteger = (int) (fmin(angle, 0.9999) * (nAngularSamples - 1));
     float angleFloat = fmin(fmax(fmin(angle, 0.9999) * (nAngularSamples - 1) - angleInteger, 0.0f), 1.0f);
-    return (PDF[angleInteger + 1] * angleFloat - PDF[angleInteger] * (1-angleFloat));
+    return (PDF[angleInteger + 1] * angleFloat + PDF[angleInteger] * (1-angleFloat));
 };
 
 Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
