@@ -67,6 +67,7 @@ class KopelevichPhaseFunction : public PhaseFunction {
         const Float cLarge;
         Float phaseAngle[nAngularSamples];        
         std::vector<Spectrum> CDF;
+        std::vector<Spectrum> PDF;
     
         Spectrum sigma_s;
     
