@@ -49,13 +49,12 @@ STAT_MEMORY_COUNTER("Memory/Film pixels", filmPixelMemory);
 // Film Method Definitions
 Film::Film(const Point2i &resolution, const Bounds2f &cropWindow,
                std::unique_ptr<Filter> filt, Float diagonal,
-               const std::string &filename, Float scale, bool sf, std::string dt, Float maxSampleLuminance)
+               const std::string &filename, Float scale, bool sf, Float maxSampleLuminance)
     : fullResolution(resolution),
       diagonal(diagonal * .001),
       filter(std::move(filt)),
       filename(filename),
       scale(scale),
-      datatype(dt),
       maxSampleLuminance(maxSampleLuminance),
       spectralFlag(sf){
     // Compute film image bounds
@@ -229,17 +228,6 @@ void Film::WriteImage(Float splatScale) {
                      
         // spectralData holds all the values in the multispectral image
         std::unique_ptr<Float[]> spectralData(new Float[nSpectralSamples * croppedPixelBounds.Area()]);
-        
-        // Choose write out number of samples based on datatype. --Zhenyi
-        int nDataSamples = nSpectralSamples;
-        if (datatype.compare("depth")==0 || datatype.compare("mesh")==0
-            || datatype.compare("material")==0) {
-            nDataSamples = 1;}
-        else if (datatype.compare("coordinates")==0) {
-            nDataSamples = 3;}
-        // lidar output: [x, y, z, reflectance, irradiance, instance ID]
-        else if (datatype.compare("pointcloud")==0) {
-            nDataSamples = 6;}
             
         int offset = 0;
         for (Point2i p : croppedPixelBounds) {
@@ -250,8 +238,8 @@ void Film::WriteImage(Float splatScale) {
             //Spectrum currSpectrum = Spectrum::FromXYZ(pixel.xyz);
                 
             // Loop through the current spectrum and put each value into spectralData
-            for(int i = 0; i < nDataSamples; i++){
-                spectralData[offset*nDataSamples + i] = currSpectrum[i];
+            for(int i = 0; i < nSpectralSamples; i++){
+                spectralData[offset*nSpectralSamples + i] = currSpectrum[i];
             }
                 
             // We're not going to weight the output data with the filter. In other words, the more rays, the higher the output value will be. We can scale to an appropriate luminance later in ISET.
@@ -262,9 +250,9 @@ void Film::WriteImage(Float splatScale) {
                 pixel.splatXYZ[2]};
             Spectrum splatSpectrum = Spectrum::FromXYZ(splatXYZ);
                 
-            for(int i = 0; i < nDataSamples; i++){
-                spectralData[offset*nDataSamples + i] += splatScale * splatSpectrum[i];
-                spectralData[offset*nDataSamples + i] *= scale;
+            for(int i = 0; i < nSpectralSamples; i++){
+                spectralData[offset*nSpectralSamples + i] += splatScale * splatSpectrum[i];
+                spectralData[offset*nSpectralSamples + i] *= scale;
             }
                 
             ++offset;
@@ -282,7 +270,7 @@ void Film::WriteImage(Float splatScale) {
         myfile.open(datFilename.c_str());
             
         // Print out dimensions of the image
-        myfile << croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x << " " << croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y << " " << nDataSamples << "\n";
+        myfile << croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x << " " << croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y << " " << nSpectralSamples << "\n";
             
         // Print out focal length and field of view information
         // TODO: Is it possible for us to do this here? We don't have access to focal length in the film class...
@@ -304,11 +292,11 @@ void Film::WriteImage(Float splatScale) {
         spectralDataBin = fopen(datFilename.c_str(), "a");
             
         //Write binary image
-        for (int i = 0; i < nDataSamples; i++)
+        for (int i = 0; i < nSpectralSamples; i++)
         {
             for (int j = 0; j < croppedPixelBounds.Area(); j++)
             {
-                double r = (double)spectralData[nDataSamples * j + i];
+                double r = (double)spectralData[nSpectralSamples * j + i];
                 fwrite((void*)(&r), sizeof(r), 1, spectralDataBin);
             }
         }
@@ -358,11 +346,9 @@ Film *CreateFilm(const ParamSet &params, std::unique_ptr<Filter> filter) {
     Float maxSampleLuminance = params.FindOneFloat("maxsampleluminance",
                                                     Infinity);
     bool spectralFlag = params.FindOneBool("spectralFlag", true);
-    
-    std::string datatype = params.FindOneString("datatype", "spectral");
-            
+        
     return new Film(Point2i(xres, yres), crop, std::move(filter), diagonal,
-                    filename, scale, spectralFlag, datatype, maxSampleLuminance);
+                    filename, scale, spectralFlag, maxSampleLuminance);
 }
     
 }  // namespace pbrt
