@@ -96,7 +96,7 @@ RGBSpectrum Spectrum::ToRGBSpectrum() const {
   return RGBSpectrum::FromRGB(rgb);
 }
 
-Spectrum Spectrum::FromRGB(const Float rgb[3], SpectrumType type) {
+Spectrum Spectrum::FromRGB(const Float rgb[3], SpectrumType type, Spectrum bOne, Spectrum bTwo, Spectrum bThree) {
   Spectrum r;
   if (type == SpectrumType::Reflectance) {
     // Convert reflectance spectrum to RGB
@@ -178,6 +178,8 @@ Spectrum Spectrum::FromRGB(const Float rgb[3], SpectrumType type) {
     // Use (ungiven) mouth primaries to do the conversion
     // TODO: As suggested by TL, we should be able to load the primaries
       r = rgb[0] * MouthR + rgb[1] * MouthG + rgb[2] * MouthB;
+  } else if (type == SpectrumType::Loaded) {
+      r = rgb[0] * bOne + rgb[1] * bTwo + rgb[2] * bThree;
   } else {
     Error("Spectrum type not recognized when converting from RGB to spectrum.");
   }
@@ -1080,6 +1082,9 @@ Spectrum Spectrum::B; // TL
 Spectrum Spectrum::MouthR; //ZLY
 Spectrum Spectrum::MouthG; //ZLY
 Spectrum Spectrum::MouthB; //ZLY
+Spectrum Spectrum::TempR;  //ZLY
+Spectrum Spectrum::TempG;  //ZLY
+Spectrum Spectrum::TempB;  //ZLY
 Spectrum Spectrum::rgbRefl2SpectWhite;
 Spectrum Spectrum::rgbRefl2SpectCyan;
 Spectrum Spectrum::rgbRefl2SpectMagenta;

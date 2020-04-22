@@ -82,7 +82,10 @@ class ImageTexture : public Texture<Treturn> {
     // ImageTexture Public Methods
     ImageTexture(std::unique_ptr<TextureMapping2D> m,
                  const std::string &filename, bool doTri, bool noFilt, Float maxAniso,
-                 ImageWrap wm, Float scale, bool gamma, std::string basisFunction);
+                 ImageWrap wm, Float scale, bool gamma, std::string basisFunction,
+                 Spectrum basisOne,
+                 Spectrum basisTwo,
+                 Spectrum basisThree);
     static void ClearCache() {
         textures.erase(textures.begin(), textures.end());
     }
@@ -92,16 +95,29 @@ class ImageTexture : public Texture<Treturn> {
         Tmemory mem = mipmap->Lookup(st, dstdx, dstdy);
         Treturn ret;
         
-        // Changed by ZLY. Chech all possible basisFunctions to use
-        if (basisFunction == "Mouth") {
-            convertOutCustom(mem, &ret, SpectrumType::Mouth);
+        // Changed by ZLY. Check all possible basisFunctions to use
+        /* Here is the priority:
+            1. If basis functions are loaded from .pbrt files, we will
+                use those.
+            2. If a name is provided aiming to use on of the hard coded
+                basis functions, use those.
+            3. Otherwise we will use the default basis functions from PBRT itself
+         */
+        
+        if (basisOne.isApprox(Spectrum(0.f)) && basisTwo.isApprox(Spectrum(0.f)) && basisThree.isApprox(Spectrum(0.f))) {
+            if (basisFunction == "Mouth") {
+                convertOutCustom(mem, &ret, SpectrumType::Mouth);
+            }
+            else if (basisFunction == "Display") {
+                convertOutCustom(mem, &ret, SpectrumType::Display);
+            }
+            else{
+                convertOut(mem, &ret);
+            }
+        } else {
+            convertOutLoaded(mem, &ret, basisOne, basisTwo, basisThree);
         }
-        else if (basisFunction == "Display") {
-            convertOutCustom(mem, &ret, SpectrumType::Display);
-        }
-        else{
-            convertOut(mem, &ret);
-        }
+
         return ret;
     }
 
@@ -122,24 +138,38 @@ class ImageTexture : public Texture<Treturn> {
     static void convertOut(const RGBSpectrum &from, Spectrum *to) {
         Float rgb[3];
         from.ToRGB(rgb);
-        *to = Spectrum::FromRGB(rgb);
+        // ZLY: We enforced the spectrum type to be reflectance here as we believe the imagemap texture
+        // will only be used for materials but not for lights. Let us know if you found it is also used
+        // for illuminant.
+        *to = Spectrum::FromRGB(rgb, SpectrumType::Reflectance);
     }
     
     // Added by ZLY. In the future, let's give it the option to load custom SPD's.
     static void convertOutCustom(const RGBSpectrum &from, Spectrum *to, SpectrumType type) {
         Float rgb[3];
         from.ToRGB(rgb);
-        *to = Spectrum::FromRGB(rgb, SpectrumType::Display);
+        *to = Spectrum::FromRGB(rgb, type);
     }
-    
+    static void convertOutLoaded(const RGBSpectrum &from, Spectrum *to, Spectrum bOne, Spectrum bTwo, Spectrum bThree) {
+        Float rgb[3];
+        from.ToRGB(rgb);
+        *to = Spectrum::FromRGB(rgb, SpectrumType::Loaded, bOne, bTwo, bThree);
+    }
+        
     static void convertOut(Float from, Float *to) { *to = from; }
     static void convertOutCustom(Float from, Float *to, SpectrumType type) { *to = from; }
+    static void convertOutLoaded(Float from, Float *to, Spectrum bOne, Spectrum bTwo, Spectrum bThree) { *to = from; }
     
     // ImageTexture Private Data
     std::unique_ptr<TextureMapping2D> mapping;
     MIPMap<Tmemory> *mipmap;
     static std::map<TexInfo, std::unique_ptr<MIPMap<Tmemory>>> textures;
+    
+    // Added by ZLY
     std::string basisFunction;
+    Spectrum basisOne;
+    Spectrum basisTwo;
+    Spectrum basisThree;
 };
 
 extern template class ImageTexture<Float, Float>;

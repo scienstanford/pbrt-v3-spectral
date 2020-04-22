@@ -43,8 +43,12 @@ template <typename Tmemory, typename Treturn>
 ImageTexture<Tmemory, Treturn>::ImageTexture(
     std::unique_ptr<TextureMapping2D> mapping, const std::string &filename,
     bool doTrilinear, bool noFiltering, Float maxAniso, ImageWrap wrapMode, Float scale,
-    bool gamma, std::string whichBasis)
-    : mapping(std::move(mapping)), basisFunction(whichBasis) {
+    bool gamma, std::string whichBasis,
+    Spectrum basisOne,
+    Spectrum basisTwo,
+    Spectrum basisThree)
+    : mapping(std::move(mapping)), basisFunction(whichBasis),
+      basisOne(basisOne), basisTwo(basisTwo), basisThree(basisThree){
     mipmap =
         GetTexture(filename, doTrilinear, noFiltering, maxAniso, wrapMode, scale, gamma);
 }
@@ -141,9 +145,15 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
     std::string whichBasis = tp.FindString("basis", "pbrt");
+    Spectrum basisOne =
+        tp.FindSpectrum("basisone", Spectrum(0.f));
+    Spectrum basisTwo =
+        tp.FindSpectrum("basistwo", Spectrum(0.f));
+    Spectrum basisThree =
+        tp.FindSpectrum("basisthree", Spectrum(0.f));
     
     return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
-                                          maxAniso, wrapMode, scale, gamma, whichBasis);
+                          maxAniso, wrapMode, scale, gamma, whichBasis, basisOne, basisTwo, basisThree);
 }
 
 ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
@@ -185,10 +195,18 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
+    // Added by ZLY
     std::string whichBasis = tp.FindString("basis", "pbrt");
-
+    Spectrum basisOne =
+        tp.FindSpectrum("basisone", Spectrum(0.f));
+    Spectrum basisTwo =
+        tp.FindSpectrum("basistwo", Spectrum(0.f));
+    Spectrum basisThree =
+        tp.FindSpectrum("basisthree", Spectrum(0.f));
+    
     return new ImageTexture<RGBSpectrum, Spectrum>(
-        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma, whichBasis);
+        std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma,
+                                        whichBasis, basisOne, basisTwo, basisThree);
 }
 
 template class ImageTexture<Float, Float>;

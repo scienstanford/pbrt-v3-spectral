@@ -70,7 +70,7 @@ inline void RGBToXYZ(const Float rgb[3], Float xyz[3]) {
 }
 
 enum class SpectrumType {
-  Reflectance, Illuminant, Display, Mouth
+  Reflectance, Illuminant, Display, Mouth, Loaded
 };
 
 extern Float InterpolateSpectrumSamples(
@@ -390,7 +390,10 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
   }
 
   static Spectrum FromRGB(
-      const Float rgb[3], SpectrumType type = SpectrumType::Illuminant);
+      const Float rgb[3], SpectrumType type = SpectrumType::Illuminant,
+        Spectrum basisOne = Spectrum(0.f),
+        Spectrum basisTwo = Spectrum(0.f),
+        Spectrum basisThree = Spectrum(0.f));
 
   explicit Spectrum(const RGBSpectrum &r,
       SpectrumType type = SpectrumType::Reflectance);
@@ -443,7 +446,8 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
   // SampledSpectrum Private Data
   static Spectrum X, Y, Z;
   static Spectrum R, G, B; //Added by TL
-  static Spectrum MouthR, MouthG, MouthB;
+  static Spectrum MouthR, MouthG, MouthB; // Added by ZLY
+  static Spectrum TempR, TempG, TempB;   // Added by ZLY
   static Spectrum rgbRefl2SpectWhite, rgbRefl2SpectCyan;
   static Spectrum rgbRefl2SpectMagenta, rgbRefl2SpectYellow;
   static Spectrum rgbRefl2SpectRed, rgbRefl2SpectGreen;
