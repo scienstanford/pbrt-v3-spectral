@@ -245,13 +245,22 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
       return FromSampled(&slambda[0], &sv[0], n);
     }
     Spectrum r = Spectrum::Zero();
+    
+    // ZLY: If sampled wavelengths are exactly hardcoded ones, directly copy lambda to
+    // r
+    //Spectrum ref = Spectrum::LinSpaced(nSpectralSamples, sampledLambdaStart, sampledLambdaEnd);
+    
     for (int i = 0; i < nSpectralSamples; ++i) {
-      // Compute average value of given SPD over $i$th sample's range
-      Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
-                           sampledLambdaStart, sampledLambdaEnd);
-      Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
-                           sampledLambdaStart, sampledLambdaEnd);
-      r[i] = AverageSpectrumSamples(lambda, v, n, lambda0, lambda1);
+      // If current wavelength exactly equals to reference wavelength, directly copy the value
+      if (Float(refWave[i]) == lambda[i]) r[i] = v[i];
+      else{
+          // Compute average value of given SPD over $i$th sample's range
+          Float lambda0 = Lerp(Float(i) / Float(nSpectralSamples),
+                               sampledLambdaStart, sampledLambdaEnd);
+          Float lambda1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
+                               sampledLambdaStart, sampledLambdaEnd);
+          r[i] = AverageSpectrumSamples(lambda, v, n, lambda0, lambda1);
+      }
     }
     return r;
   }
