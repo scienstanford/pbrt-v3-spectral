@@ -144,6 +144,7 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
                                           HasExtension(filename, ".png"));
+    
     std::string whichBasis = tp.FindString("basis", "pbrt");
     Spectrum basisOne =
         tp.FindSpectrum("basisone", Spectrum(0.f));
@@ -151,6 +152,12 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
         tp.FindSpectrum("basistwo", Spectrum(0.f));
     Spectrum basisThree =
         tp.FindSpectrum("basisthree", Spectrum(0.f));
+    
+    // Set gamma to false if deciding to use customized basis functions
+    if (whichBasis != "pbrt" || !basisOne.isApprox(Spectrum(0.f)) ||
+                               !basisTwo.isApprox(Spectrum(0.f)) ||
+                               !basisThree.isApprox(Spectrum(0.f)))
+        gamma = false;
     
     return new ImageTexture<Float, Float>(std::move(map), filename, trilerp, noFiltering,
                           maxAniso, wrapMode, scale, gamma, whichBasis, basisOne, basisTwo, basisThree);
@@ -203,6 +210,11 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
         tp.FindSpectrum("basistwo", Spectrum(0.f));
     Spectrum basisThree =
         tp.FindSpectrum("basisthree", Spectrum(0.f));
+    // Set gamma to false if deciding to use customized basis functions
+    if (whichBasis != "pbrt" || !basisOne.isApprox(Spectrum(0.f)) ||
+                               !basisTwo.isApprox(Spectrum(0.f)) ||
+                               !basisThree.isApprox(Spectrum(0.f)))
+        gamma = false;
     
     return new ImageTexture<RGBSpectrum, Spectrum>(
         std::move(map), filename, trilerp, noFilt, maxAniso, wrapMode, scale, gamma,
