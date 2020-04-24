@@ -256,15 +256,18 @@ Spectrum WaterMedium::Sample(const Ray &ray, Sampler &sampler,
     Spectrum Tr = Exp(-sigma_t * std::min(t, MaxFloat) * ray.d.Length());
 
     // Return weighting factor for scattering from homogeneous medium
-    Spectrum density = sampledMedium ? (sigma_t * Tr) : Tr;
-    Float pdf = density.GetValueAtWavelength(ray.wavelength);
+    //Spectrum density = sampledMedium ? (sigma_t * Tr) : Tr;
+    //Float pdf = density.GetValueAtWavelength(ray.wavelength);
     /*for (int i = 0; i < Spectrum::nSamples; ++i) pdf += density[i];
     pdf *= 1 / (Float)Spectrum::nSamples;
      */
+    
+    Float pdf = 1.0f;
     if (pdf == 0) {
         CHECK(Tr.IsBlack());
         pdf = 1;
     }
+    
     return sampledMedium ? (Tr * sigma_s / pdf) : (Tr / pdf);
 }
 
