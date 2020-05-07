@@ -140,6 +140,8 @@ ImageTexture<Float, Float> *CreateImageFloatTexture(const Transform &tex2world,
         wrapMode = ImageWrap::Black;
     else if (wrap == "clamp")
         wrapMode = ImageWrap::Clamp;
+    else if (wrap == "absolute")
+        wrapMode = ImageWrap::Absolute;
     Float scale = tp.FindFloat("scale", 1.f);
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||
@@ -192,6 +194,8 @@ ImageTexture<RGBSpectrum, Spectrum> *CreateImageSpectrumTexture(
         wrapMode = ImageWrap::Black;
     else if (wrap == "clamp")
         wrapMode = ImageWrap::Clamp;
+    else if (wrap == "absolute")
+        wrapMode = ImageWrap::Absolute;
     Float scale = tp.FindFloat("scale", 1.f);
     std::string filename = tp.FindFilename("filename");
     bool gamma = tp.FindBool("gamma", HasExtension(filename, ".tga") ||

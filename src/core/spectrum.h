@@ -246,10 +246,8 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
     }
     Spectrum r = Spectrum::Zero();
     
-    // ZLY: If sampled wavelengths are exactly hardcoded ones, directly copy lambda to
-    // r
-    //Spectrum ref = Spectrum::LinSpaced(nSpectralSamples, sampledLambdaStart, sampledLambdaEnd);
-    
+    // ZLY: If sampled wavelengths are exactly equal to the hardcoded wavelengths in refWave,
+    // directly copy lambda to the returned value r
     for (int i = 0; i < nSpectralSamples; ++i) {
       // If current wavelength exactly equals to reference wavelength, directly copy the value
       if (Float(refWave[i]) == lambda[i]) r[i] = v[i];

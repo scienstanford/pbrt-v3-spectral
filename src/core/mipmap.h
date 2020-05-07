@@ -52,7 +52,7 @@ STAT_COUNTER("Texture/Trilinear lookups", nTrilerpLookups);
 STAT_MEMORY_COUNTER("Memory/Texture MIP maps", mipMapMemory);
 
 // MIPMap Helper Declarations
-enum class ImageWrap { Repeat, Black, Clamp };
+enum class ImageWrap { Repeat, Black, Clamp, Absolute };
 struct ResampleWeight {
     int firstTexel;
     Float weight[4];
@@ -143,7 +143,7 @@ MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,bool noFilt
                 resampledImage[t * resPow2[0] + s] = 0.f;
                 for (int j = 0; j < 4; ++j) {
                     int origS = sWeights[s].firstTexel + j;
-                    if (wrapMode == ImageWrap::Repeat)
+                    if (wrapMode == ImageWrap::Repeat || wrapMode == ImageWrap::Absolute)
                         origS = Mod(origS, resolution[0]);
                     else if (wrapMode == ImageWrap::Clamp)
                         origS = Clamp(origS, 0, resolution[0] - 1);
@@ -168,7 +168,7 @@ MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,bool noFilt
                 workData[t] = 0.f;
                 for (int j = 0; j < 4; ++j) {
                     int offset = tWeights[t].firstTexel + j;
-                    if (wrapMode == ImageWrap::Repeat)
+                    if (wrapMode == ImageWrap::Repeat || wrapMode == ImageWrap::Absolute)
                         offset = Mod(offset, resolution[1]);
                     else if (wrapMode == ImageWrap::Clamp)
                         offset = Clamp(offset, 0, (int)resolution[1] - 1);
@@ -178,7 +178,10 @@ MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,bool noFilt
                 }
             }
             for (int t = 0; t < resPow2[1]; ++t)
-                resampledImage[t * resPow2[0] + s] = clamp(workData[t]);
+                if (wrapMode == ImageWrap::Absolute)
+                    resampledImage[t * resPow2[0] + s] = workData[t];
+                else
+                    resampledImage[t * resPow2[0] + s] = clamp(workData[t]);
         }, resPow2[0], 32);
         for (auto ptr : resampleBufs) delete[] ptr;
         resolution = resPow2;
@@ -187,6 +190,9 @@ MIPMap<T>::MIPMap(const Point2i &res, const T *img, bool doTrilinear,bool noFilt
     int nLevels = 1 + Log2Int(std::max(resolution[0], resolution[1]));
     pyramid.resize(nLevels);
 
+    // ZLY: This section look strange to me. If the texture image resolution is not a power of 2, instead of doing any wrap mode,
+    // It directly copies the img and set it to the pyramid. Maybe there are some reasons?
+    
     // Initialize most detailed level of MIPMap
     pyramid[0].reset(
         new BlockedArray<T>(resolution[0], resolution[1],
@@ -226,6 +232,10 @@ const T &MIPMap<T>::Texel(int level, int s, int t) const {
     // Compute texel $(s,t)$ accounting for boundary conditions
     switch (wrapMode) {
     case ImageWrap::Repeat:
+        s = Mod(s, l.uSize());
+        t = Mod(t, l.vSize());
+        break;
+    case ImageWrap::Absolute:
         s = Mod(s, l.uSize());
         t = Mod(t, l.vSize());
         break;
