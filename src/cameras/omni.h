@@ -63,6 +63,9 @@ class OmniCamera : public Camera {
         Transform transform;
         Float thickness;
         Float eta;
+        std::vector<Float> asphericCoefficients;
+        Float zMin;
+        Float zMax;
     };
     struct MicrolensData {
         std::vector<LensElementInterface> elementInterfaces;
