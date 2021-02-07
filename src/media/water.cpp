@@ -166,12 +166,16 @@ Float KopelevichPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
     
     ProfilePhase _(Prof::PhaseFuncSampling);
         
-    Float tmp[nAngularSamples];
+    Float cdf[nAngularSamples];
     for (int i=0; i<nAngularSamples; i++)
-        tmp[i] = CDF[i].GetValueAtWavelength(wavelength);
+        cdf[i] = CDF[i].GetValueAtWavelength(wavelength);
     
+    int i=1;
+    while ((cdf[i] < u[0]) && (i < (nAngularSamples-1))) i++;
+    Float w1 = (cdf[i] - u[0]) / (cdf[i] - cdf[i-1]);
+    Float w2 = (u[0] - cdf[i-1]) / (cdf[i] - cdf[i-1]);
     
-    Float sampledAngle = CatmullRom(nAngularSamples, tmp, phaseAngle, u[0] * Pi);
+    Float sampledAngle = phaseAngle[i-1] * w1 + phaseAngle[i] * w2;
     Float cosTheta = cos(sampledAngle);
     Float sinTheta = sin(sampledAngle);
     
