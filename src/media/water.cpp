@@ -243,9 +243,16 @@ Spectrum WaterMedium::Sample(const Ray &ray, Sampler &sampler,
     float sigma_t_wave = sigma_t.GetValueAtWavelength(ray.wavelength);
     
     Float dist = -std::log(1 - sampler.Get1D()) / sigma_t_wave;
-    Float t = std::min(dist / ray.d.Length(), ray.tMax);
-    bool sampledMedium = t < ray.tMax;
-    sampledMedium &= (sigma_s.GetValueAtWavelength(ray.wavelength) > 0);
+    
+    Float t = ray.tMax;
+    bool sampledMedium = false;
+    if (sigma_s.GetValueAtWavelength(ray.wavelength) > 0)
+    {
+        // Scattering is enabled
+        t = std::min(dist / ray.d.Length(), ray.tMax);
+        sampledMedium = t < ray.tMax;
+    }
+        
     if (sampledMedium)
     {
         *mi = MediumInteraction(ray(t), -ray.d, ray.time, this, this->ph);
