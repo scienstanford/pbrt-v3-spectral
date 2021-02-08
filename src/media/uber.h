@@ -45,17 +45,17 @@
 namespace pbrt {
 
 
-class KopelevichPhaseFunction : public PhaseFunction {
+class UberPhaseFunction : public PhaseFunction {
     public:
     // PhaseFunction Interface
-    KopelevichPhaseFunction(float cSmall, float cLarge);
-    KopelevichPhaseFunction(std::vector<float> &data);
-    virtual ~KopelevichPhaseFunction();
+    UberPhaseFunction(float cSmall, float cLarge);
+    UberPhaseFunction(std::vector<float> &data);
+    virtual ~UberPhaseFunction();
     virtual Spectrum p(const Vector3f &wo, const Vector3f &wi) const;
     virtual Float Sample_p(const Vector3f &wo, Vector3f *wi,
                            const Point2f &u, Float wavelength) const;
     virtual std::string ToString() const {
-        return StringPrintf("[ KopelevichPhaseFunction cSmall=%.3f cLarge=%.3f]",cSmall,cLarge);
+        return StringPrintf("[ UberPhaseFunction ]");
     };
     
     Spectrum getScatter();
@@ -63,8 +63,6 @@ class KopelevichPhaseFunction : public PhaseFunction {
     static const int nAngularSamples = 64;
     
     private:
-        const Float cSmall;
-        const Float cLarge;
         Float phaseAngle[nAngularSamples];        
         std::vector<Spectrum> CDF;
         std::vector<Spectrum> PDF;
@@ -74,15 +72,15 @@ class KopelevichPhaseFunction : public PhaseFunction {
 };
 
 // WaterMedium Declarations
-class WaterMedium : public Medium {
+class UberMedium : public Medium {
   public:
     // WaterMedium Public Methods
-    WaterMedium(const Spectrum &sigma_a, const Spectrum &sigma_s, const PhaseFunction *phase)
+    UberMedium(const Spectrum &sigma_a, const Spectrum &sigma_s, const PhaseFunction *phase)
         : sigma_a(sigma_a),
           sigma_s(sigma_s),
           sigma_t(sigma_s + sigma_a), ph(phase){
     };
-    ~WaterMedium(){
+    ~UberMedium(){
         delete ph;
     }
     Spectrum Tr(const Ray &ray, Sampler &sampler) const;
@@ -95,8 +93,7 @@ class WaterMedium : public Medium {
     const PhaseFunction *ph;
 };
 
-WaterMedium* createWaterMedium(Float cPlankton, Float aCDOM440, Float aNAP400, Float cSmall, Float cLarge);
-WaterMedium* createWaterMedium(std::string absFile, std::string vsfFile);
+UberMedium* createUberMedium(std::string absFile, std::string vsfFile);
 
 
 }  // namespace pbrt

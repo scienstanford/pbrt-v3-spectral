@@ -125,7 +125,7 @@
 #include "textures/wrinkled.h"
 #include "media/grid.h"
 #include "media/homogeneous.h"
-#include "media/water.h"
+#include "media/uber.h"
 
 #include <map>
 #include <stdio.h>
@@ -717,22 +717,12 @@ std::shared_ptr<Medium> MakeMedium(const std::string &name,
     Medium *m = NULL;
     if (name == "homogeneous") {
         m = new HomogeneousMedium(sig_a, sig_s, g);
-    } else if (name == "water")
+    } else if (name == "uber")
     {
         std::string absFile = paramSet.FindOneString("absFile", "");
         std::string vsfFile = paramSet.FindOneString("vsfFile", "");
-        if ((absFile == ""))
-        {
-            Float cPlankton = paramSet.FindOneFloat("cPlankton", 0.1f);
-            Float aCDOM440 = paramSet.FindOneFloat("aCDOM440", 0.12f);
-            Float aNAP400 = paramSet.FindOneFloat("aNAP400", 0.13f);
-            Float cSmall = paramSet.FindOneFloat("cSmall", 0.01f);
-            Float cLarge = paramSet.FindOneFloat("cLarge", 0.02f);
-            m = createWaterMedium(cPlankton, aCDOM440, aNAP400, cSmall, cLarge);
-        } else
-        {
-            m = createWaterMedium(absFile, vsfFile);
-        }
+        m = createUberMedium(absFile, vsfFile);
+        
     } else if (name == "heterogeneous") {
         int nitems;
         const Float *data = paramSet.FindFloat("density", &nitems);
