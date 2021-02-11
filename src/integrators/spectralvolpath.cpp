@@ -80,18 +80,7 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
 
         // Sample the participating medium, if present
         MediumInteraction mi;
-        if (ray.medium)
-        {
-            if (bounces <= maxDepth)
-            {
-                beta *= ray.medium->Sample(ray, sampler, arena, &mi);
-            }
-            else
-            {
-                //Allow the ray to continue straight
-                beta *= ray.medium->Tr(ray, sampler);
-            }
-        }
+        if (ray.medium) beta *= ray.medium->Sample(ray, sampler, arena, &mi);
         if (beta.IsBlack()) break;
 
         // Handle an interaction with a medium or a surface
