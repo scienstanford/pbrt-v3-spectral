@@ -80,7 +80,18 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
 
         // Sample the participating medium, if present
         MediumInteraction mi;
-        if (ray.medium) beta *= ray.medium->Sample(ray, sampler, arena, &mi);
+        if (ray.medium)
+        {
+            if (bounces <= maxDepth)
+            {
+                beta *= ray.medium->Sample(ray, sampler, arena, &mi);
+            }
+            else
+            {
+                //Allow the ray to continue straight
+                beta *= ray.medium->Tr(ray, sampler);
+            }
+        }
         if (beta.IsBlack()) break;
 
         // Handle an interaction with a medium or a surface
@@ -183,6 +194,7 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
             }
         }
 
+        /*
         // Possibly terminate the path with Russian roulette
         // Factor out radiance scaling due to refraction in rrBeta.
         Spectrum rrBeta = beta * etaScale;
@@ -192,6 +204,7 @@ Spectrum SpectralVolPathIntegrator::Li(const RayDifferential &r, const Scene &sc
             beta /= 1 - q;
             DCHECK(std::isinf(beta.y()) == false);
         }
+         */
     }
     ReportValue(pathLength, bounces);
     return L;
