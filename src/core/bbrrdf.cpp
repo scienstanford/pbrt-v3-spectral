@@ -24,7 +24,9 @@
 namespace pbrt {
 
 PhotoLumi SurfaceBBRRDF::f(const Vector3f &wo, const Vector3f &wi) const {
-    return reRadMatrix * InvPi;
+      // ZLY: Commenting this out for now, but might be not fully correct
+//    return reRadMatrix * InvPi;
+    return reRadMatrix * 2;
 }
 
 PhotoLumi SurfaceBBRRDF::Sample_f(const Vector3f &wo, Vector3f *wi,
