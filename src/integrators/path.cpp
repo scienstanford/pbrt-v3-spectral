@@ -136,10 +136,11 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         // to update the non-fluorescent part, and add the fluorescent beta
         // and non-fluorescent beta together.
         PhotoLumi betaFluores = PhotoLumi::Zero();
+        Float pdf_f = 1.f;
         if (isect.bbrrdf) {
           betaFluores = beta;
           betaFluores *= isect.bbrrdf->Sample_f(
-              wo, &wi, sampler.Get2D(), &pdf, BSDF_ALL, &flags);
+              wo, &wi, sampler.Get2D(), &pdf_f, BSDF_ALL, &flags);
         }
 
         // Sample illumination from lights to find path contribution.
@@ -162,7 +163,7 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
         if (f.IsBlack() || pdf == 0.f) break;
         
         // Here is the new expression of updating beta.
-        beta = ((beta.array().rowwise() * f.transpose()) * AbsDot(wi, isect.shading.n) / pdf).matrix() + betaFluores * AbsDot(wi, isect.shading.n) / pdf;
+        beta = ((beta.array().rowwise() * f.transpose()) * AbsDot(wi, isect.shading.n) / pdf).matrix() + betaFluores * AbsDot(wi, isect.shading.n) / pdf_f;
         VLOG(2) << "Updated beta = " << beta;
         specularBounce = (flags & BSDF_SPECULAR) != 0;
         if ((flags & BSDF_SPECULAR) && (flags & BSDF_TRANSMISSION)) {
