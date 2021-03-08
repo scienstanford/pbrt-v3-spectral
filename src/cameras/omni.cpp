@@ -46,6 +46,8 @@
 #include <array>
 #include <fstream>
 
+#include <math.h>
+#include <cmath>
 #include <gsl/gsl_roots.h> // For solving biconic surface intersections.
 #include <gsl/gsl_errno.h>
 
@@ -88,12 +90,12 @@ static Float computeZOfLensElement(Float r, const OmniCamera::LensElementInterfa
 OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
     Float shutterClose, Float apertureDiameter, Float filmdistance,
     Float focusDistance, bool simpleWeighting, bool noWeighting,
-    bool caFlag, const std::vector<OmniCamera::LensElementInterface> &lensInterfaceData,
+    bool caFlag, bool diffractionEnabled, const std::vector<OmniCamera::LensElementInterface> &lensInterfaceData,
     const std::vector<OmniCamera::LensElementInterface> &microlensData,
     Vector2i microlensDims, const std::vector<Vector2f> & microlensOffsets,
     float microlensSensorOffset, int microlensSimulationRadius, Film *film, const Medium *medium)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-      simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag) {
+      simpleWeighting(simpleWeighting), noWeighting(noWeighting), caFlag(caFlag), diffractionEnabled(diffractionEnabled) {
     
     elementInterfaces = lensInterfaceData;
 
@@ -130,7 +132,13 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
         microlens.offsetFromSensor = microlensSensorOffset;
         microlens.simulationRadius = microlensSimulationRadius;
     }
-
+          
+    // Set up GSL random number generator for diffraction modeling
+    const gsl_rng_type * T;
+    gsl_rng_env_setup();
+    T = gsl_rng_default;
+    r = gsl_rng_alloc (T);
+          
     // Compute lens--film distance for given focus distance
     // TL: If a film distance is given, hardset the focus distance. If not, use the focus distance given.
     if(filmdistance == 0){
@@ -147,11 +155,12 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
                                   FocusDistance(filmdistance));
         elementInterfaces.back().thickness = filmdistance;
     }
+          
     
     // Print out film distance into terminal
     std::cout << "Distance from film to back of lens: " << elementInterfaces.back().thickness << " m" << std::endl;
     std::cout << "Focus distance in scene: " << FocusDistance(elementInterfaces.back().thickness) << " m" << std::endl;
-          
+    
     // Compute exit pupil bounds at sampled points on the film
     int nSamples = 64;
     exitPupilBounds.resize(nSamples);
@@ -196,6 +205,7 @@ OmniCamera::OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen
                 "values will vary a bit depending on the aperture size. See "
                 "this discussion for details: "
                 "https://github.com/mmp/pbrt-v3/issues/162#issuecomment-348625837");
+
 }
 
 struct aspheric_params {
@@ -356,6 +366,83 @@ bool IntersectAsphericalElement(const OmniCamera::LensElementInterface& element,
     return false;
 }
 
+void OmniCamera::diffractHURB(Ray &rLens, const LensElementInterface &element, const Float t) const {
+    // Convert the rays in this element space
+    auto invTransform = Inverse(element.transform);
+    Ray rElement = invTransform(rLens);
+    
+    Point3f intersect = rElement(t);
+    Float apertureRadius = element.apertureRadius.x;
+    Float wavelength = rElement.wavelength;
+    Vector3f oldDirection = rElement.d;
+    
+    // ZLY: Directly copied from realisticEye
+    // Modified wavelength unit conversion as I think it is always assumed to be in unit of meters
+    // std::cout << "wavelength = " << wavelength << std::endl;
+    double dist2Int = sqrt(intersect.x*intersect.x + intersect.y*intersect.y);
+    Vector3f dirS = Normalize(Vector3f(intersect.x, intersect.y, 0));
+    Vector3f dirL = Normalize(Vector3f(-1*intersect.y, intersect.x, 0));
+    Vector3f dirU = Vector3f(0,0,1); // Direction pointing normal to the aperture plane and toward the scene.
+    
+    double dist2EdgeS = apertureRadius - dist2Int;
+    double dist2EdgeL = sqrt(apertureRadius*apertureRadius - dist2Int*dist2Int);
+    
+    // Calculate variance according to Freniere et al. 1999
+    double sigmaS = atan(1/(1.41 * dist2EdgeS * 2*Pi/(wavelength*1e-9) ));
+    double sigmaL = atan(1/(1.41 * dist2EdgeL * 2*Pi/(wavelength*1e-9) ));
+    
+    // Sample from bivariate gaussian
+    double initS = 0;
+    double initL = 0;
+    double *noiseS = &initS;
+    double *noiseL = &initL;
+    gsl_ran_bivariate_gaussian (r, sigmaS, sigmaL, 0, noiseS, noiseL);
+    
+    // DEBUG:
+//        std::cout << "noiseS = " << *noiseS << std::endl;
+//        std::cout << "noiseL = " << *noiseL << std::endl;
+//        std::cout << *noiseS << " " << *noiseL << std::endl;
+    
+    // Decompose our original ray into dirS and dirL.
+    double projS = Dot(oldDirection,dirS)/dirS.Length();
+    double projL = Dot(oldDirection,dirL)/dirL.Length();
+    double projU = Dot(oldDirection,dirU)/dirU.Length();
+    
+    /*
+     We have now decomposed the original, incoming ray into three orthogonal
+     directions: directionS, directionL, and directionU.
+     directionS is the direction along the shortest distance to the aperture
+     edge.
+     directionL is the orthogonal direction to directionS in the plane of the
+     aperture.
+     directionU is the direction normal to the plane of the aperture, pointing
+     toward the scene.
+     To orient our azimuth and elevation directions, imagine that the
+     S-U-plane forms the "ground plane." "Theta_x" in the Freniere paper is
+     therefore the deviation in the azimuth and "Theta_y" is the deviation in
+     the elevation.
+     */
+    
+    // Calculate current azimuth and elevation angles
+    double thetaA = atan(projS/projU); // Azimuth
+    double thetaE = atan(projL/sqrt(projS*projS + projU*projU)); // Elevation
+    
+    // Deviate the angles
+    thetaA = thetaA + *noiseS;
+    thetaE = thetaE + *noiseL;
+    
+    // Recalculate the ray direction
+    // Remember the ray direction is normalized, so it should have length = 1
+    double newProjL = sin(thetaE);
+    double newProjSU = cos(thetaE);
+    double newProjS = newProjSU * sin(thetaA);
+    double newProjU = newProjSU * cos(thetaA);
+    
+    // Add up the new projections to get a new direction
+    rElement.d = Normalize(-newProjS*dirS - newProjL*dirL - newProjU*dirU);
+    rLens = element.transform(rElement);
+}
+
 OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface &element, const Ray& rLens, 
     const Float& elementZ, Float& t, Normal3f& n, bool& isStop, 
     const ConvexQuadf& bounds = ConvexQuadf()) const {
@@ -379,7 +466,9 @@ OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface 
                 return MISS;
         }
     }
-    CHECK_GE(t, 0);
+    
+    // CHECK_GE(t, 0);
+    if (t < 0) return MISS;
     // Transform the normal back into the original space.
     n = element.transform(n);
 
@@ -422,6 +511,7 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
         // Update ray path for element interface interaction
         if (!isStop) {
             rLens.o = rLens(t);
+
             Vector3f w;
             Float etaI = element.eta;
             Float etaT = (i > 0 && elementInterfaces[i - 1].eta != 0)
@@ -429,15 +519,22 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
                              : 1;
             // Added by Trisha and Zhenyi (5/18)
             if(caFlag && (rLens.wavelength >= 400) && (rLens.wavelength <= 700))
-            {                    
+            {
                 if (etaI != 1)
                     etaI = (rLens.wavelength - 550) * -.04/(300)  +  etaI;
                 if (etaT != 1)
                     etaT = (rLens.wavelength - 550) * -.04/(300)  +  etaT;
             }
-            
             if (!Refract(Normalize(-rLens.d), n, etaI / etaT, &w)) return false;
             rLens.d = w;
+            
+        } else {
+            if (diffractionEnabled) {
+                // DEBUG: Check direction did change
+                // std::cout << "rLens.d = (" << rLens.d.x << "," << rLens.d.y << "," << rLens.d.z << ")" << std::endl;
+                // Adjust ray direction using HURB diffraction
+                diffractHURB(rLens, element, t);
+            }
         }
     }
     // Transform _rLens_ from lens system space back to camera space
@@ -1142,11 +1239,13 @@ Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
         ++vignettedRays;
         return 0;
     }
-
+    
     // Finish initialization of _OmniCamera_ ray
     *ray = CameraToWorld(*ray);
     ray->d = Normalize(ray->d);
     ray->medium = medium;
+    
+
 
     // Return weighting for _OmniCamera_ ray
     if (HasMicrolens()) {
@@ -1198,6 +1297,9 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
 
     Float microlensSensorOffset = params.FindOneFloat("microlenssensoroffset", 0.001);
     int microlensSimulationRadius = params.FindOneInt("microlenssimulationradius", 0);
+    
+    // Diffraction limit calculation flag
+    bool diffractionEnabled = params.FindOneBool("diffractionEnabled", 0.0);
 
     if (lensFile == "") {
         Error("No lens description file supplied!");
@@ -1427,8 +1529,8 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
     bool caFlag = params.FindOneBool("chromaticAberrationEnabled", false);
     
     return new OmniCamera(cam2world, shutteropen, shutterclose,
-                               apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag,
-                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, microlensSimulationRadius, film, medium);
+                               apertureDiameter, filmDistance, focusDistance, simpleWeighting, noWeighting, caFlag, diffractionEnabled,
+                               lensInterfaceData, microlensData, microlensDims, microlensOffsets, microlensSensorOffset, microlensSimulationRadius, film, medium );
 }
 
 }  // namespace pbrt

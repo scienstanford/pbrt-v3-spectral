@@ -41,6 +41,7 @@
 #include "pbrt.h"
 #include "camera.h"
 #include "film.h"
+#include <gsl/gsl_randist.h>
 
 namespace pbrt {
 
@@ -80,7 +81,7 @@ class OmniCamera : public Camera {
     OmniCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
                     Float shutterClose, Float apertureDiameter, Float filmdistance,
                     Float focusDistance, bool simpleWeighting, bool noWeighting,
-                    bool caFlag, const std::vector<OmniCamera::LensElementInterface> &lensData, 
+                    bool caFlag, bool diffractionEnabled, const std::vector<OmniCamera::LensElementInterface> &lensData,
                     const std::vector<OmniCamera::LensElementInterface> &microlensData,
                     Vector2i microlensDims, const std::vector<Vector2f> & microlensOffsets, 
                     float microlensSensorOffset, int microlensSimulationRadius, Film *film, const Medium *medium);
@@ -95,6 +96,7 @@ class OmniCamera : public Camera {
     const bool simpleWeighting;
     const bool noWeighting;
     const bool caFlag;
+    bool diffractionEnabled;
     std::vector<LensElementInterface> elementInterfaces;
     std::vector<Bounds2f> exitPupilBounds;
 
@@ -142,7 +144,7 @@ class OmniCamera : public Camera {
     void RenderExitPupil(Float sx, Float sy, const char *filename) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample,
                             Float *sampleBoundsArea) const;
-
+    void diffractHURB(Ray &rLens, const LensElementInterface &element, const Float t) const;
     IntersectResult TraceElement(const LensElementInterface &element, const Ray& rLens, const Float& elementZ,
          Float& t, Normal3f& n, bool& isStop, const ConvexQuadf& bounds) const;
 
@@ -160,6 +162,9 @@ class OmniCamera : public Camera {
 
 
     bool HasMicrolens() const;
+    
+    // GSL seed(?) for random number generation
+    gsl_rng * r;
 };
 
 OmniCamera *CreateOmniCamera(const ParamSet &params,
