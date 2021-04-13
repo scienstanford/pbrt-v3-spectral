@@ -93,9 +93,14 @@
 
 namespace pbrt {
 
-static const int sampledLambdaStart = 365;
-static const int sampledLambdaEnd = 705;
-static const int nSpectralSamples = 69;
+// ZLY: Change data type of for custom sampling
+//static const int sampledLambdaStart = 365;
+//static const int sampledLambdaEnd = 705;
+//static const int nSpectralSamples = 69;
+
+int sampledLambdaStart = 365;
+int sampledLambdaEnd = 705;
+int nSpectralSamples = 69;
 static const Eigen::Array<float, 1, nSpectralSamples> refWave =
                         Eigen::Array<float, 1, nSpectralSamples>::
                         LinSpaced(nSpectralSamples, sampledLambdaStart, sampledLambdaEnd);
