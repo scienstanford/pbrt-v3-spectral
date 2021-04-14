@@ -113,7 +113,6 @@ extern const Float RGBIllum2SpectRed[nRGB2SpectSamples];
 extern const Float RGBIllum2SpectGreen[nRGB2SpectSamples];
 extern const Float RGBIllum2SpectBlue[nRGB2SpectSamples];
 
-
 class RGBSpectrum: public Eigen::Array<Float, 3, 1> {
  public:
   static constexpr int nSamples = 3;
@@ -448,6 +447,10 @@ class Spectrum: public Eigen::Array<Float, nSpectralSamples, 1> {
     // I commented this out, because what if the spectrum is zero?
     //assert(*output != 0);
   }
+  
+
+  
+
 
  private:
   // SampledSpectrum Private Data
