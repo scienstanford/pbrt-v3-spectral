@@ -96,7 +96,7 @@ namespace pbrt {
 
 static const int sampledLambdaStart = 350;
 static const int sampledLambdaEnd = 900;
-static const int nSpectralSamples = 109;
+static const int nSpectralSamples = 111;
 static const Eigen::Array<float, 1, nSpectralSamples> refWave =
                         Eigen::Array<float, 1, nSpectralSamples>::
                         LinSpaced(nSpectralSamples, sampledLambdaStart, sampledLambdaEnd);
