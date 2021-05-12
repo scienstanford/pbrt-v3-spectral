@@ -204,7 +204,14 @@ Spectrum UberMedium::Sample(const Ray &ray, Sampler &sampler,
     // Compute the transmittance and sampling density
     Spectrum Tr = Exp(-sigma_t * std::min(t, MaxFloat) * ray.d.Length());
     
-    return sampledMedium ? (Tr * sigma_s) : (Tr);
+    Spectrum density = sampledMedium ? (sigma_t * Tr) : Tr;
+    Float pdf = density.GetValueAtWavelength(ray.wavelength);    
+    if (pdf == 0) {
+        CHECK(Tr.IsBlack());
+        pdf = 1;
+    }
+
+    return sampledMedium ? (Tr * sigma_s / pdf) : (Tr / pdf);
 }
 
 }  // namespace pbrt
