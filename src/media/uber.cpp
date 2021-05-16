@@ -123,7 +123,9 @@ Float UberPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
         
     Float cdf[nAngularSamples];
     for (int i=0; i<nAngularSamples; i++)
+    {
         cdf[i] = CDF[i].GetValueAtWavelength(wavelength);
+    }
     
     int i=1;
     while ((cdf[i] < u[0]) && (i < (nAngularSamples-1))) i++;
@@ -140,7 +142,7 @@ Float UberPhaseFunction::Sample_p(const Vector3f &wo, Vector3f *wi,
     CoordinateSystem(wo, &v1, &v2);
     *wi = SphericalDirection(sinTheta, cosTheta, phi, v1, v2, -wo);
     
-    return p(wo, *wi).GetValueAtWavelength(wavelength);
+    return p(-wo, *wi).GetValueAtWavelength(wavelength);
 };
 
 
