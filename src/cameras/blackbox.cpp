@@ -483,7 +483,8 @@ Float BlackBoxCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     
     Float cosTheta = Normalize(rFilm.d).z;
     Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-    return cos4Theta;
+    Float pupilArea = pupilRadii[pupilIndex] * pupilRadii[pupilIndex] * Pi;
+    return cos4Theta * pupilArea / (filmDistance * filmDistance);
 }
 
 BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
