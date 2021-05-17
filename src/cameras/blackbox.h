@@ -104,8 +104,9 @@ class BlackBoxCamera : public Camera {
     
     
     // BlackBoxCamera Public Methods
-    BlackBoxCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, bool caFlag, Film *film, const Medium *medium, Bounds2f exitPupilBounds,
-        std::map<std::string,BlackBoxCamera::LensPolynomialTerm> poly, std::string bbmode);
+    BlackBoxCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds,
+        std::map<std::string,BlackBoxCamera::LensPolynomialTerm> poly, std::string bbmode,
+        std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex);
     
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
@@ -116,16 +117,19 @@ class BlackBoxCamera : public Camera {
     const bool caFlag;
     const Float filmDistance;
     const Float lensThickness;
-    const Bounds2f exitPupilBounds;
-    
+    const Point2f exitPupilBounds;
+    int pupilIndex;
     Ray ApplyPolynomial(const Ray &thisRay) const;
-    Ray RotateRays(const Ray &thisRay, const Float deg) const;
-    Float PolynomialCal(const Ray &thisRay, const std::string name) const;
+    Ray RotateRays(const Ray &thisRay, Float deg) const;
+    Float PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation) const;
     Vector2f Pos2RadiusRotation(const Point3f pos) const;
+    bool IsValidRay(const Ray &rCamera) const;
     bool TraceLensesFromFilm(const Ray &ray, Ray *rOut,
         const Transform CameraToLens) const;
-    Point3f SampleExitPupil(const Point2f &lensSample) const;
+    Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample) const;
     std::map<std::string, BlackBoxCamera::LensPolynomialTerm> poly;
+    std::vector<Float> pupilPos;
+    std::vector<Float> pupilRadii;
     std::string bbmode;
     
     /*
