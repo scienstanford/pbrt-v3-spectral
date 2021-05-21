@@ -85,12 +85,14 @@ UberPhaseFunction::UberPhaseFunction(std::vector<float> &data) : sigma_s(0.0)
     
     // Normalize
     CDF[0] = CDF[0] * Pi * 2 * sin(Pi - phaseAngle[0]) * phaseAngle[1] / normFact;
-    PDF[0] = PDF[0] / normFact;
+    PDF[0] = PDF[0] / normFact * phaseAngle[1];
     for (int j=1; j<nAngularSamples; j++)
     {
         CDF[j] = CDF[j-1] + CDF[j] * Pi * 2 * sin(Pi - phaseAngle[j]) * phaseAngle[1] / normFact;
-        PDF[j] = PDF[j] / normFact;
+        PDF[j] = PDF[j] / normFact * phaseAngle[1];
     }
+    
+    
     
     free(waves);
     free(vals);
