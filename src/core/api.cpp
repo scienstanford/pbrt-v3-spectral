@@ -832,7 +832,7 @@ Camera *MakeCamera(const std::string &name, const ParamSet &paramSet,
     else if (name == "omni")
         camera = CreateOmniCamera(paramSet, animatedCam2World, film,
             mediumInterface.outside);
-    else if (name == "blackbox")
+    else if (name == "rtf")
         camera = CreateBlackBoxCamera(paramSet, animatedCam2World, film,
                                   mediumInterface.outside);
     else
