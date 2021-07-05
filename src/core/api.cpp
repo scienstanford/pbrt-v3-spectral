@@ -50,7 +50,7 @@
 #include "accelerators/kdtreeaccel.h"
 #include "cameras/environment.h"
 #include "cameras/omni.h" // Added by MMara
-#include "cameras/blackbox.h" // Added by ZhengLyu
+#include "cameras/rtf.h" // Added by ZhengLyu
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
 #include "cameras/realistic.h"
@@ -833,7 +833,7 @@ Camera *MakeCamera(const std::string &name, const ParamSet &paramSet,
         camera = CreateOmniCamera(paramSet, animatedCam2World, film,
             mediumInterface.outside);
     else if (name == "rtf")
-        camera = CreateBlackBoxCamera(paramSet, animatedCam2World, film,
+        camera = CreateRTFCamera(paramSet, animatedCam2World, film,
                                   mediumInterface.outside);
     else
         Warning("Camera \"%s\" unknown.", name.c_str());
