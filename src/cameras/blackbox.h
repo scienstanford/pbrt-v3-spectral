@@ -104,9 +104,9 @@ class BlackBoxCamera : public Camera {
     
     
     // BlackBoxCamera Public Methods
-    BlackBoxCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds,
+    BlackBoxCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds,
         std::map<std::string,BlackBoxCamera::LensPolynomialTerm> poly, std::string bbmode,
-        std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex);
+        std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex, std::vector<Float> circleRadii, std::vector<Float> circleSensitivities, Float circlePlaneZ);
     
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
@@ -116,6 +116,7 @@ class BlackBoxCamera : public Camera {
     enum IntersectResult {MISS,CULLED_BY_APERTURE,HIT};
     const bool caFlag;
     const Float filmDistance;
+    const Float planeOffset;
     const Float lensThickness;
     const Point2f exitPupilBounds;
     int pupilIndex;
@@ -124,12 +125,16 @@ class BlackBoxCamera : public Camera {
     Float PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation) const;
     Vector2f Pos2RadiusRotation(const Point3f pos) const;
     bool IsValidRay(const Ray &rCamera) const;
+    bool IsValidRayCircles(const Ray &rotatedRay) const;
     bool TraceLensesFromFilm(const Ray &ray, Ray *rOut,
-        const Transform CameraToLens) const;
+    const Transform CameraToLens) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample) const;
     std::map<std::string, BlackBoxCamera::LensPolynomialTerm> poly;
     std::vector<Float> pupilPos;
     std::vector<Float> pupilRadii;
+    std::vector<Float> circleRadii;
+    std::vector<Float> circleSensitivities;
+    Float circlePlaneZ; // Plane where circles were fitted
     std::string bbmode;
     
     /*

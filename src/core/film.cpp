@@ -301,7 +301,9 @@ void Film::WriteImage(Float splatScale) {
             }
         }
             
-        // piReadDAT expects the data to be serialized wavelength by wavelength. In other words, you would go through all the rows and columns of wavelength index = 1 first, then move on to all the pixels for wavelength index = 2 next, etc.
+        // piReadDAT expects the data to be serialized wavelength by wavelength.
+        // In other words, you would go through all the rows and columns of wavelength index = 1 first, 
+        // then move on to all the pixels for wavelength index = 2 next, etc.
 
         fclose(spectralDataBin);
             

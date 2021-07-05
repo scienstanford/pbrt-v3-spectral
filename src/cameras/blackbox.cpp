@@ -50,6 +50,7 @@
 #include <gsl/gsl_roots.h> // For solving biconic surface intersections.
 #include <gsl/gsl_errno.h>
 
+
 using json = nlohmann::json;
 
 namespace pbrt {
@@ -62,22 +63,24 @@ Float sgn(Float val) {
 */
 
 // BlackBoxCamera Method Definitions
+// Pupil index: choose which pupil in the list of pupils counts as the exit pupil
 BlackBoxCamera::BlackBoxCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
-    Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensthickness, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds, std::map<std::string,BlackBoxCamera::LensPolynomialTerm> poly, std::string bbmode,
-            std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex)
+    Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensthickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds, std::map<std::string,BlackBoxCamera::LensPolynomialTerm> poly, std::string bbmode,
+            std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex, std::vector<Float> circleRadii, std::vector<Float> circleSensitivities, Float circlePlaneZ)
     : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-      caFlag(caFlag), filmDistance(filmdistance), lensThickness(lensthickness), exitPupilBounds(exitPupilBounds),poly(poly), bbmode(bbmode),pupilPos(pupilPos), pupilRadii(pupilRadii), pupilIndex(pupilIndex)
+      caFlag(caFlag), filmDistance(filmdistance), lensThickness(lensthickness), exitPupilBounds(exitPupilBounds),poly(poly), bbmode(bbmode),pupilPos(pupilPos), pupilRadii(pupilRadii), pupilIndex(pupilIndex), planeOffset(planeOffset),
+      circleRadii(circleRadii),circleSensitivities(circleSensitivities), circlePlaneZ(circlePlaneZ)
             {
 }
 Vector2f BlackBoxCamera::Pos2RadiusRotation(const Point3f pos) const{
     // Convert position to radius
     Float radius = std::sqrt(pos.x * pos.x + pos.y * pos.y);
-    Float deg = std::atan(pos.y/pos.x);
+    Float deg = std::atan2(pos.y,pos.x);
     
-    // Determine whether to rotate 180 degrees
-    if ( (pos.x < 0 && pos.y < 0) || (pos.x < 0 && pos.y > 0)) {
-        deg += Pi;
-    }
+    // Determine whether to rotate 180 degrees % ATAN2 covers this already
+    //if ( (pos.x < 0 && pos.y < 0) || (pos.x < 0 && pos.y > 0)) {
+        //deg += Pi;
+    //}
     
     Vector2f res = Vector2f(radius, Degrees(deg));
     
@@ -122,7 +125,13 @@ Ray BlackBoxCamera::ApplyPolynomial(const Ray &thisRay) const{
     }
     Float w = std::sqrt(std::abs(1 - u * u - v * v));
     
-    Ray rOut = Ray(Point3f(x, y, -(lensThickness+filmDistance)), Vector3f(u, v, -w)); // 0.0001 is the offset
+    // The outocming Ray starts at the output plane: 
+//    Float outputPlane_z = -(lensThickness+filmDistance); // Lens thickness includes 2x planeOffsets
+    Float outputPlane_z = -(filmDistance+lensThickness+planeOffset); /// Lens thickness: WIHOUT input plane
+    // coordinate systems of lens and film are opposite -> that's why there is an inversion
+
+    Ray rOut = Ray(Point3f(x, y, outputPlane_z), Vector3f(u, v, -w)); // Original
+    
     // Rotate the output ray
     rOut = RotateRays(rOut, radiusRotation.y - 90);
     
@@ -137,14 +146,40 @@ Ray BlackBoxCamera::RotateRays(const Ray &thisRay, Float deg) const{
 
 bool BlackBoxCamera::IsValidRay(const Ray &rCamera) const{
     Vector3f dir = Normalize(rCamera.d);
+
+    
     for (int i = 0; i < pupilPos.size(); i++) {
         // Calculate the length
         Float alpha = pupilPos[i] / dir.z;
-        Point3f validBound = rCamera.o + alpha * dir;
+//        std::cout << pupilRadii[i] << "\n";
+    
+        Point3f validBound = rCamera.o + alpha * dir; // TG EDIT TEMP
         if (std::sqrt(validBound.x * validBound.x + validBound.y * validBound.y) >= pupilRadii[i]) {
             return false;
         }
-    }
+    } 
+
+    return true;
+}
+
+bool BlackBoxCamera::IsValidRayCircles(const Ray &rotatedRay) const{
+    Vector3f dir = Normalize(rotatedRay.d);
+
+      Float alpha = -circlePlaneZ / dir.z;  // minus sign because rotatedRay already has reversal of Z axi
+     Point3f validBound = rotatedRay.o + alpha * dir; // TG EDIT TEMP
+     Float offaxisDistance=rotatedRay.o.y; // in input plane
+     Float xsquared = validBound.x * validBound.x;
+     
+     // CirclePlane instead of pupils
+         for (int i = 0; i < circleRadii.size(); i++) {
+        // Calculate the length
+
+        Float distanceFromCenterY = validBound.y-offaxisDistance*circleSensitivities[i];
+        
+        if (std::sqrt(xsquared+ distanceFromCenterY*distanceFromCenterY) >= circleRadii[i]) {
+            return false;
+        }
+    } 
     return true;
 }
 
@@ -152,9 +187,9 @@ bool BlackBoxCamera::TraceLensesFromFilm(const Ray &rCamera,
     Ray *rOut,
     const Transform CameraToLens = Scale(1, 1, -1)) const {
     
-    if (!IsValidRay(rCamera)) {
+    /*if (!IsValidRay(rCamera)) {
         return false;
-    }
+    }*/
     
     Ray rLens = CameraToLens(rCamera);
     
@@ -162,13 +197,27 @@ bool BlackBoxCamera::TraceLensesFromFilm(const Ray &rCamera,
     Vector2f radiusRotation = Pos2RadiusRotation(rLens.o);
     // Rotate rays
     Ray rotatedRay = RotateRays(rLens, 90 - radiusRotation.y);
+
+//if(IsValidRay(rCamera)){
+    //std::cout << IsValidRay(rCamera) << "," << IsValidRayCircles(rotatedRay) << "\n";
+//    std::cout << (rCamera) << "," << (rotatedRay) << "\n";
+//}
+
+
+    if (!IsValidRayCircles(rotatedRay)) {
+        return false;
+    }
+
+
     Vector3f dir = Normalize(rotatedRay.d);
-    Float deg = Degrees(std::atan(std::sqrt(dir.x * dir.x + dir.y * dir.y) /std::abs(dir.z)));
+    //Float deg = Degrees(std::atan(std::sqrt(dir.x * dir.x + dir.y * dir.y) /std::abs(dir.z)));
+    Float deg = Degrees(std::atan2(std::sqrt(dir.x * dir.x + dir.y * dir.y),std::abs(dir.z)));
     //if (deg > 10) {
     //        std::cout<< "Degree is larger than 10\n";
     //    return false;
     //}
     //
+    
     
     // Apply polynomial fitting
     // Debug: Hardcode one light ray
@@ -363,6 +412,8 @@ bool BlackBoxCamera::TraceFullLensSystemFromFilm(const Ray& rIn, Ray* rOut) cons
 
 
 Point3f BlackBoxCamera::SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample) const {
+    // lensSample comes from 
+    
     /*
     // Find exit pupil bound for sample distance from film center
     Float rFilm = std::sqrt(pFilm.x * pFilm.x + pFilm.y * pFilm.y);
@@ -381,31 +432,88 @@ Point3f BlackBoxCamera::SampleExitPupil(const Point2f &pFilm, const Point2f &len
                    sinTheta * pLens.x + cosTheta * pLens.y, LensRearZ());
      */
     
+    // ZHENG: 
+    // lensSample.X encodes  RADIUS ?
+    // lensSample.Y encodes Degree?
+    
+    // TG: Lerp(t,x1,x2)  : (1-t)*x1+x2
+    // So this proves that lensSample.X is a normalized parameter
+        // TODO: refactor this to have mre meanintful names?
+
+        // lensSample.x: gives a uniform distribution between 0  and 1
+
+        // exitPupilBounds.x = lowerbound (normally zero)
+        // exitPupilBounds.y = lowerbGeound (normally exit pupil radius)
+        // Question: Why take square of exitpupilbounds?
+        
+        //lensSample : samples in box [0 1)^2
     // Radius
-    Float rSample = std::sqrt(Lerp(lensSample.x, exitPupilBounds.x * exitPupilBounds.x,
-                                            exitPupilBounds.y * exitPupilBounds.y));
-    // Degree
-    Float dSample = Lerp(lensSample.y, 0, 2 * Pi);
+//     Float rSample = std::sqrt(Lerp(lensSample.x, exitPupilBounds.x * exitPupilBounds.x,
+//                                             exitPupilBounds.y * exitPupilBounds.y));
+
+// // TG: Sample A box
+//     //Float xsample = Lerp(lensSample.x, -exitPupilBounds.y, exitPupilBounds.y);
+//     //Float ysample = Lerp(lensSample.y, -exitPupilBounds.y, exitPupilBounds.y);
+//     //std::cout << exitPupilBounds.y*exitPupilBounds.y;
+//     // Degree
+//         Float dSample = Lerp(lensSample.y, 0, 2 * Pi);
     
-    //Point2f pLens = exitPupilBounds.Lerp(lensSample);
-    Point2f pSample = Point2f(rSample * std::cos(dSample), rSample * std::sin(dSample));
-    
-    Float ratio = filmDistance / (filmDistance + pupilPos[pupilIndex]);
+//     //Point2f pLens = exitPupilBounds.Lerp(lensSample);
+//     Point2f pSample = Point2f(rSample * std::cos(dSample), rSample * std::sin(dSample));
+
+
+
+    // Uniformly sample the exit pupil using PBRT function (TG)
+    // Note ther eis also a function "UniformSampleDisk" but the PBRT book does not recommend
+    // this because it distortes area (something related to the monte carlo stratified Sample )
+
+    Float lensRadius=exitPupilBounds.y;
+    Point2f pSample = lensRadius * ConcentricSampleDisk(lensSample);
+//    Point2f pSample = lensRadius * UniformSampleDisk(lensSample);
+
+    // pSample = Point2f(xsample,ysample);
+
+    // Define input plane explicitly TG
+    //  The pupil positins are defined relative to the inputplane_z.  
+
+
+
+    Float inputPlane_z=filmDistance-planeOffset;
+
+    // The Sample has been taken at the exit pupil, and now has to be projected back to the input plane 
+    // This done using the Lerp (linear interpolation) function. First the interpolation factor (ratio) is calculated:
+    Float ratio = inputPlane_z / (inputPlane_z + pupilPos[pupilIndex]);
+   // Float ratio = (filmDistance) / ((filmDistance) + pupilPos[pupilIndex]); // original
+   //  The interpolation is done:
     Point2f pLens = Lerp(ratio, pFilm, pSample);
+     
     //Float tmp = Lerp(ratio, 0, filmDistance + pupilPos[pupilIndex]);
-    return Point3f(pLens.x, pLens.y, filmDistance);
+    //return Point3f(pLens.x, pLens.y, filmDistance); // Original
+
+    // A point is made 
+    return Point3f(pLens.x, pLens.y, inputPlane_z);
 }
 
+// This function is supposed to generate the output ray
 Float BlackBoxCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     
-    ProfilePhase prof(Prof::GenerateCameraRay);
+    // sample.pFilm: Point2f on the film
+    // sample.pLens: Point2f on the lens : ()
+     
+    // ASK ZHENG... ?? 
+    ProfilePhase prof(Prof::GenerateCameraRay); //??? For profiler?
+
     // ++totalRays;
     // Find point on film, _pFilm_, corresponding to _sample.pFilm_
     Point2f s(sample.pFilm.x / film->fullResolution.x,
         sample.pFilm.y / film->fullResolution.y);
+        // Some kind of coordinate transformation
+        //GetPhysicalExtent() returns the actual extent of the film in the scene. This information is specifically needed by the RealisticCamera. 
     Point2f pFilm2 = film->GetPhysicalExtent().Lerp(s);
-    Point3f pFilm(-pFilm2.x, pFilm2.y, 0);
+    Point3f pFilm(-pFilm2.x, pFilm2.y, 0); //  ZHENG: Why reverse the direction?
 
+    // We want to find the sample on the lens, this information is in sample.pLens. But how?
+    // 
     Point3f pRear;
     pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens);
     
@@ -422,6 +530,7 @@ Float BlackBoxCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     }
     
     // Finish initialization of _BlackBoxCamera_ ray
+    // This is the output ray
     *ray = CameraToWorld(*ray);
     ray->d = Normalize(ray->d);
     ray->medium = medium;
@@ -462,7 +571,7 @@ Float BlackBoxCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
         Float cosTheta = Normalize(rFilm.d).z;
         Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
         if (simpleWeighting) {
-            // Normalize by expecting that on average rays only make it through
+            // Normalize by eaxpecting that on average rays only make it through
             // one microlens to the outside world
             Float simDiameter = (microlens.simulationRadius*2.0 + 1.0);
             return cos4Theta * (simDiameter*simDiameter);
@@ -502,6 +611,8 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
 
     // Add functionality to hard set the film distance
     Float filmDistance = params.FindOneFloat("filmdistance", 0);
+
+
     // Chromatic aberration flag
     bool caFlag = params.FindOneBool("chromaticAberrationEnabled", false);
     
@@ -510,6 +621,7 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
     // Point2f bottomRight = params.FindOnePoint2f("bottomrightplane", Point2f(0.0008, -0.0008));
     // ZLY: Changed exit pupil bounds definition: Point2f now contains (0, radius^2)
     Point2f exitPupilBounds(0, INFINITY);
+    
     int pupilIndex = -1;
     /*
     return new BlackBoxCamera(cam2world, shutteropen, shutterclose,
@@ -532,8 +644,13 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
     };
     
     Float lensThickness = 0;
+    Float planeOffset = 0;
     std::vector<Float> pupilPos;
     std::vector<Float> pupilRadii;
+    std::vector<Float> circleRadii;
+    std::vector<Float> circleSensitivities;
+    Float circlePlaneZ;
+    
     
     if (endsWith(lensFile, ".json")) {
         /*
@@ -573,7 +690,12 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
             if (j["thickness"].is_number()) {
                 lensThickness = (Float) j["thickness"] * 0.001f;
             }
-            
+             if (j["planeoffset"].is_number()) {
+                planeOffset = (Float) j["planeoffset"] * 0.001f; 
+            }
+                if (j["planeoffset"].is_number()) {
+                circlePlaneZ = (Float) j["circlePlaneZ"] * 0.001f; 
+            }
             
             
             auto toTerms = [] (json jterms) {
@@ -604,19 +726,33 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
             // Parse pupil pos and radii
             pupilPos = toTerms(j["pupilpos"]);
             pupilRadii = toTerms(j["pupilradii"]);
+            circleRadii = toTerms(j["circleRadii"]);
+            circleSensitivities = toTerms(j["circleSensitivities"]);
+            
+
+            
             
             for (int i = 0; i < pupilPos.size(); i++) {
+                // Convert from mm to meter
                 pupilPos[i] = pupilPos[i] * 0.001f;
                 pupilRadii[i] = pupilRadii[i] * 0.001f;
-                
+                circleRadii[i] = circleRadii[i] * 0.001f;
+                circleSensitivities[i] = circleSensitivities[i]; // sensitivies do not need to be converted because they are a ratio of distances
+                 
                 // Update exitPupil. Note pMin here is not topleft point but the radius.
+                // TG: in this implementation y is set to infinity, x to 0
+                // Goal: Find the smallest pupil, only go into the if statement if the current exit pupil bound is still
+                // larger than the pupilRadii[i]
                 if (exitPupilBounds.y > pupilRadii[i]) {
                     // Take the max of the two in case pupilRadii is even smaller than value of interest.
                     exitPupilBounds.y = std::max(pupilRadii[i], exitPupilBounds.x);
                     pupilIndex = i;
+
                 }
+                
             }
-            
+            // TG: so after this loop exitpupilBounds = Point2f  (0, pupilRadii[pupilIndex])
+
             // Parse polynomial term expressions
             auto jpoly = j["poly"];
             if (jpoly.is_array() && jpoly.size() > 0) {
@@ -647,7 +783,7 @@ BlackBoxCamera *CreateBlackBoxCamera(const ParamSet &params,
     std::string bbmode = params.FindOneFilename("bbmode", "polynomial");
     
     return new BlackBoxCamera(cam2world, shutteropen, shutterclose,
-                              apertureDiameter, filmDistance, lensThickness, caFlag, film, medium, exitPupilBounds, poly, bbmode, pupilPos, pupilRadii, pupilIndex);
+                              apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, exitPupilBounds, poly, bbmode, pupilPos, pupilRadii, pupilIndex,circleRadii,circleSensitivities,circlePlaneZ);
 }
 
 }  // namespace pbrt

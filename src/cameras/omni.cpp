@@ -387,6 +387,7 @@ OmniCamera::IntersectResult OmniCamera::TraceElement(const LensElementInterface 
     Point3f pHit = rElement(t);
     Float r2 = pHit.x * pHit.x + pHit.y * pHit.y;
     Float apertureRadius2 = element.apertureRadius.x * element.apertureRadius.x;
+    //std::cout << "- " << element.apertureRadius.x << "," << element.apertureRadius.y << "\n";
     if (r2 > apertureRadius2) return CULLED_BY_APERTURE;
     if (!bounds.Contains(Point2f(pHit))) {
         return CULLED_BY_APERTURE;
@@ -429,7 +430,9 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
                              : 1;
             // Added by Trisha and Zhenyi (5/18)
             if(caFlag && (rLens.wavelength >= 400) && (rLens.wavelength <= 700))
-            {                    
+            {     
+            
+                
                 if (etaI != 1)
                     etaI = (rLens.wavelength - 550) * -.04/(300)  +  etaI;
                 if (etaT != 1)
@@ -474,6 +477,7 @@ bool OmniCamera::IntersectSphericalElement(Float radius, Float zCenter,
     Float B = 2 * (ray.d.x * o.x + ray.d.y * o.y + ray.d.z * o.z);
     Float C = o.x * o.x + o.y * o.y + o.z * o.z - radius * radius;
     Float t0, t1;
+    
     if (!Quadratic(A, B, C, &t0, &t1)) return false;
 
     // Select intersection $t$ based on ray direction and element curvature
@@ -847,11 +851,15 @@ Bounds2f OmniCamera::BoundExitPupil(Float pFilmX0, Float pFilmX1) const {
 
     // Compute bounding box of projection of rear element on sampling plane
     Float rearRadius = RearElementRadius();
+     
 
+    // Point3f finalElementTranslation = elementInterfaces[elementInterfaces.size() - 1].transform(Point3f(0,0,7e-4)); // Fix Thomas
     Point3f finalElementTranslation = elementInterfaces[elementInterfaces.size() - 1].transform(Point3f(0,0,0));
     Point2f xy(finalElementTranslation.x, finalElementTranslation.y);
     Bounds2f projRearBounds(Point2f(-1.5f * rearRadius, -1.5f * rearRadius) + xy,
                             Point2f(1.5f * rearRadius, 1.5f * rearRadius) + xy);
+
+     
     // TODO: More sophisticated handling of the exit pupil for microlens arrays
     if (HasMicrolens()) {
         return projRearBounds;
@@ -862,7 +870,7 @@ Bounds2f OmniCamera::BoundExitPupil(Float pFilmX0, Float pFilmX1) const {
         Float u[2] = {RadicalInverse(0, i), RadicalInverse(1, i)};
         Point3f pRear(Lerp(u[0], projRearBounds.pMin.x, projRearBounds.pMax.x),
                       Lerp(u[1], projRearBounds.pMin.y, projRearBounds.pMax.y),
-                      LensRearZ() + finalElementTranslation.z);
+                      LensRearZ() +finalElementTranslation.z);
 
         // Expand pupil bounds if ray makes it through the lens system
         if (Inside(Point2f(pRear.x, pRear.y), pupilBounds) ||
@@ -882,6 +890,7 @@ Bounds2f OmniCamera::BoundExitPupil(Float pFilmX0, Float pFilmX1) const {
     // Expand bounds to account for sample spacing
     pupilBounds = Expand(pupilBounds, 2 * projRearBounds.Diagonal().Length() /
                                           std::sqrt(nSamples));
+                                          
     return pupilBounds;
 }
 
@@ -943,8 +952,11 @@ Point3f OmniCamera::SampleExitPupil(const Point2f &pFilm,
     // Return sample point rotated by angle of _pFilm_ with $+x$ axis
     Float sinTheta = (rFilm != 0) ? pFilm.y / rFilm : 0;
     Float cosTheta = (rFilm != 0) ? pFilm.x / rFilm : 1;
+    //return Point3f(cosTheta * pLens.x - sinTheta * pLens.y,
+                   //sinTheta * pLens.x + cosTheta * pLens.y, LensRearZ()+7e-4); // EDit Thomas (fix)
     return Point3f(cosTheta * pLens.x - sinTheta * pLens.y,
-                   sinTheta * pLens.x + cosTheta * pLens.y, LensRearZ());
+                   sinTheta * pLens.x + cosTheta * pLens.y, LensRearZ()); // EDit Thomas (fix)
+                   
 }
 
 static Vector2f mapMul(Vector2f v0, Vector2f v1) {
@@ -1135,9 +1147,15 @@ Float OmniCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     } else {
         pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens, &exitPupilBoundsArea);
     }
+    
+        
     Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,
         Lerp(sample.time, shutterOpen, shutterClose));
-
+ 
+    
+//     Point3f origin(0,0.001*5.500000000000000,0);
+    //Vector3f direction(0, -0.850811109424051,   0.525471651072268);
+    // rFilm = Ray(origin,direction, Infinity,Lerp(sample.time, shutterOpen, shutterClose));
     if (!TraceFullLensSystemFromFilm(rFilm, ray)) {
         ++vignettedRays;
         return 0;
@@ -1353,6 +1371,8 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 result.eta              = toIORSpectrum(surf["ior"]);
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
+
+                
                 if (result.curvatureRadius.x == 0.0f) {
                     Float apertureRadius = apertureDiameter * (Float).001 / Float(2.);
                     if (apertureRadius > result.apertureRadius.x) {
