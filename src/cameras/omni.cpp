@@ -1328,6 +1328,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                     wavelengths[i] = (Float)jiors[0][i];
                     iors[i] = (Float)jiors[1][i];
                 }
+                
                 SampledSpectrum s = SampledSpectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
                 for (int i = 0; i < numSamples-1; ++i) {
                     if (std::abs(s[i] - s[i + 1]) > 0.001) {
@@ -1336,7 +1337,8 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                             lensFile.c_str(), s[i], s[i+1], std::abs(s[i] - s[i + 1]));
                     }
                 }
-                return s[0];
+                std::cout << s << "\n";
+                return s[0]; // Thomas: why return only one of the wavelength?
             };
 
 
@@ -1369,6 +1371,7 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
                 result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
                 result.eta              = toIORSpectrum(surf["ior"]);
+                std::cout << result.eta << "\n";
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
 

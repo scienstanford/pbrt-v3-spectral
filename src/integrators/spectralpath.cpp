@@ -232,7 +232,9 @@ namespace pbrt {
                 
                 // Calculate corresponding index positions on sampled spectrum (e.g. if nSpectralSamples = 32 and nCABands = 3, we want to divide the indices into (1 to 11), (12 to 22), and (23 to 32.) This delta index defines the spacing.)
                 int deltaIndex = round((float)nSpectralSamples/(float)numCABands);
+                
                 float deltaWave = (sampledLambdaEnd-sampledLambdaStart)/nSpectralSamples;
+                
                 float deltaWaveCA = deltaWave*deltaIndex;
                 
                 // Loop over pixels in tile to render them
@@ -264,6 +266,7 @@ namespace pbrt {
                             RayDifferential ray;
                             
                             // Attach a wavelength value
+                            
                             ray.wavelength = sampledLambdaStart + deltaWaveCA * s + (deltaWaveCA/2); // Use middle wavelength of the spectrum band
                             
                             Spectrum Ls(0.f);

@@ -1,0 +1,24 @@
+# PBRT file created with piWrite on 2021/4/14 15:44:49.41 
+# PBRT version = 3 
+
+# Transform [1.0 0 0.0 0  0 1.0 0.0 0  0.0 0.0 1.0 0  0.0 0.0 0.0 1]
+
+
+# camera 
+Camera "blackbox" 
+ "string lensfile" "../lens/polyjson_test_5deg_0.1.json"
+  "float aperturediameter" [2.531800] 
+  "float focusdistance" [10.000000] 
+   "float filmdistance" [0.002167]
+      "float filmdistanceminusoffset" [0.002067]
+# Sampler
+Sampler "halton" "integer pixelsamples" [512]
+Film "image" "integer xresolution" [256	] "integer yresolution" [256]   "float diagonal" [5.0000] 
+Integrator "directlighting" "integer maxdepth" [1]
+WorldBegin
+	# Default Material
+	Material "uber" "rgb Kd" [0.100481509938 0.119280187622 0.139984897558] "float index" [1.333]
+	LightSource "distant" "point from" [0 0 0] "point to" [0 0 100]  "rgb L" [1 1 1] 
+    Include "slantedBar_materials.pbrt"
+	Include "slantedBar_geometry.pbrt"
+WorldEnd
