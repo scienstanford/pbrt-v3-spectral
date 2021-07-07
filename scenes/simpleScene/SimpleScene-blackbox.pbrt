@@ -23,7 +23,7 @@ Film "image"
   "float diagonal" [5.0000] 
 
 # integrator 
-Integrator "path" 
+Integrator "spectralpath" 
   "integer maxdepth" [5] 
   "string strategy" "all" 
 
