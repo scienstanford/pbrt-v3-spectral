@@ -64,14 +64,13 @@ Float sgn(Float val) {
 
 // RTFCamera Method Definitions
 // Pupil index: choose which pupil in the list of pupils counts as the exit pupil
-RTFCamera::RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen,
-    Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensthickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds, std::map<std::string,RTFCamera::LensPolynomialTerm> poly, std::string bbmode,
-            std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex, std::vector<Float> circleRadii, std::vector<Float> circleSensitivities, Float circlePlaneZ)
-    : Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-      caFlag(caFlag), filmDistance(filmdistance), lensThickness(lensthickness), exitPupilBounds(exitPupilBounds),poly(poly), bbmode(bbmode),pupilPos(pupilPos), pupilRadii(pupilRadii), pupilIndex(pupilIndex), planeOffset(planeOffset),
-      circleRadii(circleRadii),circleSensitivities(circleSensitivities), circlePlaneZ(circlePlaneZ)
-            {
-}
+RTFCamera::RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium,
+        std::vector<std::map<std::string,RTFCamera::LensPolynomialTerm>> polynomialMaps, std::string bbmode,
+        std::vector<RTFVignettingTerms>):
+        Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
+        caFlag(caFlag), filmDistance(filmdistance), planeOffset(planeOffset),lensThickness(lensThickness),polynomialMaps(polynomialMaps),bbmode(bbmode),vignettingTerms(vignettingTerms)
+        {}
+
 Vector2f RTFCamera::Pos2RadiusRotation(const Point3f pos) const{
     // Convert position to radius
     Float radius = std::sqrt(pos.x * pos.x + pos.y * pos.y);
@@ -499,9 +498,8 @@ Float RTFCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     
     // sample.pFilm: Point2f on the film
     // sample.pLens: Point2f on the lens : ()
-     
-    // ASK ZHENG... ?? 
-    ProfilePhase prof(Prof::GenerateCameraRay); //??? For profiler?
+
+    ProfilePhase prof(Prof::GenerateCameraRay);
 
     // ++totalRays;
     // Find point on film, _pFilm_, corresponding to _sample.pFilm_
@@ -636,8 +634,14 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
         return nullptr;
     }
     
+    
+    
     std::map<std::string, RTFCamera::LensPolynomialTerm> poly;
 
+    std::vector<Float> polyWavelengths_nm; // wavelengths read from file
+    std::vector<std::map<std::string, RTFCamera::LensPolynomialTerm>> polynomialMaps; // Each element has corresponding wavelength
+    std::vector<RTFCamera::RTFVignettingTerms> vignettingTerms;
+   
     // A pretty cool function
     auto endsWith = [](const std::string& str, const std::string& suffix) {
         return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
@@ -649,6 +653,8 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
     std::vector<Float> pupilRadii;
     std::vector<Float> circleRadii;
     std::vector<Float> circleSensitivities;
+
+
     Float circlePlaneZ;
     
     
@@ -681,6 +687,7 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
             if (j["name"].is_string()) {
                 LOG(INFO) << StringPrintf("Loading polynomial lens %s.\n",
                     j["name"].get<std::string>().c_str());
+                    std::cout << j["name"].get<std::string>().c_str() << "\n";
             }
             if (j["description"].is_string()) {
                 LOG(INFO) << StringPrintf("%s\n",
@@ -690,13 +697,15 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
             if (j["thickness"].is_number()) {
                 lensThickness = (Float) j["thickness"] * 0.001f;
             }
-             if (j["planeoffset"].is_number()) {
+            if (j["planeoffset"].is_number()) {
                 planeOffset = (Float) j["planeoffset"] * 0.001f; 
             }
-                if (j["planeoffset"].is_number()) {
+            if (j["circlePlaneZ"].is_number()) {
                 circlePlaneZ = (Float) j["circlePlaneZ"] * 0.001f; 
             }
-            
+
+
+
             
             auto toTerms = [] (json jterms) {
                 std::vector<Float> res;
@@ -713,6 +722,17 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
                 }
                 return res;
             };
+
+        auto toPolynomialStruct = [toTerms] (json jp) {
+                RTFCamera::LensPolynomialTerm result;
+                result.name = jp["outputname"].get<std::string>();
+                result.termr = toTerms(jp["termr"]);
+                result.termu = toTerms(jp["termu"]);
+                result.termv = toTerms(jp["termv"]);
+                result.coeff = toTerms(jp["coeff"]);
+                return result;
+            };
+
             auto toLensPolynomialTerms = [toTerms] (json jp) {
                 RTFCamera::LensPolynomialTerm result;
                 result.name = jp["outputname"].get<std::string>();
@@ -723,48 +743,95 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
                 return result;
             };
             
-            // Parse pupil pos and radii
-            pupilPos = toTerms(j["pupilpos"]);
-            pupilRadii = toTerms(j["pupilradii"]);
-            circleRadii = toTerms(j["circleRadii"]);
-            circleSensitivities = toTerms(j["circleSensitivities"]);
-            
 
-            
-            
-            for (int i = 0; i < pupilPos.size(); i++) {
-                // Convert from mm to meter
-                pupilPos[i] = pupilPos[i] * 0.001f;
-                pupilRadii[i] = pupilRadii[i] * 0.001f;
-                circleRadii[i] = circleRadii[i] * 0.001f;
-                circleSensitivities[i] = circleSensitivities[i]; // sensitivies do not need to be converted because they are a ratio of distances
-                 
-                // Update exitPupil. Note pMin here is not topleft point but the radius.
-                // TG: in this implementation y is set to infinity, x to 0
-                // Goal: Find the smallest pupil, only go into the if statement if the current exit pupil bound is still
-                // larger than the pupilRadii[i]
-                if (exitPupilBounds.y > pupilRadii[i]) {
-                    // Take the max of the two in case pupilRadii is even smaller than value of interest.
-                    exitPupilBounds.y = std::max(pupilRadii[i], exitPupilBounds.x);
-                    pupilIndex = i;
+            auto toVignetTerms = [exitPupilBounds,pupilIndex,toTerms] (json sp) {
+                RTFCamera::RTFVignettingTerms result; 
+                Float mm_to_meter = 0.001f;
 
+                result.circlePlaneZ = mm_to_meter*(Float)sp["circlePlaneZ"];
+                result.pupilPos = toTerms(sp["pupilpos"]);
+                result.pupilRadii = toTerms(sp["pupilradii"]);
+                result.circleRadii = toTerms(sp["circleRadii"]);
+                result.circleSensitivities = toTerms(sp["circleSensitivities"]);
+
+
+
+                Float smallestBound  = INFINITY; //for initialization to find smallest pupil
+                for (int i = 0; i < result.pupilPos.size(); i++) {
+                        // Convert from mm to meter
+                     
+
+                    result.pupilPos[i] = mm_to_meter*result.pupilPos[i];
+                    result.pupilRadii[i] = mm_to_meter*result.pupilRadii[i];
+                    result.circleRadii[i] = mm_to_meter*result.circleRadii[i];
+                    result.circleSensitivities[i] = mm_to_meter*result.circleSensitivities[i]; // sensitivies do not need to be converted because they are a ratio of distances
+                    
+                     // TG: in this implementation y is set to infinity, x to 0
+                    // Goal: Find the smallest pupil, only go into the if statement if the current exit pupil bound is still
+                    // larger than the pupilRadii[i]
+                    
+                    if (smallestBound > result.pupilRadii[i]) {
+                     // Take the max of the two in case pupilRadii is even smaller than value of interest.
+                     Float r = result.pupilRadii[i];
+                      smallestBound = std::max(r, 0.0f);
+                      result.exitpupilIndex   = i;
+ 
+                   }
+                    
+                           
                 }
-                
-            }
+                  return result;
+            };
+
+       
             // TG: so after this loop exitpupilBounds = Point2f  (0, pupilRadii[pupilIndex])
 
-            // Parse polynomial term expressions
-            auto jpoly = j["poly"];
-            if (jpoly.is_array() && jpoly.size() > 0) {
-                for (auto jp : jpoly) {
-                    auto curname = jp["outputname"].get<std::string>();
-                    poly[curname] = toLensPolynomialTerms(jp);
-                }
+
+        
+            // Loop over all wavelengths
+            int wlIndex=0;
+                auto polynomials = j["polynomials"];
+                polyWavelengths_nm = std::vector<Float>(polynomials.size());
+                  vignettingTerms = std::vector<RTFCamera::RTFVignettingTerms>(polynomials.size());
+
+                polynomialMaps = std::vector<std::map<std::string, RTFCamera::LensPolynomialTerm>>(polynomials.size()); 
+                if (polynomials.is_array() && polynomials.size() > 0) {
+                    for (auto sp : polynomials) {
+                    Float wavelength = (Float) sp["wavelength_nm"];   
+                    polyWavelengths_nm[wlIndex]= (Float) wavelength;                 
+                    
+
+                    // Read vignetting terms
+                    vignettingTerms[wlIndex] = toVignetTerms(sp);
+
+                    // TODO: Determine exix pupil
+                    // pupilIndx
+                    // ExitpupilBounds
+                     // Update exitPupil. Note pMin here is not topleft point but the radius.
+          
+
+
+                    // Read Polynomial Terms
+                    auto jpoly = sp["poly"];
+                    if (jpoly.is_array() && jpoly.size() > 0) {
+                            for (auto jp : jpoly) {
+                                auto curname = jp["outputname"].get<std::string>();
+                                
+                                polynomialMaps[wlIndex][curname] = toLensPolynomialTerms(jp);
+                            }
+                    } else {
+                            Error("Error, invalid polynoial specification \"%s\".",
+                                lensFile.c_str());
+                            return nullptr;
+                    }
+                wlIndex=wlIndex+1;
+                }   
             } else {
                 Error("Error, invalid polynoial specification \"%s\".",
                     lensFile.c_str());
                 return nullptr;
             }
+    
             
             
         } else {
@@ -783,7 +850,10 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
     std::string bbmode = params.FindOneFilename("bbmode", "polynomial");
     
     return new RTFCamera(cam2world, shutteropen, shutterclose,
-                              apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, exitPupilBounds, poly, bbmode, pupilPos, pupilRadii, pupilIndex,circleRadii,circleSensitivities,circlePlaneZ);
+                              apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, polynomialMaps, bbmode, vignettingTerms);
 }
+ //   return new RTFCamera(cam2world, shutteropen, shutterclose,
+                              //apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, exitPupilBounds, poly, bbmode, pupilPos, pupilRadii, pupilIndex,circleRadii,circleSensitivities,circlePlaneZ);
+//}
 
 }  // namespace pbrt

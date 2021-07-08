@@ -89,6 +89,21 @@ class RTFCamera : public Camera {
         std::vector<Float> termu;
         std::vector<Float> termv;
         std::vector<Float> coeff;
+
+    
+
+    };
+
+    struct RTFVignettingTerms {
+        RTFVignettingTerms() {}
+        RTFVignettingTerms(Float circlePlaneZ,int exitpupilIndex, std::vector<Float> pupilPos, std::vector<Float> pupilRadii, std::vector<Float> circleRadii,  std::vector<Float> circleSensitivities):
+        circlePlaneZ(circlePlaneZ), exitpupilIndex(exitpupilIndex), pupilPos(pupilPos), pupilRadii(pupilRadii), circleRadii(circleRadii),circleSensitivities(circleSensitivities) {}
+        Float circlePlaneZ;
+        int exitpupilIndex; // Index that indicates main exit pupil
+        std::vector<Float> pupilPos;
+        std::vector<Float> pupilRadii;
+        std::vector<Float> circleRadii;
+        std::vector<Float> circleSensitivities;
     };
 
     /*
@@ -104,9 +119,10 @@ class RTFCamera : public Camera {
     
     
     // RTFCamera Public Methods
-    RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium, Point2f exitPupilBounds,
-        std::map<std::string,RTFCamera::LensPolynomialTerm> poly, std::string bbmode,
-        std::vector<Float> pupilPos, std::vector<Float> pupilRadii, int pupilIndex, std::vector<Float> circleRadii, std::vector<Float> circleSensitivities, Float circlePlaneZ);
+
+    RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium,
+        std::vector<std::map<std::string,RTFCamera::LensPolynomialTerm>> polynomialMaps, std::string bbmode,
+        std::vector<RTFVignettingTerms>);
     
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
@@ -130,6 +146,14 @@ class RTFCamera : public Camera {
     const Transform CameraToLens) const;
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample) const;
     std::map<std::string, RTFCamera::LensPolynomialTerm> poly;
+    
+
+
+    // Wavelength dependent RTF : vectorized. Each element corresponds to a given wavelength
+    std::vector<Float> polyWavelengths_nm; // wavelengths read from file
+    std::vector<std::map<std::string, RTFCamera::LensPolynomialTerm>> polynomialMaps; // Each element has corresponding wavelength
+    std::vector<RTFCamera::RTFVignettingTerms> vignettingTerms;
+
     std::vector<Float> pupilPos;
     std::vector<Float> pupilRadii;
     std::vector<Float> circleRadii;
