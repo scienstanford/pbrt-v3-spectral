@@ -122,7 +122,7 @@ class RTFCamera : public Camera {
 
     RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium,
         std::vector<std::map<std::string,RTFCamera::LensPolynomialTerm>> polynomialMaps, std::string bbmode,
-        std::vector<RTFVignettingTerms>);
+        std::vector<RTFVignettingTerms> vignettingTerms,std::vector<Float> polyWavelengths_nm);
     
     Float GenerateRay(const CameraSample &sample, Ray *) const;
 
@@ -136,15 +136,16 @@ class RTFCamera : public Camera {
     const Float lensThickness;
     const Point2f exitPupilBounds;
     int pupilIndex;
-    Ray ApplyPolynomial(const Ray &thisRay) const;
+    Ray ApplyPolynomial(const Ray &thisRay,   std::map<std::string, RTFCamera::LensPolynomialTerm>  &polynomialMap) const;
     Ray RotateRays(const Ray &thisRay, Float deg) const;
-    Float PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation) const;
+    Float PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation,   std::map<std::string, RTFCamera::LensPolynomialTerm>  &polynomialMap) const;
     Vector2f Pos2RadiusRotation(const Point3f pos) const;
     bool IsValidRay(const Ray &rCamera) const;
-    bool IsValidRayCircles(const Ray &rotatedRay) const;
-    bool TraceLensesFromFilm(const Ray &ray, Ray *rOut,
-    const Transform CameraToLens) const;
+    bool IsValidRayCircles(const Ray &rotatedRay, RTFVignettingTerms &vignetting) const;
+    bool TraceLensesFromFilm(const Ray &ray, Ray *rOut,int wlIndex, const Transform CameraToLens) const;
+
     Point3f SampleExitPupil(const Point2f &pFilm, const Point2f &lensSample) const;
+    Point3f SampleExitPupilVignetting(const Point2f &pFilm, const Point2f &lensSample,RTFVignettingTerms &vignettingTerms) const;
     std::map<std::string, RTFCamera::LensPolynomialTerm> poly;
     
 

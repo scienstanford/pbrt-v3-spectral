@@ -12,7 +12,7 @@ Camera "omni"
 
 # sampler 
 Sampler "halton" 
-  "integer pixelsamples" [512] 
+  "integer pixelsamples" [64] 
 
 # film 
 Film "image" 

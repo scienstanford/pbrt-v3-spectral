@@ -66,9 +66,9 @@ Float sgn(Float val) {
 // Pupil index: choose which pupil in the list of pupils counts as the exit pupil
 RTFCamera::RTFCamera(const AnimatedTransform &CameraToWorld, Float shutterOpen, Float shutterClose, Float apertureDiameter, Float filmdistance, Float lensThickness, Float planeOffset, bool caFlag, Film *film, const Medium *medium,
         std::vector<std::map<std::string,RTFCamera::LensPolynomialTerm>> polynomialMaps, std::string bbmode,
-        std::vector<RTFVignettingTerms>):
+        std::vector<RTFVignettingTerms> vignettingTerms,std::vector<Float> polyWavelengths_nm):
         Camera(CameraToWorld, shutterOpen, shutterClose, film, medium),
-        caFlag(caFlag), filmDistance(filmdistance), planeOffset(planeOffset),lensThickness(lensThickness),polynomialMaps(polynomialMaps),bbmode(bbmode),vignettingTerms(vignettingTerms)
+        caFlag(caFlag), filmDistance(filmdistance), planeOffset(planeOffset),lensThickness(lensThickness),polynomialMaps(polynomialMaps),bbmode(bbmode),vignettingTerms(vignettingTerms),polyWavelengths_nm(polyWavelengths_nm)
         {}
 
 Vector2f RTFCamera::Pos2RadiusRotation(const Point3f pos) const{
@@ -86,7 +86,7 @@ Vector2f RTFCamera::Pos2RadiusRotation(const Point3f pos) const{
     return res;
 }
 
-Float RTFCamera::PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation) const{
+Float RTFCamera::PolynomialCal(const Ray &thisRay, std::string name, Vector2f &radiusRotation,   std::map<std::string, RTFCamera::LensPolynomialTerm>  &polynomialMap) const{
     
     Point3f pos= thisRay.o;
     
@@ -97,8 +97,9 @@ Float RTFCamera::PolynomialCal(const Ray &thisRay, std::string name, Vector2f &r
     Ray rotatedRay = RotateRays(thisRay, 90 - radiusRotation.y);
     Vector3f dir = Normalize(rotatedRay.d);
     
+   // TODO SPECTRAL : choose here the right polynomial or interpolate between coefficients
 
-    LensPolynomialTerm thisOut = poly.at(name);
+    LensPolynomialTerm thisOut = polynomialMap.at(name);
     Float res = 0;
     for (int i = 0; i < thisOut.termr.size(); i++) {
         res += (std::pow(radiusRotation.x * 1000, thisOut.termr[i]) * std::pow(dir.x, thisOut.termu[i]) * std::pow(dir.y, thisOut.termv[i])) * thisOut.coeff[i];
@@ -107,7 +108,7 @@ Float RTFCamera::PolynomialCal(const Ray &thisRay, std::string name, Vector2f &r
     return res;
 }
 
-Ray RTFCamera::ApplyPolynomial(const Ray &thisRay) const{
+Ray RTFCamera::ApplyPolynomial(const Ray &thisRay, std::map<std::string, RTFCamera::LensPolynomialTerm>  &polynomialMap) const{
     // Get radius and rotation
     Vector2f radiusRotation;
     
@@ -115,10 +116,10 @@ Ray RTFCamera::ApplyPolynomial(const Ray &thisRay) const{
     // Use 'poly' parameter - a map from name to the terms.
     // Optional keys are: 'outx', 'outy', 'outu', 'outv', 'outw'
     // Term contains: termr, termu, termv, coeff (input ray parameters)
-    Float x = PolynomialCal(thisRay, "outx", radiusRotation) * 0.001f;
-    Float y = PolynomialCal(thisRay, "outy", radiusRotation) * 0.001f;
-    Float u = PolynomialCal(thisRay, "outu", radiusRotation);
-    Float v = PolynomialCal(thisRay, "outv", radiusRotation);
+    Float x = PolynomialCal(thisRay, "outx", radiusRotation,polynomialMap) * 0.001f;
+    Float y = PolynomialCal(thisRay, "outy", radiusRotation,polynomialMap) * 0.001f;
+    Float u = PolynomialCal(thisRay, "outu", radiusRotation,polynomialMap);
+    Float v = PolynomialCal(thisRay, "outv", radiusRotation,polynomialMap);
     if (1 - u * u - v * v < 0) {
         Warning("Problemetic ray fitting.");
     }
@@ -146,14 +147,13 @@ Ray RTFCamera::RotateRays(const Ray &thisRay, Float deg) const{
 bool RTFCamera::IsValidRay(const Ray &rCamera) const{
     Vector3f dir = Normalize(rCamera.d);
 
-    
+    auto vignet = vignettingTerms[0];
     for (int i = 0; i < pupilPos.size(); i++) {
         // Calculate the length
-        Float alpha = pupilPos[i] / dir.z;
-//        std::cout << pupilRadii[i] << "\n";
+        Float alpha = vignet.pupilPos[i] / dir.z;
     
-        Point3f validBound = rCamera.o + alpha * dir; // TG EDIT TEMP
-        if (std::sqrt(validBound.x * validBound.x + validBound.y * validBound.y) >= pupilRadii[i]) {
+        Point3f validBound = rCamera.o + alpha * dir; 
+        if (std::sqrt(validBound.x * validBound.x + validBound.y * validBound.y) >= vignet.pupilRadii[i]) {
             return false;
         }
     } 
@@ -161,29 +161,28 @@ bool RTFCamera::IsValidRay(const Ray &rCamera) const{
     return true;
 }
 
-bool RTFCamera::IsValidRayCircles(const Ray &rotatedRay) const{
+bool RTFCamera::IsValidRayCircles(const Ray &rotatedRay,RTFCamera::RTFVignettingTerms &vignetting) const{
     Vector3f dir = Normalize(rotatedRay.d);
 
-      Float alpha = -circlePlaneZ / dir.z;  // minus sign because rotatedRay already has reversal of Z axi
+      Float alpha = -vignetting.circlePlaneZ / dir.z;  // minus sign because rotatedRay already has reversal of Z axi
      Point3f validBound = rotatedRay.o + alpha * dir; // TG EDIT TEMP
      Float offaxisDistance=rotatedRay.o.y; // in input plane
      Float xsquared = validBound.x * validBound.x;
      
      // CirclePlane instead of pupils
-         for (int i = 0; i < circleRadii.size(); i++) {
-        // Calculate the length
-
-        Float distanceFromCenterY = validBound.y-offaxisDistance*circleSensitivities[i];
+         for (int i = 0; i < vignetting.circleRadii.size(); i++) {
+            // Calculate the length
+            Float distanceFromCenterY = validBound.y-offaxisDistance*vignetting.circleSensitivities[i];
         
-        if (std::sqrt(xsquared+ distanceFromCenterY*distanceFromCenterY) >= circleRadii[i]) {
-            return false;
-        }
+            if (std::sqrt(xsquared+ distanceFromCenterY*distanceFromCenterY) >= vignetting.circleRadii[i]) {
+                return false;
+            }
     } 
     return true;
 }
-
+ 
 bool RTFCamera::TraceLensesFromFilm(const Ray &rCamera,
-    Ray *rOut,
+    Ray *rOut, int wlIndex,
     const Transform CameraToLens = Scale(1, 1, -1)) const {
     
     /*if (!IsValidRay(rCamera)) {
@@ -202,8 +201,10 @@ bool RTFCamera::TraceLensesFromFilm(const Ray &rCamera,
 //    std::cout << (rCamera) << "," << (rotatedRay) << "\n";
 //}
 
+    // TODO update vignetting terms automatically
+    auto vignetting = vignettingTerms[wlIndex];
 
-    if (!IsValidRayCircles(rotatedRay)) {
+    if (!IsValidRayCircles(rotatedRay,vignetting)) {
         return false;
     }
 
@@ -222,7 +223,9 @@ bool RTFCamera::TraceLensesFromFilm(const Ray &rCamera,
     // Debug: Hardcode one light ray
     // rLens = Ray(Point3f(0, 0.0005333, -0.0020224), Vector3f(0.3060, -0.2223, 0.9257));
     // When use the test ray, the return should be: (0.006703, -0.002456, 0.2218, -0.3247)
-    rLens = ApplyPolynomial(rLens);
+
+    std::map<std::string, RTFCamera::LensPolynomialTerm>  polynomialMap = polynomialMaps[wlIndex];
+    rLens = ApplyPolynomial(rLens,polynomialMap);
     rLens.d = Normalize(rLens.d);
     // Rotate rays back to camera space
     if ((rOut != nullptr)) {
@@ -493,11 +496,47 @@ Point3f RTFCamera::SampleExitPupil(const Point2f &pFilm, const Point2f &lensSamp
     return Point3f(pLens.x, pLens.y, inputPlane_z);
 }
 
+
+
+Point3f RTFCamera::SampleExitPupilVignetting(const Point2f &pFilm, const Point2f &lensSample, RTFCamera::RTFVignettingTerms &terms) const {
+    // lensSample comes from 
+    // Uniformly sample the exit pupil using PBRT function (TG)
+    // Note ther eis also a function "UniformSampleDisk" but the PBRT book does not recommend
+    // this because it distortes area (something related to the monte carlo stratified Sample )
+    int pupilIndex = terms.exitpupilIndex;
+    Float lensRadius=terms.pupilRadii[pupilIndex];
+    Point2f pSample = lensRadius * ConcentricSampleDisk(lensSample);
+//    Point2f pSample = lensRadius * UniformSampleDisk(lensSample);
+
+    // pSample = Point2f(xsample,ysample);
+
+    // Define input plane explicitly TG
+    //  The pupil positins are defined relative to the inputplane_z.  
+
+
+
+    Float inputPlane_z=filmDistance-planeOffset;
+
+    // The Sample has been taken at the exit pupil, and now has to be projected back to the input plane 
+    // This done using the Lerp (linear interpolation) function. First the interpolation factor (ratio) is calculated:
+    Float ratio = inputPlane_z / (inputPlane_z + terms.pupilPos[pupilIndex]);
+   // Float ratio = (filmDistance) / ((filmDistance) + pupilPos[pupilIndex]); // original
+   //  The interpolation is done:
+    Point2f pLens = Lerp(ratio, pFilm, pSample);
+     
+    //Float tmp = Lerp(ratio, 0, filmDistance + pupilPos[pupilIndex]);
+    //return Point3f(pLens.x, pLens.y, filmDistance); // Original
+
+    // A point is made 
+    return Point3f(pLens.x, pLens.y, inputPlane_z);
+}
+
 // This function is supposed to generate the output ray
 Float RTFCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     
     // sample.pFilm: Point2f on the film
     // sample.pLens: Point2f on the lens : ()
+
 
     ProfilePhase prof(Prof::GenerateCameraRay);
 
@@ -513,7 +552,26 @@ Float RTFCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     // We want to find the sample on the lens, this information is in sample.pLens. But how?
     // 
     Point3f pRear;
-    pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens);
+
+
+    // Find closest wavelength
+    int wlIndex=-1;
+    Float minError=INFINITY;
+    
+    for (int i=0; i<polyWavelengths_nm.size();i++){
+        Float error = std::abs(polyWavelengths_nm[i]-ray->wavelength);
+        
+        if(error < minError){
+            minError = error;
+            wlIndex=i;
+        }
+        
+    }
+    //std::cout << ray->wavelength << " - Chosen" << polyWavelengths_nm[wlIndex] << "\n";
+    
+    RTFVignettingTerms vignetting = vignettingTerms[wlIndex];
+    //pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens);
+    pRear = SampleExitPupilVignetting(Point2f(pFilm.x, pFilm.y), sample.pLens,vignetting);
     
     Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,
         Lerp(sample.time, shutterOpen, shutterClose));
@@ -522,7 +580,8 @@ Float RTFCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     
 
     // This is the core function of blackbox camera model
-    if(!TraceLensesFromFilm(rRear, ray)) {
+    // TODO : Add SPECTRAL INFO
+    if(!TraceLensesFromFilm(rRear, ray,wlIndex)) {
             // ++vignettedRays;
             return 0;
     }
@@ -532,66 +591,20 @@ Float RTFCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
     *ray = CameraToWorld(*ray);
     ray->d = Normalize(ray->d);
     ray->medium = medium;
+        
     
-    /*
-    ProfilePhase prof(Prof::GenerateCameraRay);
-    ++totalRays;
-    // Find point on film, _pFilm_, corresponding to _sample.pFilm_
-    Point2f s(sample.pFilm.x / film->fullResolution.x,
-        sample.pFilm.y / film->fullResolution.y);
-    Point2f pFilm2 = film->GetPhysicalExtent().Lerp(s);
-    Point3f pFilm(-pFilm2.x, pFilm2.y, 0);
+    // Adapted for different pupil areas 
+    Float cosTheta = Normalize(rFilm.d).z;
+    Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
+    Float pupilArea = vignetting.pupilRadii[vignetting.exitpupilIndex] * vignetting.pupilRadii[vignetting.exitpupilIndex] * Pi;
+    return cos4Theta * pupilArea / (filmDistance * filmDistance);
 
-    Float exitPupilBoundsArea;
-    Point3f pRear;
-    // Trace ray from _pFilm_ through lens system
-    if (HasMicrolens()) {
-        pRear = SampleMicrolensPupil(Point2f(pFilm.x, pFilm.y), sample.pLens, &exitPupilBoundsArea);
-    } else {
-        pRear = SampleExitPupil(Point2f(pFilm.x, pFilm.y), sample.pLens, &exitPupilBoundsArea);
-    }
-    Ray rFilm = Ray(pFilm, pRear - pFilm, Infinity,
-        Lerp(sample.time, shutterOpen, shutterClose));
-
-    if (!TraceFullLensSystemFromFilm(rFilm, ray)) {
-        ++vignettedRays;
-        return 0;
-    }
-
-    // Finish initialization of _RTFCamera_ ray
-    *ray = CameraToWorld(*ray);
-    ray->d = Normalize(ray->d);
-    ray->medium = medium;
-
-    // Return weighting for _RTFCamera_ ray
-    if (HasMicrolens()) {
-        // TODO: Proper weighting
-        Float cosTheta = Normalize(rFilm.d).z;
-        Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-        if (simpleWeighting) {
-            // Normalize by eaxpecting that on average rays only make it through
-            // one microlens to the outside world
-            Float simDiameter = (microlens.simulationRadius*2.0 + 1.0);
-            return cos4Theta * (simDiameter*simDiameter);
-        }
-        else
-            return (shutterClose - shutterOpen) *
-            (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
-    } else {
-        Float cosTheta = Normalize(rFilm.d).z;
-        Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
-        if (simpleWeighting)
-            return cos4Theta * exitPupilBoundsArea / exitPupilBounds[0].Area();
-        else
-            return (shutterClose - shutterOpen) *
-            (cos4Theta * exitPupilBoundsArea) / (LensRearZ() * LensRearZ());
-    }
-     */
-    
+/* Original
     Float cosTheta = Normalize(rFilm.d).z;
     Float cos4Theta = (cosTheta * cosTheta) * (cosTheta * cosTheta);
     Float pupilArea = pupilRadii[pupilIndex] * pupilRadii[pupilIndex] * Pi;
     return cos4Theta * pupilArea / (filmDistance * filmDistance);
+    */
 }
 
 RTFCamera *CreateRTFCamera(const ParamSet &params,
@@ -754,9 +767,9 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
                 result.circleRadii = toTerms(sp["circleRadii"]);
                 result.circleSensitivities = toTerms(sp["circleSensitivities"]);
 
-
-
                 Float smallestBound  = INFINITY; //for initialization to find smallest pupil
+                result.exitpupilIndex=0;
+
                 for (int i = 0; i < result.pupilPos.size(); i++) {
                         // Convert from mm to meter
                      
@@ -764,7 +777,7 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
                     result.pupilPos[i] = mm_to_meter*result.pupilPos[i];
                     result.pupilRadii[i] = mm_to_meter*result.pupilRadii[i];
                     result.circleRadii[i] = mm_to_meter*result.circleRadii[i];
-                    result.circleSensitivities[i] = mm_to_meter*result.circleSensitivities[i]; // sensitivies do not need to be converted because they are a ratio of distances
+                    result.circleSensitivities[i] = result.circleSensitivities[i]; // sensitivies do not need to be converted because they are a ratio of distances
                     
                      // TG: in this implementation y is set to infinity, x to 0
                     // Goal: Find the smallest pupil, only go into the if statement if the current exit pupil bound is still
@@ -772,7 +785,7 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
                     
                     if (smallestBound > result.pupilRadii[i]) {
                      // Take the max of the two in case pupilRadii is even smaller than value of interest.
-                     Float r = result.pupilRadii[i];
+                      Float r = result.pupilRadii[i];
                       smallestBound = std::max(r, 0.0f);
                       result.exitpupilIndex   = i;
  
@@ -850,7 +863,7 @@ RTFCamera *CreateRTFCamera(const ParamSet &params,
     std::string bbmode = params.FindOneFilename("bbmode", "polynomial");
     
     return new RTFCamera(cam2world, shutteropen, shutterclose,
-                              apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, polynomialMaps, bbmode, vignettingTerms);
+                              apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, polynomialMaps, bbmode, vignettingTerms,polyWavelengths_nm);
 }
  //   return new RTFCamera(cam2world, shutteropen, shutterclose,
                               //apertureDiameter, filmDistance, lensThickness, planeOffset, caFlag, film, medium, exitPupilBounds, poly, bbmode, pupilPos, pupilRadii, pupilIndex,circleRadii,circleSensitivities,circlePlaneZ);

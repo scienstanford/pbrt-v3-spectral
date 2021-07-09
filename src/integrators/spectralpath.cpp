@@ -282,6 +282,8 @@ namespace pbrt {
                             // reflecting off objects, and finally hitting a light source. The radiance is returned here. 
                             // The radiance is returned as a full spectrum, but we only care about the value associated with the ray's assigned 
                             // wavelength. This is because the direction the ray exited the lens is dependent on the wavelength.
+
+                            //TG: But I see nowhere where you discard the other contributions?
                             if (rayWeight > 0) Ls = Li(ray, scene, *tileSampler, arena, 0);
                             
                             // Issue warning if unexpected radiance value returned
@@ -317,7 +319,7 @@ namespace pbrt {
                             for(int waveIndex = bottomIndex; waveIndex < topIndex; waveIndex++){
                                 L[waveIndex] = Ls[waveIndex];
                             }
-
+                     
                         }
                         
                         // Add camera ray's contribution to image
