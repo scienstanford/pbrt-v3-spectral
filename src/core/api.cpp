@@ -835,7 +835,7 @@ Camera *MakeCamera(const std::string &name, const ParamSet &paramSet,
     else if (name == "omnispectral")
               camera = CreateOmniCamera(paramSet, animatedCam2World, film,
             mediumInterface.outside); // Thomas: to be updated
-    else if (name == "rtf")
+    else if (name == "raytransfer")
         camera = CreateRTFCamera(paramSet, animatedCam2World, film,
                                   mediumInterface.outside);
     else
