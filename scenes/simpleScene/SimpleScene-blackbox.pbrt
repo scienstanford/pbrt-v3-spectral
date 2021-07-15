@@ -1,18 +1,18 @@
 # PBRT file created with piWrite on 2021/4/14 15:44:49.41 
 # PBRT version = 3 
 
-LookAt 0.000000 0.500000 -15.000000 0.000000 0.500000 -14.000000 0.000000 1.000000 0.000000 
+LookAt 0.000000 0.500000 -17.000000 0.000000 0.500000 -14.000000 0.000000 1.000000 0.000000 
 
 # camera 
-Camera "rtf" 
-"string lensfile" "../lens/polyjson_test_5deg_0.1_spectral.json"
+Camera "raytransfer" 
+"string lensfile" "../lens/dgauss.22deg.3.0mm.json-raytransfer.json"
 "float aperturediameter" [2.531800] 
 "float focusdistance" [10.000000] 
 "float filmdistance" [0.002167]
 
 # sampler 
 Sampler "halton" 
-  "integer pixelsamples" [128] 
+  "integer pixelsamples" [20] 
 
 # film 
 Film "image" 
@@ -22,7 +22,7 @@ Film "image"
 
 # integrator 
 Integrator "spectralpath"
-  "integer numCABands" [1]
+  "integer numCABands" [4]
   "integer maxdepth" [5] 
   "string strategy" "all"
 
