@@ -23,7 +23,7 @@ Film "image"
 # integrator 
 Integrator "spectralpath" 
   "integer maxdepth" [5]
-  "integer numCABands" [31]
+  "integer numCABands" [3]
   "string strategy" "all" 
 
 WorldBegin 

@@ -424,10 +424,29 @@ bool OmniCamera::TraceLensesFromFilm(const Ray &rCamera,
         if (!isStop) {
             rLens.o = rLens(t);
             Vector3f w;
+
+/* Original  16 July 2021
             Float etaI = element.eta;
             Float etaT = (i > 0 && elementInterfaces[i - 1].eta != 0)
                              ? elementInterfaces[i - 1].eta
                              : 1;
+*/
+
+            // Thomas Goossens spectral modification using SampeldSpectrum
+            Float spectralEtaI; element.etaspectral.GetValueAtWavelength(rLens.wavelength,&spectralEtaI);
+            Float spectralEtaT; elementInterfaces[i - 1].etaspectral.GetValueAtWavelength(rLens.wavelength,&spectralEtaT);
+
+
+            Float etaI = spectralEtaI;
+            Float etaT = (i > 0 && spectralEtaT != 0)
+                             ? spectralEtaT
+                             : 1;
+
+                             
+
+
+ 
+             
             // Added by Trisha and Zhenyi (5/18)
             if(caFlag && (rLens.wavelength >= 400) && (rLens.wavelength <= 700))
             {     
@@ -1311,7 +1330,11 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 // Stored in columns in json, but pbrt stores matrices 
                 // in row-major order.
                 if (jiors.is_number()) { // Perfectly fine to have no transform
-                    return (Float)jiors;
+                
+                   std::vector<Float> wavelengths{550};
+                   std::vector<Float> ior{jiors};
+                   return  SampledSpectrum::FromSampled(wavelengths.data(), ior.data(), (int)1);
+                    //return (Float)jiors; // TG Return sampled spectrum for all wavelengths
                 }
                 if (!(jiors.is_array()) || (jiors.size() != 2) || (!jiors[0].is_array())
                     || (!jiors[1].is_array()) || (jiors[0].size() != jiors[1].size())
@@ -1330,6 +1353,8 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 }
                 
                 SampledSpectrum s = SampledSpectrum::FromSampled(wavelengths.data(), iors.data(), (int)numSamples);
+                
+                /* TG: This original piece of code checked whether the spectrum is constant when given, because it was not yet supported
                 for (int i = 0; i < numSamples-1; ++i) {
                     if (std::abs(s[i] - s[i + 1]) > 0.001) {
                         Error("Invalid ior in lens specification file \"%s\","
@@ -1337,9 +1362,13 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                             lensFile.c_str(), s[i], s[i+1], std::abs(s[i] - s[i + 1]));
                     }
                 }
-                std::cout << s << "\n";
-                return s[0]; // Thomas: why return only one of the wavelength?
+                */
+            
+              return s; // Thomas: why return only one of the wavelength?  return s[0]; // Thomas: why return only one of the wavelength?
+//            return s[0]; /%/ Thomas: why return only one of the wavelength?  return s[0]; // Thomas: why return only one of the wavelength?
             };
+
+            
 
 
             auto toAsphericCoefficients = [lensFile](json jaspherics) {
@@ -1370,8 +1399,10 @@ OmniCamera *CreateOmniCamera(const ParamSet &params,
                 result.apertureRadius   = toVec2(surf["semi_aperture"]) * (Float).001;
                 result.conicConstant    = toVec2(surf["conic_constant"]) * (Float).001;
                 result.curvatureRadius  = toVec2(surf["radius"]) * (Float).001;
-                result.eta              = toIORSpectrum(surf["ior"]);
-                std::cout << result.eta << "\n";
+                result.etaspectral      = toIORSpectrum(surf["ior"]);
+                result.eta              = result.etaspectral[0]; //for backwards compatibility during refactor (TG)
+                
+                
                 result.thickness        = Float(surf["thickness"]) * (Float).001;
                 result.transform        = toTransform(surf["transform"]);
 

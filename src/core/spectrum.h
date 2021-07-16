@@ -443,16 +443,20 @@ class SampledSpectrum : public CoefficientSpectrum<nSpectralSamples> {
         
         // A rare case but let's catch it
         if(wavelength == sampledLambdaEnd){
+   
             *output = c[nSpectralSamples-1];
         }
+        // Loop over the sampled spectrum segments
         
         for(int i = 0; i < nSpectralSamples; i++){
-            
+        
             w0 = Lerp(Float(i) / Float(nSpectralSamples),
                                  sampledLambdaStart, sampledLambdaEnd);
             w1 = Lerp(Float(i + 1) / Float(nSpectralSamples),
                                  sampledLambdaStart, sampledLambdaEnd);
             
+            
+            // Find in which segment the requested wavelength lies and locally interpolate between the endpoints
             if ((wavelength >= w0) && (wavelength < w1)){
                 t = (wavelength - w0)/(w1-w0);
                 *output = Lerp(t, c[i], c[i+1]);

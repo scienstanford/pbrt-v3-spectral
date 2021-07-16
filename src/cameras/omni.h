@@ -50,19 +50,21 @@ class OmniCamera : public Camera {
     struct LensElementInterface {
         LensElementInterface() {}
         LensElementInterface(Float cRadius, Float aRadius,
-            Float thickness, Float ior) :
+            Float thickness, Float ior,SampledSpectrum iorspectral) :
             curvatureRadius(cRadius,cRadius),
             apertureRadius(aRadius ,aRadius),
             conicConstant((Float)0.0, (Float)0.0),
             transform(Transform()),
             thickness(thickness),
-            eta(ior) {}
+            eta(ior),
+            etaspectral(iorspectral) {}
         Vector2f curvatureRadius;
         Vector2f apertureRadius;
         Vector2f conicConstant;
         Transform transform;
         Float thickness;
         Float eta;
+        SampledSpectrum etaspectral;
         std::vector<Float> asphericCoefficients;
         Float zMin;
         Float zMax;
